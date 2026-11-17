@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>نظام المحاسب</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- القائمة الجانبية -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M4 19h16M8 15v-3M12 15V8M16 15v-5"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">المحاسب</div>
+        <div class="brand-sub">نظام ERP المتكامل</div>
+      </div>
+    </div>
+
+    <nav class="nav" id="nav"></nav>
+
+    <div class="sidebar-footer">
+      <div class="avatar">أ</div>
+      <div class="user-info">
+        <div class="user-name">المدير المالي</div>
+        <div class="user-role">مسؤول النظام</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- المحتوى -->
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="القائمة">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <div>
+        <h1 id="pageTitle">لوحة التحكم</h1>
+        <div class="crumbs" id="pageSub">نظرة عامة على الوضع المالي</div>
+      </div>
+      <div class="topbar-actions">
+        <div class="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="globalSearch" type="search" placeholder="بحث في السجلات...">
+        </div>
+        <button class="icon-btn" aria-label="الإشعارات">
+          <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+          <i class="dot"></i>
+        </button>
+      </div>
+    </header>
+
+    <section class="content" id="content"></section>
+  </main>
+
+  <!-- نافذة الإضافة/التعديل -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <form class="modal-box" id="modalForm">
+      <div class="modal-head">
+        <h3 id="modalTitle">إضافة سجل</h3>
+        <button type="button" class="icon-btn" data-close aria-label="إغلاق">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" data-close>إلغاء</button>
+        <button type="submit" class="btn primary" id="saveBtn">حفظ</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
