@@ -194,7 +194,7 @@
   const leafAccounts = () => db.accounts.filter(a => !hasChildren(a.code)).sort((a, b) => a.code.localeCompare(b.code));
   // الحسابات التي يرحّل عليها النظام تلقائياً
   const SYS = { cash: '121', banks: '122', customers: '123', inventory: '124', empAdvances: '126', drawings: '214', suppliers: '231',
-    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '422', salaries: '321', labor: '322', maint: '332', defPurchase: '1241' };
+    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '422', salaries: '321', labor: '322', maint: '332', defPurchase: '1241', wages: '32', accruedSal: '236' };
   // طبيعة الحساب: من الحساب نفسه أو أقرب أب محدد له طبيعة (مثل مسحوبات الملاك: مدين)، وإلا حسب الرقم الأول
   const isDebitNature = code => memo('nat:' + code, () => {
     for (let a = acc(code); a; a = acc(a.parent)) if (a.nature) return a.nature === 'مدين';
@@ -205,6 +205,14 @@
   const custAcc = name => catAcc(SYS.customers, db.customers.find(c => c.name === name)?.category);
   const suppAcc = name => catAcc(SYS.suppliers, db.suppliers.find(s => s.name === name)?.category);
   const ownerAcc = name => childrenOf(SYS.drawings).find(a => a.name === name)?.code;
+  // فئات المرتبات: كل التزام تحت "أرصدة دائنة أخرى" يقابله مصروف بنفس الاسم بدون "المستحقة" تحت "الأجور والمرتبات"
+  const SUFFIX = /\s*المستحقة$/;
+  const payGroups = () => childrenOf(SYS.accruedSal).map(a => a.name.replace(SUFFIX, ''));
+  const payAccs = group => {
+    const liab = childrenOf(SYS.accruedSal).find(a => a.name.replace(SUFFIX, '') === group);
+    const exp = childrenOf(SYS.wages).find(a => a.name === group);
+    return { liab: liab?.code || SYS.accrued, exp: exp?.code || SYS.salaries };
+  };
   const custCats = () => childrenOf(SYS.customers).map(a => a.name);
   const suppCats = () => childrenOf(SYS.suppliers).map(a => a.name);
   const nature = code => isDebitNature(code) ? 'مدين' : 'دائن';
@@ -239,9 +247,13 @@
         [L(suppAcc(r.supplier), r.amount), L(accCode(r.account) || SYS.defPurchase, 0, r.amount)]));
       db.payments.forEach(r => add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${r.party}`,
         [L(isSupplier(r.party) ? suppAcc(r.party) : ownerAcc(r.party) || accCode(r.account) || SYS.accrued, r.amount), L(boxAcc(r.box), 0, r.amount)]));
-      db.payroll.forEach(r => { const gross = +r.basic + +r.allowances, ded = +r.deductions;
-        add('payroll', 'كشف رواتب', r, `PAY-${r.month}-${r.id}`, `${r.month}-28`, `راتب ${r.employee} عن ${r.month}`,
-          [L(SYS.salaries, gross), L(SYS.socialIns, 0, ded), L(boxAcc(r.box), 0, gross - ded)]); });
+      // الاستحقاق: من حـ/ المصروف إلى حـ/ المرتبات المستحقة (والتأمينات)، ثم الصرف: من حـ/ المستحقة إلى حـ/ الخزينة
+      db.payroll.forEach(r => { const gross = +r.basic + +r.allowances, ded = +r.deductions, net = gross - ded, g = payAccs(r.group);
+        const no = `PAY-${r.month}-${r.id}`, date = `${r.month}-28`;
+        add('payroll', 'استحقاق رواتب', r, no, date, `استحقاق راتب ${r.employee} عن ${r.month}`,
+          [L(g.exp, gross), L(SYS.socialIns, 0, ded), L(g.liab, 0, net)]);
+        if (r.paid !== 'مستحق') add('payroll', 'صرف رواتب', r, `${no}-ص`, date, `صرف راتب ${r.employee} عن ${r.month}`,
+          [L(g.liab, net), L(boxAcc(r.box), 0, net)]); });
       db.dailyLabor.forEach(r => add('dailyLabor', 'يوميات عمال', r, `LAB-${r.id}`, r.date, `يومية ${r.worker} (${r.days} يوم)`,
         [L(SYS.labor, r.days * r.wage), L(boxAcc(r.box), 0, r.days * r.wage)]));
       db.advances.forEach(r => { if (r.type === 'جزاء') return;
@@ -499,19 +511,24 @@
     // ===== شئون العاملين =====
     employees: { title: 'الموظفون', sub: 'قاعدة بيانات الموظفين', single: 'موظف', key: 'name', filter: 'department', cols: [
       C('code', 'الكود', CODE), C('name', 'اسم الموظف', { full: true }), C('department', 'الإدارة', { input: 'select', options: names('departments') }),
-      C('job', 'الوظيفة'), C('hireDate', 'تاريخ التعيين', D), C('salary', 'الراتب الأساسي', { ...M, total: true }),
+      C('job', 'الوظيفة'), C('payGroup', 'فئة المرتبات', { render: plain, input: 'select', options: payGroups }),
+      C('hireDate', 'تاريخ التعيين', D), C('salary', 'الراتب الأساسي', { ...M, total: true }),
       C('onLeave', 'الحالة اليوم', { compute: r => db.leaves.some(l => l.employee === r.name && l.status === 'معتمدة' && l.from <= today() && l.to >= today()) ? 'إجازة' : r.status, render: pill }),
       C('status', 'حالة التعاقد', { ...status('نشط', 'موقوف'), formOnly: true })] },
     attendance: { title: 'الحضور والانصراف', sub: 'سجل الحضور اليومي للموظفين', single: 'سجل حضور', filter: 'status', cols: [
       C('date', 'التاريخ', D), C('employee', 'الموظف', { input: 'select', options: names('employees'), full: true }),
       C('timeIn', 'الحضور', { input: 'time', optional: true }), C('timeOut', 'الانصراف', { input: 'time', optional: true }), C('status', 'الحالة', status('حاضر', 'متأخر', 'غائب', 'إجازة'))] },
-    payroll: { title: 'الرواتب', sub: 'تُرحّل: من حـ/ الرواتب إلى حـ/ البنك و حـ/ التأمينات', single: 'راتب', cols: [
+    payroll: { title: 'الرواتب', sub: 'الاستحقاق: من حـ/ المرتبات إلى حـ/ المرتبات المستحقة · الصرف: من حـ/ المستحقة إلى حـ/ الخزينة', single: 'راتب', filter: 'paid', cols: [
       C('month', 'الشهر', { input: 'month' }), C('employee', 'الموظف', { input: 'select', options: names('employees') }),
+      C('group', 'فئة المرتبات', { render: plain, input: 'select', options: payGroups }),
       C('basic', 'الأساسي', { ...M, total: true }), C('allowances', 'البدلات والحوافز', { ...M, total: true }), C('deductions', 'الاستقطاعات', { ...M, total: true }),
       C('net', 'صافي الراتب', computed(r => r.basic + r.allowances - r.deductions, { total: true, render: v => `<b>${money(v)}</b>` })),
-      boxField('يُصرف من')],
-      defaults: () => ({ allowances: 0, deductions: 0, box: db.cashboxes.find(b => b.type === 'بنك')?.name }),
-      onSelect: { employee: (f, v) => { const e = db.employees.find(x => x.name === v); if (e) f.basic.value = e.salary; } },
+      C('paid', 'الحالة', status('مستحق', 'مصروف')), boxField('يُصرف من')],
+      defaults: () => ({ allowances: 0, deductions: 0, paid: 'مستحق', box: db.cashboxes.find(b => b.type === 'بنك')?.name }),
+      onSelect: { employee: (f, v) => { const e = db.employees.find(x => x.name === v); if (e) { f.basic.value = e.salary; if (e.payGroup) f.group.value = e.payGroup; } } },
+      actions: [{ icon: 'pay', title: 'صرف الراتب', write: true, show: r => r.paid === 'مستحق', fn: r => {
+        const x = db.payroll.find(p => p.id === r.id); if (!x || !can('payroll', 'e')) return denied();
+        x.paid = 'مصروف'; save(); renderPage(); renderNav(); toast(`تم صرف راتب ${x.employee} من ${x.box}`); } }],
       validate: (d, rec) => db.payroll.some(p => p !== rec && p.month === d.month && p.employee === d.employee) ? `راتب ${d.employee} عن ${d.month} مسجل من قبل` : '' },
     leaves: { title: 'الإجازات', sub: 'الإجازة المعتمدة تظهر في حالة الموظف تلقائياً', single: 'إجازة', filter: 'status', cols: [
       C('employee', 'الموظف', { input: 'select', options: names('employees'), full: true }), C('type', 'نوع الإجازة', { render: plain, input: 'select', options: opt('اعتيادية', 'عارضة', 'مرضية', 'بدون أجر') }),

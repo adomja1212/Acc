@@ -451,6 +451,41 @@ window.ACC_SEED = {
    "balance": 19000
   },
   {
+   "id": "acc236",
+   "code": "236",
+   "name": "أرصدة دائنة أخرى",
+   "parent": "23",
+   "balance": 0
+  },
+  {
+   "id": "acc2361",
+   "code": "2361",
+   "name": "مرتبات العاملين المستحقة",
+   "parent": "236",
+   "balance": 0
+  },
+  {
+   "id": "acc2362",
+   "code": "2362",
+   "name": "مرتبات البنات الثابتة المستحقة",
+   "parent": "236",
+   "balance": 0
+  },
+  {
+   "id": "acc2363",
+   "code": "2363",
+   "name": "مرتبات البنات المؤقتة المستحقة",
+   "parent": "236",
+   "balance": 0
+  },
+  {
+   "id": "acc2364",
+   "code": "2364",
+   "name": "مرتبات بنجلاديش المستحقة",
+   "parent": "236",
+   "balance": 0
+  },
+  {
    "id": "acc3",
    "code": "3",
    "name": "المصروفات",
@@ -481,7 +516,7 @@ window.ACC_SEED = {
   {
    "id": "acc321",
    "code": "321",
-   "name": "رواتب الموظفين",
+   "name": "مرتبات العاملين",
    "parent": "32",
    "balance": 420000
   },
@@ -498,6 +533,27 @@ window.ACC_SEED = {
    "name": "حصة الشركة في التأمينات",
    "parent": "32",
    "balance": 58000
+  },
+  {
+   "id": "acc324",
+   "code": "324",
+   "name": "مرتبات البنات الثابتة",
+   "parent": "32",
+   "balance": 0
+  },
+  {
+   "id": "acc325",
+   "code": "325",
+   "name": "مرتبات البنات المؤقتة",
+   "parent": "32",
+   "balance": 0
+  },
+  {
+   "id": "acc326",
+   "code": "326",
+   "name": "مرتبات بنجلاديش",
+   "parent": "32",
+   "balance": 0
   },
   {
    "id": "acc33",
@@ -881,7 +937,8 @@ window.ACC_SEED = {
    "job": "المدير العام",
    "hireDate": "2015-03-01",
    "salary": 45000,
-   "status": "نشط"
+   "status": "نشط",
+   "payGroup": "مرتبات العاملين"
   },
   {
    "id": "employees-002",
@@ -891,7 +948,8 @@ window.ACC_SEED = {
    "job": "رئيس الحسابات",
    "hireDate": "2017-06-15",
    "salary": 28000,
-   "status": "نشط"
+   "status": "نشط",
+   "payGroup": "مرتبات العاملين"
   },
   {
    "id": "employees-003",
@@ -901,7 +959,8 @@ window.ACC_SEED = {
    "job": "محاسبة",
    "hireDate": "2021-01-10",
    "salary": 14000,
-   "status": "نشط"
+   "status": "نشط",
+   "payGroup": "مرتبات العاملين"
   },
   {
    "id": "employees-004",
@@ -911,7 +970,8 @@ window.ACC_SEED = {
    "job": "مدير المبيعات",
    "hireDate": "2018-09-01",
    "salary": 24000,
-   "status": "نشط"
+   "status": "نشط",
+   "payGroup": "مرتبات العاملين"
   },
   {
    "id": "employees-005",
@@ -921,7 +981,8 @@ window.ACC_SEED = {
    "job": "مسئول مشتريات",
    "hireDate": "2019-04-20",
    "salary": 16000,
-   "status": "نشط"
+   "status": "نشط",
+   "payGroup": "مرتبات العاملين"
   },
   {
    "id": "employees-006",
@@ -931,7 +992,8 @@ window.ACC_SEED = {
    "job": "أمين مخزن",
    "hireDate": "2016-11-05",
    "salary": 12000,
-   "status": "نشط"
+   "status": "نشط",
+   "payGroup": "مرتبات العاملين"
   },
   {
    "id": "employees-007",
@@ -941,7 +1003,8 @@ window.ACC_SEED = {
    "job": "أخصائي موارد بشرية",
    "hireDate": "2020-02-01",
    "salary": 13500,
-   "status": "نشط"
+   "status": "نشط",
+   "payGroup": "مرتبات العاملين"
   },
   {
    "id": "employees-008",
@@ -951,7 +1014,8 @@ window.ACC_SEED = {
    "job": "مدير الميكنة",
    "hireDate": "2014-07-12",
    "salary": 26000,
-   "status": "نشط"
+   "status": "نشط",
+   "payGroup": "مرتبات العاملين"
   },
   {
    "id": "employees-009",
@@ -961,7 +1025,8 @@ window.ACC_SEED = {
    "job": "مهندس صيانة",
    "hireDate": "2019-10-01",
    "salary": 19000,
-   "status": "نشط"
+   "status": "نشط",
+   "payGroup": "مرتبات العاملين"
   }
  ],
  "attendance": [
@@ -1014,7 +1079,9 @@ window.ACC_SEED = {
    "basic": 45000,
    "allowances": 6000,
    "deductions": 4950,
-   "box": "بنك مصر"
+   "box": "بنك مصر",
+   "group": "مرتبات العاملين",
+   "paid": "مصروف"
   },
   {
    "id": "payroll-002",
@@ -1023,7 +1090,9 @@ window.ACC_SEED = {
    "basic": 28000,
    "allowances": 3500,
    "deductions": 3080,
-   "box": "بنك مصر"
+   "box": "بنك مصر",
+   "group": "مرتبات العاملين",
+   "paid": "مصروف"
   },
   {
    "id": "payroll-003",
@@ -1032,7 +1101,9 @@ window.ACC_SEED = {
    "basic": 14000,
    "allowances": 1500,
    "deductions": 1540,
-   "box": "بنك مصر"
+   "box": "بنك مصر",
+   "group": "مرتبات العاملين",
+   "paid": "مصروف"
   },
   {
    "id": "payroll-004",
@@ -1041,7 +1112,9 @@ window.ACC_SEED = {
    "basic": 24000,
    "allowances": 5000,
    "deductions": 2640,
-   "box": "بنك مصر"
+   "box": "بنك مصر",
+   "group": "مرتبات العاملين",
+   "paid": "مصروف"
   },
   {
    "id": "payroll-005",
@@ -1050,7 +1123,9 @@ window.ACC_SEED = {
    "basic": 26000,
    "allowances": 4000,
    "deductions": 2860,
-   "box": "بنك مصر"
+   "box": "بنك مصر",
+   "group": "مرتبات العاملين",
+   "paid": "مصروف"
   },
   {
    "id": "payroll-006",
@@ -1059,7 +1134,9 @@ window.ACC_SEED = {
    "basic": 19000,
    "allowances": 2500,
    "deductions": 2090,
-   "box": "بنك مصر"
+   "box": "بنك مصر",
+   "group": "مرتبات العاملين",
+   "paid": "مصروف"
   }
  ],
  "leaves": [
