@@ -507,6 +507,20 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
+   "id": "acc2368",
+   "code": "2368",
+   "name": "إيجار شقق مستحق",
+   "parent": "236",
+   "balance": 0
+  },
+  {
+   "id": "acc2369",
+   "code": "2369",
+   "name": "إيجار محل مستحق",
+   "parent": "236",
+   "balance": 0
+  },
+  {
    "id": "acc3",
    "code": "3",
    "name": "المصروفات",
@@ -612,6 +626,13 @@ window.ACC_SEED = {
    "balance": 48000
   },
   {
+   "id": "acc335",
+   "code": "335",
+   "name": "مصروفات إيجار محل",
+   "parent": "33",
+   "balance": 0
+  },
+  {
    "id": "acc34",
    "code": "34",
    "name": "مصروفات إدارية وعمومية",
@@ -664,6 +685,13 @@ window.ACC_SEED = {
    "id": "acc347",
    "code": "347",
    "name": "مصروفات العقود والاستشارات",
+   "parent": "34",
+   "balance": 0
+  },
+  {
+   "id": "acc348",
+   "code": "348",
+   "name": "مصروفات إيجار شقق",
    "parent": "34",
    "balance": 0
   },
