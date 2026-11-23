@@ -193,7 +193,7 @@
   const hasChildren = code => db.accounts.some(a => a.parent === code);
   const leafAccounts = () => db.accounts.filter(a => !hasChildren(a.code)).sort((a, b) => a.code.localeCompare(b.code));
   // الحسابات التي يرحّل عليها النظام تلقائياً
-  const SYS = { cash: '121', banks: '122', customers: '123', inventory: '124', empAdvances: '126', drawings: '214', suppliers: '231',
+  const SYS = { cash: '121', banks: '122', customers: '123', inventory: '124', empAdvances: '1281', otherDebit: '128', drawings: '214', suppliers: '231',
     accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '422', salaries: '321', labor: '322', maint: '332', defPurchase: '1241', wages: '32', accruedSal: '236' };
   // طبيعة الحساب: من الحساب نفسه أو أقرب أب محدد له طبيعة (مثل مسحوبات الملاك: مدين)، وإلا حسب الرقم الأول
   const isDebitNature = code => memo('nat:' + code, () => {
@@ -214,6 +214,9 @@
     const exp = childrenOf(SYS.wages).find(a => a.name === group);
     return { liab: liab?.code || SYS.accrued, exp: exp?.code || SYS.salaries };
   };
+  // أنواع السلف = حسابات "سلف ..." تحت الأرصدة المدينة الأخرى
+  const advCats = () => childrenOf(SYS.otherDebit).filter(a => a.name.startsWith('سلف')).map(a => a.name);
+  const advAcc = t => childrenOf(SYS.otherDebit).find(a => a.name === t)?.code || SYS.empAdvances;
   const custCats = () => childrenOf(SYS.customers).map(a => a.name);
   const suppCats = () => childrenOf(SYS.suppliers).map(a => a.name);
   const nature = code => isDebitNature(code) ? 'مدين' : 'دائن';
@@ -259,7 +262,7 @@
         [L(SYS.labor, r.days * r.wage), L(boxAcc(r.box), 0, r.days * r.wage)]));
       db.advances.forEach(r => { if (r.type === 'جزاء') return;
         add('advances', r.type === 'سلفة' ? 'سلفة عامل' : 'مكافأة عامل', r, `ADV-${r.id}`, r.date, `${r.type} - ${r.worker}`,
-          [L(r.type === 'سلفة' ? SYS.empAdvances : SYS.labor, r.amount), L(boxAcc(r.box), 0, r.amount)]); });
+          [L(r.type === 'سلفة' ? advAcc(r.advType) : SYS.labor, r.amount), L(boxAcc(r.box), 0, r.amount)]); });
       db.maintenanceOrders.forEach(r => { if (r.status !== 'مكتمل') return;
         add('maintenanceOrders', 'أمر صيانة', r, r.no, r.date, `صيانة ${r.machine}`, [L(SYS.maint, r.cost), L(boxAcc(r.box), 0, r.cost)]); });
       return E.sort((a, b) => -byDate(a, b) || (a.no < b.no ? 1 : -1));
@@ -549,9 +552,11 @@
       C('days', 'أيام العمل', N), C('wage', 'اليومية', M), C('total', 'المستحق', computed(r => r.days * r.wage, { total: true })), boxField('يُصرف من')],
       defaults: () => ({ days: 6, box: db.cashboxes.find(b => b.type === 'خزينة')?.name }),
       onSelect: { worker: (f, v) => { const w = db.workers.find(x => x.name === v); if (w) { f.wage.value = w.wage; f.site.value = w.site; } } } },
-    advances: { title: 'السلف والجزاءات', sub: 'السلفة: من حـ/ سلف العاملين · المكافأة: من حـ/ الأجور · الجزاء لا يُرحّل', single: 'حركة', filter: 'type', cols: [
+    advances: { title: 'السلف والجزاءات', sub: 'السلفة: من حـ/ نوع السلفة (أرصدة مدينة أخرى) · المكافأة: من حـ/ الأجور · الجزاء لا يُرحّل', single: 'حركة', filter: 'type', cols: [
       C('date', 'التاريخ', D), C('worker', 'العامل', { input: 'select', options: names('workers') }), C('type', 'النوع', status('سلفة', 'جزاء', 'مكافأة')),
-      C('amount', 'المبلغ', M), boxField(), C('notes', 'ملاحظات', { full: true, optional: true })] },
+      C('advType', 'نوع السلفة', { render: v => v ? plain(v) : '—', input: 'select', optional: true, allowEmpty: '— للسلفة فقط —', options: advCats }),
+      C('amount', 'المبلغ', M), boxField(), C('notes', 'ملاحظات', { full: true, optional: true })],
+      validate: d => d.type === 'سلفة' && !d.advType ? 'اختر نوع السلفة' : '' },
 
     // ===== الميكنة =====
     machines: { title: 'المعدات والآلات', sub: 'الحالة تصبح "في الصيانة" تلقائياً عند وجود أمر صيانة مفتوح', single: 'معدة', key: 'name', filter: 'state', cols: [
