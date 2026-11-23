@@ -12,6 +12,7 @@
   const sum = (arr, f) => arr.reduce((s, x) => s + (+f(x) || 0), 0);
   const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const ask = msg => importing || confirm(msg);
   const today = () => new Date().toISOString().slice(0, 10);
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
   const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
@@ -29,9 +30,9 @@
   const DB_CAPACITY = 25000;
   const SETTINGS_PATH = 'meta/settings';
   const TABLES = ['appUsers', 'accounts', 'customers', 'suppliers', 'items', 'warehouses', 'departments', 'employees', 'attendance', 'payroll', 'leaves',
-    'workers', 'dailyLabor', 'advances', 'cashboxes', 'receipts', 'payments', 'journal', 'salesInvoices', 'salesQuotes', 'salesReturns',
+    'workers', 'dailyLabor', 'advances', 'cashboxes', 'receipts', 'payments', 'boxTransfers', 'journal', 'salesInvoices', 'salesQuotes', 'salesReturns',
     'purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'stockIn', 'stockOut', 'transfers', 'machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan'];
-  const TX_TABLES = ['journal', 'receipts', 'payments', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
+  const TX_TABLES = ['journal', 'receipts', 'payments', 'boxTransfers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
     'stockIn', 'stockOut', 'transfers', 'attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders'];
   const DEFAULT_SETTINGS = { company: 'نظام المحاسب', taxNo: '', commercialReg: '', currency: 'ج.م', vat: 14, fiscalStart: `${new Date().getFullYear()}-01-01`, address: '' };
   const emptyDb = () => ({ ...Object.fromEntries(TABLES.map(t => [t, []])), settings: { ...DEFAULT_SETTINGS } });
@@ -252,6 +253,8 @@
       db.payments.forEach(r => add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${r.party}`,
         [L(isSupplier(r.party) ? suppAcc(r.party) : ownerAcc(r.party) || accCode(r.account) || SYS.accrued, r.amount), L(boxAcc(r.box), 0, r.amount)]));
       // الاستحقاق: من حـ/ المصروف إلى حـ/ المرتبات المستحقة (والتأمينات)، ثم الصرف: من حـ/ المستحقة إلى حـ/ الخزينة
+      db.boxTransfers.forEach(r => add('boxTransfers', 'تحويل خزائن وبنوك', r, r.no, r.date, r.desc || `تحويل من ${r.from} إلى ${r.to}`,
+        [L(boxAcc(r.to), r.amount), L(boxAcc(r.from), 0, r.amount)]));
       db.payroll.forEach(r => { const gross = +r.basic + +r.allowances, ded = +r.deductions, net = gross - ded, g = payAccs(r.group);
         const no = `PAY-${r.month}-${r.id}`, date = `${r.month}-28`;
         add('payroll', 'استحقاق رواتب', r, no, date, `استحقاق راتب ${r.employee} عن ${r.month}`,
@@ -429,6 +432,14 @@
         const inv = db.salesInvoices.find(i => i.no === d.invoice);
         if (inv && inv.customer !== d.party) return `الفاتورة ${inv.no} تخص ${inv.customer}`;
       } },
+    boxTransfers: { title: 'التحويلات بين الخزائن والبنوك', sub: 'يُرحّل: من حـ/ الخزينة أو البنك المحوَّل إليه إلى حـ/ المحوَّل منه', single: 'تحويل', key: 'no', prefix: 'BT-', cols: [
+      C('no', 'رقم التحويل', CODE), C('date', 'التاريخ', D), C('from', 'من خزينة / بنك', { input: 'select', options: names('cashboxes') }),
+      C('to', 'إلى خزينة / بنك', { input: 'select', options: names('cashboxes') }), C('amount', 'المبلغ', { ...M, total: true }), C('desc', 'البيان', { full: true, optional: true })],
+      validate: (d, rec) => {
+        if (d.from === d.to) return 'لا يمكن التحويل لنفس الخزينة';
+        const a = acc(boxAcc(d.from)); const avail = a ? ownBal(a) + (rec && rec.from === d.from ? +rec.amount : 0) : 0;
+        if (+d.amount > avail && !ask(`رصيد ${d.from} (${nf.format(avail)}) لا يكفي. متابعة؟`)) return 'تم الإلغاء';
+      } },
     payments: { title: 'سندات الصرف', sub: 'يُرحّل: من حـ/ المورد (حسب تصنيفه) أو مسحوبات المالك أو المصروف إلى حـ/ الخزينة', single: 'سند صرف', key: 'no', cols: [
       C('no', 'رقم السند', CODE), C('date', 'التاريخ', D), boxField(),
       C('party', 'المصروف إليه', { input: 'select', options: () => [...db.suppliers.map(c => [c.name, `مورد: ${c.name}`]), ...childrenOf(SYS.drawings).map(a => [a.name, `مسحوبات: ${a.name}`]), ['أخرى', 'أخرى (حدد الحساب)']] }),
@@ -440,7 +451,7 @@
         const inv = db.purchaseInvoices.find(i => i.no === d.invoice);
         if (inv && inv.supplier !== d.party) return `الفاتورة ${inv.no} تخص ${inv.supplier}`;
         const a = acc(boxAcc(d.box)); const avail = a ? ownBal(a) + (rec && rec.box === d.box ? +rec.amount : 0) : 0;
-        if (+d.amount > avail && !confirm(`رصيد ${d.box} (${nf.format(avail)}) لا يكفي. هل تريد المتابعة؟`)) return 'تم الإلغاء';
+        if (+d.amount > avail && !ask(`رصيد ${d.box} (${nf.format(avail)}) لا يكفي. هل تريد المتابعة؟`)) return 'تم الإلغاء';
       } },
 
     // ===== المبيعات =====
@@ -456,7 +467,7 @@
       validate: (d, rec) => {
         const c = db.customers.find(x => x.name === d.customer); if (!c || !+c.limit) return;
         const after = custBal(c.name) - (rec && rec.customer === c.name ? invTotal(rec) : 0) + +d.amount * (1 + (+d.vatRate || 0) / 100);
-        if (after > +c.limit && !confirm(`رصيد العميل سيصبح ${nf.format(after)} ويتجاوز حد الائتمان (${nf.format(c.limit)}). متابعة؟`)) return 'تم الإلغاء';
+        if (after > +c.limit && !ask(`رصيد العميل سيصبح ${nf.format(after)} ويتجاوز حد الائتمان (${nf.format(c.limit)}). متابعة؟`)) return 'تم الإلغاء';
       } },
     salesQuotes: { title: 'عروض الأسعار', sub: 'عروض الأسعار المقدمة للعملاء (لا تُرحّل)', single: 'عرض سعر', key: 'no', filter: 'status', cols: [
       C('no', 'رقم العرض', CODE), C('customer', 'العميل', { input: 'select', options: names('customers'), full: true }), C('date', 'التاريخ', D), C('validUntil', 'ساري حتى', D),
@@ -596,7 +607,7 @@
     employees: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee'], ['maintenanceOrders', 'technician']],
     workers: [['dailyLabor', 'worker'], ['advances', 'worker'], ['machineOps', 'operator'], ['maintenanceOrders', 'technician']],
     machines: [['machineOps', 'machine'], ['maintenanceOrders', 'machine'], ['maintenancePlan', 'machine']],
-    cashboxes: [['receipts', 'box'], ['payments', 'box'], ['payroll', 'box'], ['dailyLabor', 'box'], ['advances', 'box'], ['maintenanceOrders', 'box']],
+    cashboxes: [['receipts', 'box'], ['payments', 'box'], ['boxTransfers', 'from'], ['boxTransfers', 'to'], ['payroll', 'box'], ['dailyLabor', 'box'], ['advances', 'box'], ['maintenanceOrders', 'box']],
     salesInvoices: [['receipts', 'invoice'], ['salesReturns', 'invoice']],
     purchaseInvoices: [['payments', 'invoice'], ['purchaseReturns', 'invoice']],
   };
@@ -610,6 +621,7 @@
     ledger: { title: 'كشف حساب', sub: 'حركة الحساب التفصيلية والرصيد المتحرك', render: renderLedger },
     reports: { title: 'القوائم المالية', sub: 'قائمة الدخل، المركز المالي، ميزان المراجعة', render: renderReports },
     stockBalances: { title: 'أرصدة المخازن', sub: 'رصيد كل صنف في كل مخزن', render: renderStockBalances },
+    import: { title: 'استيراد البيانات', sub: 'من Excel أو CSV إلى أي جدول', render: renderImport },
     users: { title: 'المستخدمون والصلاحيات', sub: 'حسابات الدخول وصلاحيات كل مستخدم', render: renderUsers },
     database: { title: 'قاعدة البيانات', sub: 'الجداول والسعة والنسخ الاحتياطي', render: renderDatabase },
     settings: { title: 'الإعدادات', sub: 'بيانات المنشأة', render: renderSettings },
@@ -620,7 +632,7 @@
   const nav = [
     { title: 'دليل الحسابات', icon: 'list', items: ['accounts', 'journal', 'ledger', 'reports'] },
     { title: 'الإدارات', icon: 'box', items: [
-      { title: 'الخزينة', icon: 'cash', items: ['cashboxes', 'receipts', 'payments'] },
+      { title: 'الخزينة', icon: 'cash', items: ['cashboxes', 'receipts', 'payments', 'boxTransfers'] },
       { title: 'المبيعات', icon: 'sales', items: ['salesInvoices', 'salesQuotes', 'salesReturns'] },
       { title: 'المشتريات', icon: 'cart', items: ['purchaseOrders', 'purchaseInvoices', 'purchaseReturns'] },
       { title: 'المخازن', icon: 'box', items: ['stockBalances', 'stockIn', 'stockOut', 'transfers'] },
@@ -630,11 +642,11 @@
       { title: 'الصيانة', icon: 'wrench', items: ['maintenanceOrders', 'maintenancePlan'] },
     ] },
     { title: 'قواعد البيانات', icon: 'db', items: ['customers', 'suppliers', 'items', 'warehouses', 'employees', 'workers', 'departments', 'machines'] },
-    { title: 'الإدارة والإعدادات', icon: 'shield', items: ['dashboard', 'users', 'database', 'settings'] },
+    { title: 'الإدارة والإعدادات', icon: 'shield', items: ['dashboard', 'users', 'import', 'database', 'settings'] },
   ];
   const EMO = {
     dashboard: '📊', users: '👥', database: '🗄️', settings: '⚙️', accounts: '🌳', journal: '📒', ledger: '📄', reports: '📈',
-    cashboxes: '🏦', receipts: '📥', payments: '📤', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
+    cashboxes: '🏦', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
     purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
     attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
     customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', workers: '🦺', departments: '🏢', machines: '🚜',
@@ -822,6 +834,7 @@
             <input class="input" id="tblSearch" type="search" placeholder="بحث..." value="${esc(state.q)}">
             ${fcol ? `<select class="input" id="tblFilter"><option value="">${fcol.label}: الكل</option>${fopts.map(o => `<option ${o === state.filter ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` : ''}
             <button class="btn ghost" id="exportBtn">${icons.export}تصدير</button>
+            <button class="btn ghost" id="importBtn">${icons.receive}استيراد</button>
             <button class="btn primary" id="addBtn">${icons.plus}إضافة ${m.single}</button>
           </div>
         </div>
@@ -847,6 +860,7 @@
     $('#tblSearch').addEventListener('input', e => { state.q = e.target.value; renderModule(name); const el = $('#tblSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); });
     $('#tblFilter')?.addEventListener('change', e => { state.filter = e.target.value; renderModule(name); });
     $('#addBtn').onclick = () => openRecordForm(name);
+    $('#importBtn').onclick = () => openImport(name);
     $('#exportBtn').onclick = () => downloadCSV(name, cols.map(c => c.label), rows.map(r => cols.map(c => val(r, c))));
     const find = id => db[name].find(r => r.id === id);
     $$('[data-act]', content).forEach(b => b.onclick = () => m.actions[+b.dataset.act].fn(find(b.dataset.id)));
@@ -877,6 +891,7 @@
   };
   function openModal(title, fields, values, submit) {
     form.classList.remove('wide', 'info');
+    $('#saveBtn').textContent = 'حفظ'; $('#saveBtn').disabled = false;
     $('#modalTitle').textContent = title;
     $('#modalBody').innerHTML = `<div class="form-grid">${fields.map(c => field(c, values[c.key] ?? '')).join('')}</div>`;
     onSubmit = submit;
@@ -924,7 +939,7 @@
     const fields = m.cols.filter(c => !c.compute);
     const t = today();
     const defaults = Object.fromEntries(fields.map(c => [c.key, c.input === 'date' ? t : c.input === 'month' ? t.slice(0, 7) : '']));
-    ['no', 'code'].forEach(k => { if (k in defaults) defaults[k] = nextNo(db[name], k); });
+    ['no', 'code'].forEach(k => { if (k in defaults) defaults[k] = nextNo(db[name], k) || (k === 'no' && m.prefix ? m.prefix + '0001' : ''); });
     const recId = record?.id;
     openModal(`${record ? 'تعديل' : 'إضافة'} ${m.single}`, fields, record || { ...defaults, ...(m.defaults?.() || {}), ...prefill }, data => {
       // السجل الحالي من قاعدة البيانات (قد يكون مستخدم آخر عدّله أو حذفه)
@@ -1394,10 +1409,11 @@
   // =====================================================================
   const ACT_NAMES = { v: 'عرض', a: 'إضافة', e: 'تعديل', d: 'حذف' };
   const SPECIALS = [['export', 'تصدير وطباعة البيانات'], ['backup', 'النسخ الاحتياطي والاستعادة'],
-    ['adminTools', 'أدوات المدير (تفريغ الخزائن وحذف الحركات)'], ['users', 'إدارة المستخدمين والصلاحيات']];
+    ['adminTools', 'أدوات المدير (تفريغ الخزائن وحذف الحركات)'], ['users', 'إدارة المستخدمين والصلاحيات'], ['import', 'استيراد البيانات من Excel / CSV']];
   const VIEW_ONLY = ['dashboard', 'ledger', 'reports', 'stockBalances', 'database'];
-  const actsOf = p => p === 'users' ? [] : VIEW_ONLY.includes(p) ? ['v'] : p === 'settings' ? ['v', 'e'] : ['v', 'a', 'e', 'd'];
-  const permPages = () => Object.keys(pagePath).filter(p => p !== 'users');
+  const SPECIAL_PAGES = { users: 'users', import: 'import' };
+  const actsOf = p => SPECIAL_PAGES[p] ? [] : VIEW_ONLY.includes(p) ? ['v'] : p === 'settings' ? ['v', 'e'] : ['v', 'a', 'e', 'd'];
+  const permPages = () => Object.keys(pagePath).filter(p => !SPECIAL_PAGES[p]);
   const grant = (list, acts) => Object.fromEntries(list.map(p => [p, actsOf(p).filter(a => acts.includes(a)).join('')]));
   const ROLES = {
     admin: { title: 'مدير النظام', build: () => ({ perms: grant(permPages(), 'vaed'), special: SPECIALS.map(s => s[0]) }) },
@@ -1419,7 +1435,7 @@
   function can(page, act = 'v') {
     const u = curUser(); if (!u) return false;
     if (isAdminUser(u)) return true;
-    if (page === 'users') return (u.special || []).includes('users');
+    if (SPECIAL_PAGES[page]) return (u.special || []).includes(SPECIAL_PAGES[page]);
     return String(u.perms?.[page] || '').includes(act);
   }
   const canSp = sp => { const u = curUser(); return !!u && (isAdminUser(u) || (u.special || []).includes(sp)); };
@@ -1737,7 +1753,7 @@
       ? `<td><label class="pchk"><input type="checkbox" name="p:${p}:${a}" ${locked || String(perms[p] || '').includes(a) ? 'checked' : ''} ${dis}><i>${IC.check}</i></label></td>` : '<td class="na">—</td>').join('')}</tr>`;
     const groups = [];
     const walk = (items, titles) => items.forEach(it => {
-      if (typeof it === 'string') { if (it === 'users') return; let g = groups.find(x => x.t === titles.join(' › ')); if (!g) groups.push(g = { t: titles.join(' › '), p: [] }); g.p.push(it); }
+      if (typeof it === 'string') { if (SPECIAL_PAGES[it]) return; let g = groups.find(x => x.t === titles.join(' › ')); if (!g) groups.push(g = { t: titles.join(' › '), p: [] }); g.p.push(it); }
       else walk(it.items, [...titles, it.title]);
     });
     walk(nav, []);
@@ -1809,11 +1825,261 @@
     const p = state.page;
     const rm = sel => $$(sel, content).forEach(el => el.remove());
     if (!can(p, 'a')) rm('#addBtn, [data-addchild]');
+    if (!can(p, 'a') || !canSp('import')) rm('#importBtn');
     if (!can(p, 'e')) rm('[data-edit], [data-editacc]');
     if (!can(p, 'd')) rm('[data-del], [data-delacc]');
     if (!canSp('export')) rm('#exportBtn, [onclick="window.print()"]');
     $$('[data-act]', content).forEach(b => { const a = modules[p]?.actions?.[+b.dataset.act]; if (a?.target && !can(a.target, 'a')) b.remove(); });
     $$('[data-go], [data-src], .link-btn[href]', content).forEach(b => { const g = b.dataset.go || b.dataset.src || b.getAttribute('href')?.slice(1); if (g && pageInfo(g) && !can(g)) b.replaceWith(document.createTextNode(b.textContent)); });
+  }
+
+  // =====================================================================
+  //                 الاستيراد من Excel / CSV
+  // =====================================================================
+  let importing = false;
+  const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  let xlsxPromise = null;
+  const loadXLSX = () => xlsxPromise ??= new Promise(res => {
+    if (window.XLSX) return res(window.XLSX);
+    const s = document.createElement('script'); s.src = XLSX_URL;
+    s.onload = () => res(window.XLSX || null); s.onerror = () => { xlsxPromise = null; res(null); };
+    document.head.appendChild(s);
+  });
+
+  // شجرة الحسابات كجدول قابل للاستيراد
+  const ACC_IMPORT = { title: 'شجرة الحسابات', single: 'حساب', key: 'code', cols: [
+    C('code', 'كود الحساب'), C('name', 'اسم الحساب'), C('parent', 'كود الحساب الأب', { optional: true }),
+    C('nature', 'الطبيعة', { optional: true, input: 'select', options: opt('مدين', 'دائن') }),
+    C('balance', 'الرصيد الافتتاحي', { input: 'number', optional: true })],
+    validate: d => { if (d.parent && !acc(d.parent)) return `الحساب الأب ${d.parent} غير موجود`; if (d.parent === d.code) return 'الحساب لا يكون أباً لنفسه'; } };
+  const importDef = t => t === 'accounts' ? ACC_IMPORT : modules[t];
+  const importFields = t => importDef(t).cols.filter(c => !c.compute);
+  const importTables = () => ['accounts', ...Object.keys(modules)].filter(t => t === 'accounts' ? store.canAdmin && can('accounts', 'a') : can(t, 'a'));
+
+  // ----- قراءة الملف -----
+  const AR_DIGITS = s => String(s).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g, '.').replace(/٬/g, ',');
+  function parseCSV(text) {
+    text = text.replace(/^﻿/, '');
+    const first = text.split(/\r?\n/)[0] || '';
+    const delim = [',', ';', '\t'].sort((a, b) => first.split(b).length - first.split(a).length)[0];
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === delim) { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+      else cell += ch;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(r => r.some(c => String(c).trim() !== ''));
+  }
+  async function readSheet(file) {
+    if (/\.csv$|\.txt$/i.test(file.name)) return parseCSV(await file.text());
+    const X = await loadXLSX();
+    if (!X) throw new Error('تعذّر تحميل قارئ ملفات Excel — احفظ الملف بصيغة CSV وحاول مرة أخرى');
+    const wb = X.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    return X.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' }).filter(r => r.some(c => String(c).trim() !== ''));
+  }
+
+  // ----- تحويل القيم -----
+  const pad = n => String(n).padStart(2, '0');
+  const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  function convert(c, raw) {
+    if (raw instanceof Date) return c.input === 'month' ? isoOf(raw).slice(0, 7) : isoOf(raw);
+    const v = AR_DIGITS(raw ?? '').trim();
+    if (v === '') return '';
+    if (c.input === 'number') {
+      const n = Number(v.replace(/[,\s]/g, ''));
+      if (!Number.isFinite(n)) throw new Error(`"${c.label}" يجب أن يكون رقماً`);
+      return n;
+    }
+    if (c.input === 'date' || c.input === 'month') {
+      let iso = '';
+      if (/^\d{4,6}(\.\d+)?$/.test(v) && +v > 20000 && +v < 80000) iso = isoOf(new Date(Math.round((+v - 25569) * 864e5) + new Date().getTimezoneOffset() * 6e4));
+      else if (/^\d{4}[-/.]\d{1,2}([-/.]\d{1,2})?$/.test(v)) { const [y, m, d = 1] = v.split(/[-/.]/); iso = `${y}-${pad(m)}-${pad(d)}`; }
+      else if (/^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}$/.test(v)) { const [d, m, y] = v.split(/[-/.]/); iso = `${y}-${pad(m)}-${pad(d)}`; }
+      else if (/^\d{1,2}[-/.]\d{4}$/.test(v)) { const [m, y] = v.split(/[-/.]/); iso = `${y}-${pad(m)}-01`; }
+      if (!iso || Number.isNaN(new Date(iso).getTime())) throw new Error(`تاريخ غير صحيح في "${c.label}": ${v}`);
+      return c.input === 'month' ? iso.slice(0, 7) : iso;
+    }
+    if (c.input === 'select') {
+      const opts = c.options().map(o => Array.isArray(o) ? o.map(String) : [String(o), String(o)]);
+      const hit = opts.find(([ov, ol]) => ov === v || ol === v) || opts.find(([ov]) => /^\d+\s-\s/.test(ov) && accCode(ov) === accCode(v));
+      if (!hit) throw new Error(`"${v}" غير موجود في قائمة "${c.label}"`);
+      return hit[0];
+    }
+    return v;
+  }
+
+  // ----- تحليل الملف إلى صفوف جاهزة -----
+  function analyze(t, sheet, mode) {
+    const def = importDef(t), fields = importFields(t);
+    const norm = s => String(s ?? '').replace(/\s+/g, ' ').replace(/[*:]/g, '').trim().toLowerCase();
+    const header = (sheet[0] || []).map(norm);
+    const colIdx = Object.fromEntries(fields.map(c => [c.key, header.findIndex(h => h === norm(c.label) || h === norm(c.key))]));
+    const missingCols = fields.filter(c => !c.optional && colIdx[c.key] < 0 && !(def.defaults && c.key in (def.defaults() || {})));
+    const keyIdx = def.key ? colIdx[def.key] : -1;
+    const seen = new Set();
+    const rows = sheet.slice(1).map((r, i) => {
+      const out = { line: i + 2, data: {}, status: 'new', msg: '' };
+      try {
+        for (const c of fields) if (colIdx[c.key] >= 0) out.data[c.key] = convert(c, r[colIdx[c.key]]);
+        const keyVal = keyIdx >= 0 ? out.data[def.key] : '';
+        const existing = keyVal !== '' && keyVal != null ? db[t].find(x => String(x[def.key]) === String(keyVal)) : null;
+        if (keyVal && seen.has(keyVal)) throw new Error(`"${keyVal}" مكرر في الملف`);
+        if (keyVal) seen.add(keyVal);
+        if (existing) {
+          if (mode !== 'upsert') throw new Error(`"${keyVal}" موجود من قبل — اختر "إضافة وتحديث" لتعديله`);
+          if (!can(t, 'e')) throw new Error('ليس لديك صلاحية التعديل');
+          out.status = 'update'; out.id = existing.id;
+          Object.keys(out.data).forEach(k => { if (out.data[k] === '' && !fields.find(c => c.key === k).optional) delete out.data[k]; });
+        } else {
+          if (missingCols.length) throw new Error(`أعمدة ناقصة: ${missingCols.map(c => c.label).join('، ')}`);
+          const empty = fields.filter(c => !c.optional && colIdx[c.key] >= 0 && (out.data[c.key] === '' || out.data[c.key] == null) && !(def.defaults && c.key in (def.defaults() || {})));
+          if (empty.length) throw new Error(`حقول فارغة: ${empty.map(c => c.label).join('، ')}`);
+        }
+      } catch (e) { out.status = 'error'; out.msg = e.message; }
+      return out;
+    });
+    return { rows, unknown: (sheet[0] || []).filter((h, i) => h !== '' && !Object.values(colIdx).includes(i)), missingCols };
+  }
+
+  // ----- التنفيذ -----
+  function runImport(t, rows) {
+    const def = importDef(t);
+    let added = 0, updated = 0; const fails = [];
+    importing = true;
+    try {
+      for (const r of rows) {
+        if (r.status === 'error') { fails.push(r); continue; }
+        const cur = r.id ? db[t].find(x => x.id === r.id) : null;
+        const data = { ...r.data };
+        if (t === 'accounts') { data.parent = data.parent || null; data.balance = +data.balance || 0; }
+        const err = def.validate?.({ ...(cur || def.defaults?.() || {}), ...data }, cur);
+        if (err) { fails.push({ ...r, status: 'error', msg: err }); continue; }
+        let rec = cur;
+        if (cur) { Object.assign(cur, data); updated++; }
+        else { rec = { id: genId(), ...(def.defaults?.() || {}), ...data }; db[t].push(rec); added++; }
+        def.afterSave?.(rec);
+        cache = {};
+      }
+    } finally { importing = false; }
+    if (added || updated) save();
+    renderNav(); renderPage();
+    return { added, updated, fails };
+  }
+
+  // ----- الواجهة -----
+  async function downloadTemplate(t) {
+    const fields = importFields(t), def = importDef(t);
+    const sample = db[t][0];
+    const head = fields.map(c => c.label + (c.optional ? '' : ' *'));
+    const ex = sample ? fields.map(c => sample[c.key] ?? '') : fields.map(() => '');
+    const X = await loadXLSX();
+    if (X) {
+      const ws = X.utils.aoa_to_sheet([head, ex]);
+      ws['!cols'] = fields.map(c => ({ wch: Math.max(14, c.label.length + 4) }));
+      const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, 'بيانات');
+      const notes = [['تعليمات'], ['الصف الأول أسماء الأعمدة كما هي — الأعمدة المعلّمة بـ * مطلوبة للسجلات الجديدة'], ['الصف الثاني مثال من البيانات الحالية — احذفه أو عدّله'],
+        ['التواريخ: 2026-11-23 أو 23/11/2026'], ['القوائم (العميل، المورد، الخزينة، الحساب...) يجب أن تطابق الأسماء الموجودة في البرنامج'],
+        [def.key ? `للتعديل: اكتب ${fields.find(c => c.key === def.key)?.label} لسجل موجود واختر "إضافة وتحديث"، والأعمدة الفارغة لا تُغيَّر` : 'هذا الجدول يقبل الإضافة فقط']];
+      X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(notes), 'تعليمات');
+      const blob = new Blob([X.write(wb, { type: 'array', bookType: 'xlsx' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `نموذج-${def.title}.xlsx`; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } else downloadCSV(`نموذج-${def.title}`, head, [ex]);
+  }
+
+  function openImport(t0) {
+    if (!canSp('import')) return denied();
+    const tables = importTables();
+    if (!tables.length) return denied();
+    let t = tables.includes(t0) ? t0 : tables[0], parsed = null, sheet = null;
+    form.classList.add('wide'); form.classList.remove('info');
+    $('#modalTitle').textContent = 'استيراد من Excel / CSV';
+    const body = $('#modalBody');
+    const draw = () => {
+      const def = importDef(t), fields = importFields(t);
+      const cnt = s => parsed ? parsed.rows.filter(r => r.status === s).length : 0;
+      body.innerHTML = `
+        <div class="imp-head">
+          <div class="field"><label>الجدول</label><select class="input" id="impTable">${tables.map(x => `<option value="${x}" ${x === t ? 'selected' : ''}>${esc(importDef(x).title)}</option>`).join('')}</select></div>
+          <div class="field"><label>طريقة الاستيراد</label><select class="input" id="impMode" ${def.key ? '' : 'disabled'}>
+            <option value="add">إضافة سجلات جديدة فقط</option>${def.key && can(t, 'e') ? '<option value="upsert">إضافة وتحديث السجلات الموجودة</option>' : ''}</select></div>
+        </div>
+        <div class="imp-cols"><b>الأعمدة:</b> ${fields.map(c => `<span class="pill ${c.optional ? '' : 'amber'}">${esc(c.label)}${c.optional ? '' : ' *'}</span>`).join(' ')}
+          ${def.key ? `<div class="hint">المفتاح للتحديث: <b>${esc(fields.find(c => c.key === def.key)?.label || '')}</b></div>` : '<div class="hint">هذا الجدول يقبل الإضافة فقط</div>'}</div>
+        <div class="imp-actions">
+          <button type="button" class="btn ghost" id="impTpl">${icons.export}تنزيل نموذج Excel</button>
+          <label class="btn primary imp-file">${icons.plus}اختيار ملف (xlsx / csv)<input type="file" id="impFile" accept=".xlsx,.xls,.csv,.txt" hidden></label>
+          <span class="hint" id="impName">${sheet ? esc(sheet.name) : 'لم يتم اختيار ملف'}</span>
+        </div>
+        ${parsed ? `
+          <div class="summary imp-sum"><div><span>صفوف الملف</span><b>${parsed.rows.length}</b></div><div><span>جديد</span><b class="up">${cnt('new')}</b></div>
+            <div><span>تحديث</span><b>${cnt('update')}</b></div><div><span>أخطاء (ستُتخطى)</span><b class="${cnt('error') ? 'down' : ''}">${cnt('error')}</b></div></div>
+          ${parsed.unknown.length ? `<div class="af-note warn">أعمدة غير معروفة سيتم تجاهلها: ${parsed.unknown.map(esc).join('، ')}</div>` : ''}
+          <div class="table-wrap imp-prev"><table>
+            <thead><tr><th>الصف</th><th>الحالة</th><th>سبب الخطأ</th>${fields.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead>
+            <tbody>${parsed.rows.slice(0, 200).map(r => `<tr class="${r.status === 'error' ? 'bad' : ''}"><td class="num">${r.line}</td>
+              <td>${r.status === 'new' ? '<span class="pill green">جديد</span>' : r.status === 'update' ? '<span class="pill">تحديث</span>' : '<span class="pill red">خطأ</span>'}</td>
+              <td class="err-msg">${esc(r.msg)}</td>${fields.map(c => `<td>${esc(r.data[c.key] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table></div>
+          ${parsed.rows.length > 200 ? `<div class="hint">يتم عرض أول 200 صف فقط</div>` : ''}` : `
+          <div class="imp-help"><p>1. نزّل النموذج وافتحه في Excel واملأ البيانات (يمكن لصق بيانات من برنامجك القديم).</p>
+          <p>2. اختر الملف — ستظهر معاينة لكل صف قبل الحفظ، مع توضيح الأخطاء.</p>
+          <p>3. اضغط "تنفيذ الاستيراد". كل الحركات تُرحّل تلقائياً كأنها أُدخلت يدوياً.</p></div>`}`;
+      $('#impTable').onchange = e => { t = e.target.value; parsed = null; sheet = null; draw(); };
+      $('#impMode').onchange = () => { if (sheet) { parsed = analyze(t, sheet.rows, $('#impMode').value); draw(); } };
+      if (sheet) $('#impMode').value = sheet.mode || 'add';
+      $('#impTpl').onclick = () => downloadTemplate(t);
+      $('#impFile').onchange = async e => {
+        const f = e.target.files[0]; if (!f) return;
+        $('#impName').textContent = 'جارٍ قراءة الملف…';
+        try {
+          const rows = await readSheet(f);
+          if (rows.length < 2) throw new Error('الملف فارغ أو لا يحتوي إلا على صف العناوين');
+          const mode = $('#impMode').value;
+          sheet = { name: f.name, rows, mode }; parsed = analyze(t, rows, mode); draw();
+        } catch (err) { $('#impName').textContent = err.message; toast(err.message, 4000); }
+      };
+      $('#saveBtn').textContent = 'تنفيذ الاستيراد';
+      $('#saveBtn').disabled = !parsed || !parsed.rows.some(r => r.status !== 'error');
+    };
+    draw();
+    modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false');
+    onSubmit = () => {
+      if (!parsed) return false;
+      const res = runImport(t, parsed.rows);
+      form.classList.add('info');
+      $('#modalTitle').textContent = 'نتيجة الاستيراد';
+      body.innerHTML = `<div class="summary imp-sum"><div><span>تمت الإضافة</span><b class="up">${res.added}</b></div><div><span>تم التحديث</span><b>${res.updated}</b></div>
+        <div><span>تم التخطي</span><b class="${res.fails.length ? 'down' : ''}">${res.fails.length}</b></div><div><span>الجدول</span><b>${esc(importDef(t).title)}</b></div></div>
+        ${res.fails.length ? `<div class="table-wrap imp-prev"><table><thead><tr><th>الصف</th><th>السبب</th></tr></thead><tbody>${res.fails.map(f => `<tr class="bad"><td class="num">${f.line}</td><td class="err-msg">${esc(f.msg)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="af-note">تم استيراد كل الصفوف بنجاح.</div>'}`;
+      $('#saveBtn').textContent = 'حفظ'; $('#saveBtn').disabled = false;
+      toast(`استيراد: ${res.added} جديد، ${res.updated} تحديث، ${res.fails.length} متخطى`, 4000);
+      return false;
+    };
+  }
+
+  // صفحة الاستيراد: كل الجداول في مكان واحد
+  function renderImport() {
+    const tables = importTables();
+    const groups = [['البيانات الأساسية وشجرة الحسابات', ['accounts', 'customers', 'suppliers', 'items', 'warehouses', 'employees', 'workers', 'departments', 'machines', 'cashboxes']],
+      ['الخزينة', ['receipts', 'payments', 'boxTransfers']], ['المبيعات والمشتريات', ['salesInvoices', 'salesReturns', 'salesQuotes', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns']],
+      ['المخازن', ['stockIn', 'stockOut', 'transfers']], ['الحسابات', ['journal']], ['العاملون والعمالة والميكنة', ['attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders', 'maintenancePlan']]];
+    content.innerHTML = `
+      <div class="card" style="margin-bottom:18px"><div class="card-body imp-help">
+        <p><b>استيراد البيانات من Excel أو CSV</b> — لنقل قاعدة بيانات من برنامج آخر، أو إدخال حركات كثيرة مرة واحدة (قبض، صرف، تحويلات، فواتير، أذون مخازن، مرتجعات)، أو تعديل سجلات موجودة.</p>
+        <p>نزّل نموذج الجدول، املأه، ثم ارفعه. ستظهر معاينة لكل صف قبل الحفظ، والصفوف التي بها أخطاء تُتخطى مع توضيح السبب. الحركات المستوردة تُرحّل للقيود تلقائياً.</p>
+        <p class="hint">ابدأ بالبيانات الأساسية (العملاء، الموردين، الأصناف، الخزائن) قبل الحركات، لأن الحركات تشير إليها بالاسم.</p></div></div>
+      ${groups.map(([g, list]) => { const ok = list.filter(x => tables.includes(x)); return ok.length ? `
+        <div class="section-title">${g}</div>
+        <div class="imp-grid">${ok.map(x => `<div class="imp-card"><div><b>${EMO[x] || '📄'} ${esc(importDef(x).title)}</b><small>${db[x].length} سجل · ${importDef(x).key ? 'إضافة وتحديث' : 'إضافة فقط'}</small></div>
+          <div class="imp-btns"><button class="btn ghost" data-tpl="${x}">نموذج</button><button class="btn primary" data-imp="${x}">استيراد</button></div></div>`).join('')}</div>` : ''; }).join('')}`;
+    $$('[data-tpl]', content).forEach(b => b.onclick = () => downloadTemplate(b.dataset.tpl));
+    $$('[data-imp]', content).forEach(b => b.onclick = () => openImport(b.dataset.imp));
   }
 
   // ---------- التوجيه ----------
@@ -1918,10 +2184,20 @@
   $('#clearMovesBtn').onclick = () => {
     if (!canSp('adminTools')) return denied();
     const n = sum(TX_TABLES, t => db[t].length);
-    openModal('حذف كل الحركات', [{ key: 'confirm', label: `سيتم حذف ${n} حركة (فواتير، سندات، قيود، أذون، رواتب...) مع الإبقاء على البيانات الأساسية وشجرة الحسابات. للتأكيد اكتب: حذف`, input: 'text', full: true }], {}, data => {
-      if (data.confirm.trim() !== 'حذف') { toast('اكتب كلمة "حذف" للتأكيد'); return false; }
-      TX_TABLES.forEach(t => { db[t] = []; });
-      save(); scheduleRender(); toast(`تم حذف ${n} حركة`, 3500);
+    const OPTS = [`حذف كل الحركات (${n} حركة: فواتير، سندات، تحويلات، قيود، أذون مخازن، رواتب...)`, 'تصفير الأرصدة الافتتاحية في شجرة الحسابات',
+      'تصفير أرصدة أول المدة للعملاء والموردين', 'تصفير أرصدة أول المدة (الكميات) للأصناف'];
+    openModal('تفريغ الحركات والأرصدة', [{ key: 'what', label: 'اختر ما تريد تفريغه — البيانات الأساسية (العملاء، الموردين، الأصناف، الحسابات، المستخدمين) تبقى كما هي', input: 'checks', options: () => OPTS },
+      { key: 'confirm', label: 'للتأكيد اكتب: تفريغ', input: 'text', full: true }], {}, (data, fd) => {
+      const what = fd.getAll('what').map(w => OPTS.indexOf(w));
+      if (!what.length) { toast('اختر عنصراً واحداً على الأقل'); return false; }
+      if (data.confirm.trim() !== 'تفريغ') { toast('اكتب كلمة "تفريغ" للتأكيد'); return false; }
+      if (what.includes(1) && !store.canAdmin) { toast('تصفير أرصدة شجرة الحسابات متاح لمدير النظام فقط'); return false; }
+      const done = [];
+      if (what.includes(0)) { TX_TABLES.forEach(t => { db[t] = []; }); done.push(`${n} حركة`); }
+      if (what.includes(1)) { db.accounts.forEach(a => { a.balance = 0; }); done.push('أرصدة الحسابات'); }
+      if (what.includes(2)) { db.customers.forEach(c => { c.opening = 0; }); db.suppliers.forEach(c => { c.opening = 0; }); done.push('أرصدة العملاء والموردين'); }
+      if (what.includes(3)) { db.items.forEach(i => { i.opening = 0; }); done.push('كميات الأصناف'); }
+      save(); scheduleRender(); toast(`تم تفريغ: ${done.join('، ')}`, 4000);
     });
   };
 

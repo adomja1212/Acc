@@ -495,3 +495,25 @@ table.perm tr.pg .pchk { margin-inline-end: 10px; vertical-align: middle; }
 .no-link { color: inherit; }
 
 .admin-tools[hidden] { display: none; }
+
+/* ===== الاستيراد ===== */
+.imp-head { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.imp-cols { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; line-height: 2.1; font-size: 13.5px; }
+.imp-cols .pill { margin-inline-end: 2px; }
+.imp-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.imp-file { cursor: pointer; }
+.imp-sum { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+.imp-sum .up { color: var(--green); } .imp-sum .down { color: var(--red); }
+.imp-prev { max-height: 42vh; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
+.imp-prev th { position: sticky; top: 0; z-index: 1; }
+.imp-prev td { font-size: 13px; padding: 8px 12px; }
+.imp-prev tr.bad td { background: #fff6f6; }
+.err-msg { color: var(--red); font-weight: 700; white-space: normal !important; min-width: 220px; }
+.imp-help p { margin: 0 0 8px; line-height: 1.9; }
+.af-note.warn { background: var(--amber-soft); border-color: #f1d8a6; color: var(--amber); }
+.imp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.imp-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+.imp-card small { display: block; color: var(--muted); font-size: 12px; }
+.imp-btns { display: flex; gap: 6px; }
+.imp-btns .btn { padding: 6px 12px; font-size: 13px; }
+@media (max-width: 560px) { .imp-head { grid-template-columns: 1fr; } }
