@@ -29,21 +29,24 @@
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
   const SETTINGS_PATH = 'meta/settings';
+  const APPR_PATH = 'meta/approvals';
   const TABLES = ['appUsers', 'accounts', 'customers', 'suppliers', 'items', 'warehouses', 'departments', 'employees', 'attendance', 'payroll', 'leaves',
     'workers', 'dailyLabor', 'advances', 'cashboxes', 'receipts', 'payments', 'boxTransfers', 'journal', 'salesInvoices', 'salesQuotes', 'salesReturns',
     'purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'stockIn', 'stockOut', 'transfers', 'machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan'];
   const TX_TABLES = ['journal', 'receipts', 'payments', 'boxTransfers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
     'stockIn', 'stockOut', 'transfers', 'attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders'];
   const DEFAULT_SETTINGS = { company: 'نظام المحاسب', taxNo: '', commercialReg: '', currency: 'ج.م', vat: 14, fiscalStart: `${new Date().getFullYear()}-01-01`, address: '' };
-  const emptyDb = () => ({ ...Object.fromEntries(TABLES.map(t => [t, []])), settings: { ...DEFAULT_SETTINGS } });
+  const emptyDb = () => ({ ...Object.fromEntries(TABLES.map(t => [t, []])), settings: { ...DEFAULT_SETTINGS }, approvalCfg: {} });
   const normalize = data => {
     const d = emptyDb();
     for (const t of TABLES) if (Array.isArray(data?.[t])) d[t] = data[t].map(r => ({ ...r, id: String(r.id ?? genId()) }));
     if (data?.settings) Object.assign(d.settings, data.settings);
+    if (data?.approvalCfg) d.approvalCfg = structuredClone(data.approvalCfg);
     return d;
   };
   const stripMeta = r => { const { id, _at, _by, _u, ...rest } = r; return rest; };
-  const stable = o => JSON.stringify(o, Object.keys(o).sort());
+  const sortDeep = v => Array.isArray(v) ? v.map(sortDeep) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, sortDeep(v[k])])) : v;
+  const stable = o => JSON.stringify(sortDeep(o));
 
   let db = emptyDb();
   let cache = {};
@@ -67,11 +70,13 @@
       store.queue.push({ path, body: { ...stripMeta(r), _at: r._at, ...(r._by ? { _by: r._by } : {}), ...(r._u ? { _u: r._u } : {}) }, cmp, prev });
       store.saved.set(path, cmp);
     }
-    for (const path of [...store.saved.keys()]) if (path !== SETTINGS_PATH && !seen.has(path)) {
+    for (const path of [...store.saved.keys()]) if (path !== SETTINGS_PATH && path !== APPR_PATH && !seen.has(path)) {
       store.queue.push({ path, del: true, prev: store.saved.get(path) }); store.saved.delete(path);
     }
     const sc = stable(db.settings);
     if (opts.settings && store.saved.get(SETTINGS_PATH) !== sc) { store.queue.push({ path: SETTINGS_PATH, body: { ...db.settings }, cmp: sc, prev: store.saved.get(SETTINGS_PATH) }); store.saved.set(SETTINGS_PATH, sc); }
+    const ac = stable(db.approvalCfg || {});
+    if (opts.approvals && store.saved.get(APPR_PATH) !== ac) { store.queue.push({ path: APPR_PATH, body: structuredClone(db.approvalCfg || {}), cmp: ac, prev: store.saved.get(APPR_PATH) }); store.saved.set(APPR_PATH, ac); }
     pump();
   }
 
@@ -94,6 +99,7 @@
   function writeFailed(e, op) {
     // التراجع عن التعديل في الذاكرة
     if (op.path === SETTINGS_PATH) { if (op.prev) db.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(op.prev) }; }
+    else if (op.path === APPR_PATH) { db.approvalCfg = op.prev ? JSON.parse(op.prev) : {}; }
     else {
       const [t, id] = op.path.split('/');
       db[t] = db[t].filter(r => r.id !== id);
@@ -103,7 +109,7 @@
     cache = {};
     const code = e?.code;
     if (code === 'invalid_argument' || code === 'not_granted') {
-      if (op.path.startsWith('accounts/') || op.path === SETTINGS_PATH) toast('هذا التعديل متاح لمدير النظام فقط', 4000);
+      if (op.path.startsWith('accounts/') || op.path.startsWith('meta/')) toast('هذا التعديل متاح لمدير النظام فقط', 4000);
       else { store.canWrite = false; applyRole(); toast('ليس لديك صلاحية التعديل — وضع المشاهدة فقط', 4000); }
     } else if (code === 'quota_exceeded') toast('امتلأت سعة قاعدة البيانات — احذف بيانات قديمة أو صدّر نسخة احتياطية', 6000);
     else toast('تعذّر الحفظ في قاعدة البيانات — تحقق من الاتصال', 4000);
@@ -129,7 +135,7 @@
   }
 
   function attachCloud() {
-    const waiting = new Set([...TABLES, SETTINGS_PATH]);
+    const waiting = new Set([...TABLES, SETTINGS_PATH, APPR_PATH]);
     const ready = () => { if (store.ready) return; store.ready = true; clearTimeout(slowTimer); setSync('saved'); authGate(); };
     const got = key => { waiting.delete(key); if (!waiting.size) ready(); else if (store.ready) scheduleRender(); };
     const slowTimer = setTimeout(() => { setSync('slow'); ready(); }, 10000);
@@ -150,6 +156,12 @@
       db.settings = { ...DEFAULT_SETTINGS, ...(snap.exists ? structuredClone(snap.data()) : {}) };
       if (snap.exists) store.saved.set(SETTINGS_PATH, stable(db.settings));
       cache = {}; got(SETTINGS_PATH); if (store.ready) scheduleRender();
+    }, fail);
+    store.cloud.doc(APPR_PATH).onSnapshot(snap => {
+      if (store.queue.some(op => op.path === APPR_PATH)) return got(APPR_PATH);
+      db.approvalCfg = snap.exists ? structuredClone(snap.data()) : {};
+      if (snap.exists) store.saved.set(APPR_PATH, stable(db.approvalCfg));
+      cache = {}; got(APPR_PATH); if (store.ready) scheduleRender();
     }, fail);
   }
 
@@ -232,6 +244,8 @@
   const invTotal = r => +r.amount + vatOf(r);
 
   // كل القيود: اليدوية + المتولدة من المستندات
+  const isEff = r => !r.appr || r.appr.status === 'approved';
+  const eff = t => memo('eff:' + t, () => db[t].filter(isEff));
   function glEntries() {
     return memo('gl', () => {
       const E = [];
@@ -240,33 +254,33 @@
         lines = lines.filter(l => l.acc && (l.dr || l.cr));
         if (lines.length) E.push({ module, src, id: r.id, no, date, desc, lines, manual: module === 'journal' });
       };
-      db.journal.forEach(r => add('journal', 'قيد يدوي', r, r.no, r.date, r.desc, [L(accCode(r.debit), r.amount), L(accCode(r.credit), 0, r.amount)]));
-      db.salesInvoices.forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
+      eff('journal').forEach(r => add('journal', 'قيد يدوي', r, r.no, r.date, r.desc, [L(accCode(r.debit), r.amount), L(accCode(r.credit), 0, r.amount)]));
+      eff('salesInvoices').forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
         [L(custAcc(r.customer), invTotal(r)), L(SYS.sales, 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
-      db.salesReturns.forEach(r => add('salesReturns', 'مرتجع مبيعات', r, r.no, r.date, `مرتجع مبيعات - ${r.customer}`, [L(SYS.sales, r.amount), L(custAcc(r.customer), 0, r.amount)]));
-      db.receipts.forEach(r => add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${r.party}`,
+      eff('salesReturns').forEach(r => add('salesReturns', 'مرتجع مبيعات', r, r.no, r.date, `مرتجع مبيعات - ${r.customer}`, [L(SYS.sales, r.amount), L(custAcc(r.customer), 0, r.amount)]));
+      eff('receipts').forEach(r => add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${r.party}`,
         [L(boxAcc(r.box), r.amount), L(isCustomer(r.party) ? custAcc(r.party) : accCode(r.account) || SYS.otherRev, 0, r.amount)]));
-      db.purchaseInvoices.forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات آجلة - ${r.supplier}`,
+      eff('purchaseInvoices').forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات آجلة - ${r.supplier}`,
         [L(accCode(r.account) || SYS.defPurchase, r.amount), L(suppAcc(r.supplier), 0, r.amount)]));
-      db.purchaseReturns.forEach(r => add('purchaseReturns', 'مرتجع مشتريات', r, r.no, r.date, `مرتجع مشتريات - ${r.supplier}`,
+      eff('purchaseReturns').forEach(r => add('purchaseReturns', 'مرتجع مشتريات', r, r.no, r.date, `مرتجع مشتريات - ${r.supplier}`,
         [L(suppAcc(r.supplier), r.amount), L(accCode(r.account) || SYS.defPurchase, 0, r.amount)]));
-      db.payments.forEach(r => add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${r.party}`,
+      eff('payments').forEach(r => add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${r.party}`,
         [L(isSupplier(r.party) ? suppAcc(r.party) : ownerAcc(r.party) || accCode(r.account) || SYS.accrued, r.amount), L(boxAcc(r.box), 0, r.amount)]));
       // الاستحقاق: من حـ/ المصروف إلى حـ/ المرتبات المستحقة (والتأمينات)، ثم الصرف: من حـ/ المستحقة إلى حـ/ الخزينة
-      db.boxTransfers.forEach(r => add('boxTransfers', 'تحويل خزائن وبنوك', r, r.no, r.date, r.desc || `تحويل من ${r.from} إلى ${r.to}`,
+      eff('boxTransfers').forEach(r => add('boxTransfers', 'تحويل خزائن وبنوك', r, r.no, r.date, r.desc || `تحويل من ${r.from} إلى ${r.to}`,
         [L(boxAcc(r.to), r.amount), L(boxAcc(r.from), 0, r.amount)]));
-      db.payroll.forEach(r => { const gross = +r.basic + +r.allowances, ded = +r.deductions, net = gross - ded, g = payAccs(r.group);
+      eff('payroll').forEach(r => { const gross = +r.basic + +r.allowances, ded = +r.deductions, net = gross - ded, g = payAccs(r.group);
         const no = `PAY-${r.month}-${r.id}`, date = `${r.month}-28`;
         add('payroll', 'استحقاق رواتب', r, no, date, `استحقاق راتب ${r.employee} عن ${r.month}`,
           [L(g.exp, gross), L(SYS.socialIns, 0, ded), L(g.liab, 0, net)]);
         if (r.paid !== 'مستحق') add('payroll', 'صرف رواتب', r, `${no}-ص`, date, `صرف راتب ${r.employee} عن ${r.month}`,
           [L(g.liab, net), L(boxAcc(r.box), 0, net)]); });
-      db.dailyLabor.forEach(r => add('dailyLabor', 'يوميات عمال', r, `LAB-${r.id}`, r.date, `يومية ${r.worker} (${r.days} يوم)`,
+      eff('dailyLabor').forEach(r => add('dailyLabor', 'يوميات عمال', r, `LAB-${r.id}`, r.date, `يومية ${r.worker} (${r.days} يوم)`,
         [L(SYS.labor, r.days * r.wage), L(boxAcc(r.box), 0, r.days * r.wage)]));
-      db.advances.forEach(r => { if (r.type === 'جزاء') return;
+      eff('advances').forEach(r => { if (r.type === 'جزاء') return;
         add('advances', r.type === 'سلفة' ? 'سلفة عامل' : 'مكافأة عامل', r, `ADV-${r.id}`, r.date, `${r.type} - ${r.worker}`,
           [L(r.type === 'سلفة' ? advAcc(r.advType) : SYS.labor, r.amount), L(boxAcc(r.box), 0, r.amount)]); });
-      db.maintenanceOrders.forEach(r => { if (r.status !== 'مكتمل') return;
+      eff('maintenanceOrders').forEach(r => { if (r.status !== 'مكتمل') return;
         add('maintenanceOrders', 'أمر صيانة', r, r.no, r.date, `صيانة ${r.machine}`, [L(SYS.maint, r.cost), L(boxAcc(r.box), 0, r.cost)]); });
       return E.sort((a, b) => -byDate(a, b) || (a.no < b.no ? 1 : -1));
     });
@@ -285,16 +299,16 @@
   // ----- العملاء والموردون -----
   const custBal = name => memo('cb:' + name, () => {
     const c = db.customers.find(x => x.name === name);
-    return +(c?.opening || 0) + sum(db.salesInvoices.filter(i => i.customer === name), invTotal)
-      - sum(db.salesReturns.filter(r => r.customer === name), r => r.amount) - sum(db.receipts.filter(r => r.party === name), r => r.amount);
+    return +(c?.opening || 0) + sum(eff('salesInvoices').filter(i => i.customer === name), invTotal)
+      - sum(eff('salesReturns').filter(r => r.customer === name), r => r.amount) - sum(eff('receipts').filter(r => r.party === name), r => r.amount);
   });
   const suppBal = name => memo('sb:' + name, () => {
     const s = db.suppliers.find(x => x.name === name);
-    return +(s?.opening || 0) + sum(db.purchaseInvoices.filter(i => i.supplier === name), i => i.amount)
-      - sum(db.purchaseReturns.filter(r => r.supplier === name), r => r.amount) - sum(db.payments.filter(r => r.party === name), r => r.amount);
+    return +(s?.opening || 0) + sum(eff('purchaseInvoices').filter(i => i.supplier === name), i => i.amount)
+      - sum(eff('purchaseReturns').filter(r => r.supplier === name), r => r.amount) - sum(eff('payments').filter(r => r.party === name), r => r.amount);
   });
-  const salesPaid = inv => sum(db.receipts.filter(r => r.invoice === inv.no), r => r.amount) + sum(db.salesReturns.filter(r => r.invoice === inv.no), r => r.amount);
-  const purchPaid = inv => sum(db.payments.filter(r => r.invoice === inv.no), r => r.amount) + sum(db.purchaseReturns.filter(r => r.invoice === inv.no), r => r.amount);
+  const salesPaid = inv => sum(eff('receipts').filter(r => r.invoice === inv.no), r => r.amount) + sum(eff('salesReturns').filter(r => r.invoice === inv.no), r => r.amount);
+  const purchPaid = inv => sum(eff('payments').filter(r => r.invoice === inv.no), r => r.amount) + sum(eff('purchaseReturns').filter(r => r.invoice === inv.no), r => r.amount);
   const invStatus = (total, paid, due) => total - paid <= 0.01 ? 'مدفوعة' : due < today() ? 'متأخرة' : paid > 0 ? 'مدفوعة جزئياً' : 'معلقة';
   const salesStatus = r => invStatus(invTotal(r), salesPaid(r), r.due);
   const purchStatus = r => invStatus(+r.amount, purchPaid(r), r.due);
@@ -304,9 +318,9 @@
     const m = {}; const k = (i, w) => `${i}|${w}`;
     const addQ = (i, w, q) => { m[k(i, w)] = (m[k(i, w)] || 0) + (+q || 0); };
     db.items.forEach(i => addQ(i.name, i.warehouse, i.opening));
-    db.stockIn.forEach(r => addQ(r.item, r.warehouse, r.qty));
-    db.stockOut.forEach(r => addQ(r.item, r.warehouse, -r.qty));
-    db.transfers.forEach(r => { addQ(r.item, r.from, -r.qty); addQ(r.item, r.to, r.qty); });
+    eff('stockIn').forEach(r => addQ(r.item, r.warehouse, r.qty));
+    eff('stockOut').forEach(r => addQ(r.item, r.warehouse, -r.qty));
+    eff('transfers').forEach(r => { addQ(r.item, r.from, -r.qty); addQ(r.item, r.to, r.qty); });
     return m;
   });
   const stockAt = (item, wh) => stockMap()[`${item}|${wh}`] || 0;
@@ -543,7 +557,7 @@
       onSelect: { employee: (f, v) => { const e = db.employees.find(x => x.name === v); if (e) { f.basic.value = e.salary; if (e.payGroup) f.group.value = e.payGroup; } } },
       actions: [{ icon: 'pay', title: 'صرف الراتب', write: true, show: r => r.paid === 'مستحق', fn: r => {
         const x = db.payroll.find(p => p.id === r.id); if (!x || !can('payroll', 'e')) return denied();
-        x.paid = 'مصروف'; save(); renderPage(); renderNav(); toast(`تم صرف راتب ${x.employee} من ${x.box}`); } }],
+        x.paid = 'مصروف'; submitForApproval('payroll', x, true); save(); renderPage(); renderNav(); toast(`تم صرف راتب ${x.employee} من ${x.box}`); } }],
       validate: (d, rec) => db.payroll.some(p => p !== rec && p.month === d.month && p.employee === d.employee) ? `راتب ${d.employee} عن ${d.month} مسجل من قبل` : '' },
     leaves: { title: 'الإجازات', sub: 'الإجازة المعتمدة تظهر في حالة الموظف تلقائياً', single: 'إجازة', filter: 'status', cols: [
       C('employee', 'الموظف', { input: 'select', options: names('employees'), full: true }), C('type', 'نوع الإجازة', { render: plain, input: 'select', options: opt('اعتيادية', 'عارضة', 'مرضية', 'بدون أجر') }),
@@ -622,6 +636,8 @@
     reports: { title: 'القوائم المالية', sub: 'قائمة الدخل، المركز المالي، ميزان المراجعة', render: renderReports },
     stockBalances: { title: 'أرصدة المخازن', sub: 'رصيد كل صنف في كل مخزن', render: renderStockBalances },
     import: { title: 'استيراد البيانات', sub: 'من Excel أو CSV إلى أي جدول', render: renderImport },
+    reportCenter: { title: 'مركز التقارير', sub: 'التقارير المالية والمحاسبية وتقارير الإدارات', render: renderReportCenter },
+    approvals: { title: 'الموافقات', sub: 'اعتماد المستندات قبل ترحيلها', render: renderApprovals },
     users: { title: 'المستخدمون والصلاحيات', sub: 'حسابات الدخول وصلاحيات كل مستخدم', render: renderUsers },
     database: { title: 'قاعدة البيانات', sub: 'الجداول والسعة والنسخ الاحتياطي', render: renderDatabase },
     settings: { title: 'الإعدادات', sub: 'بيانات المنشأة', render: renderSettings },
@@ -641,11 +657,12 @@
       { title: 'الميكنة', icon: 'truck', items: ['machineOps'] },
       { title: 'الصيانة', icon: 'wrench', items: ['maintenanceOrders', 'maintenancePlan'] },
     ] },
+    { title: 'التقارير', icon: 'trend', items: ['reportCenter', 'reports'] },
     { title: 'قواعد البيانات', icon: 'db', items: ['customers', 'suppliers', 'items', 'warehouses', 'employees', 'workers', 'departments', 'machines'] },
-    { title: 'الإدارة والإعدادات', icon: 'shield', items: ['dashboard', 'users', 'import', 'database', 'settings'] },
+    { title: 'الإدارة والإعدادات', icon: 'shield', items: ['dashboard', 'approvals', 'users', 'import', 'database', 'settings'] },
   ];
   const EMO = {
-    dashboard: '📊', users: '👥', database: '🗄️', settings: '⚙️', accounts: '🌳', journal: '📒', ledger: '📄', reports: '📈',
+    dashboard: '📊', reportCenter: '🗂️', approvals: '✅', users: '👥', database: '🗄️', settings: '⚙️', accounts: '🌳', journal: '📒', ledger: '📄', reports: '📈',
     cashboxes: '🏦', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
     purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
     attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
@@ -662,6 +679,7 @@
   const leavesOf = g => g.items.flatMap(it => typeof it === 'string' ? [it] : leavesOf(it));
 
   const badges = {
+    approvals: () => myApprovals().length,
     salesInvoices: () => db.salesInvoices.filter(r => salesStatus(r) === 'متأخرة').length,
     purchaseInvoices: () => db.purchaseInvoices.filter(r => purchStatus(r) === 'متأخرة').length,
     items: () => db.items.filter(r => itemQty(r.name) < +r.min).length,
@@ -670,7 +688,7 @@
   };
   const badge = n => n ? `<em class="badge">${n}</em>` : '';
 
-  const state = { page: null, open: new Set(['3']), navTab: 'all', navQ: '', q: '', filter: '', collapsed: new Set(), ledger: '1211' };
+  const state = { page: null, open: new Set(['4']), navTab: 'all', navQ: '', q: '', filter: '', collapsed: new Set(), ledger: '1211' };
   let pendingQuery = null;
 
   function leafHTML(p, withPath) {
@@ -743,7 +761,9 @@
     const latePlan = db.maintenancePlan.filter(m => planStatus(m) === 'متأخرة');
     const overLimit = db.customers.filter(c => +c.limit && custBal(c.name) > +c.limit);
 
+    const mine = myApprovals();
     const alerts = [
+      ...(mine.length ? [{ c: 'amber', i: 'shield', t: `${mine.length} مستند بانتظار اعتمادك`, s: 'لن تُرحّل قبل الاعتماد', h: 'approvals', q: '' }] : []),
       ...overdue.map(i => ({ c: 'red', i: 'sales', t: `فاتورة متأخرة ${esc(i.no)}`, s: `${esc(i.customer)} — المتبقي ${money(invTotal(i) - salesPaid(i))}`, h: 'salesInvoices', q: i.no })),
       ...latePI.map(i => ({ c: 'red', i: 'cart', t: `مستحق لمورد ${esc(i.no)}`, s: `${esc(i.supplier)} — المتبقي ${money(i.amount - purchPaid(i))}`, h: 'purchaseInvoices', q: i.no })),
       ...overLimit.map(c => ({ c: 'red', i: 'users', t: `تجاوز حد الائتمان: ${esc(c.name)}`, s: `الرصيد ${money(custBal(c.name))} — الحد ${money(c.limit)}`, h: 'customers', q: c.name })),
@@ -814,7 +834,8 @@
 
   function renderModule(name) {
     const m = modules[name];
-    const cols = tableCols(m);
+    const showAppr = APPR_MODULES.includes(name) && (apprOn(name) || db[name].some(r => r.appr));
+    const cols = [...tableCols(m), ...(showAppr ? [C('_appr', 'الاعتماد', { compute: r => apprText(name, r), render: (v, r) => apprPill(name, r) })] : [])];
     const q = state.q.trim().toLowerCase();
     let rows = db[name].filter(r => !q || m.cols.some(c => String(val(r, c) ?? '').toLowerCase().includes(q)));
     const dk = ['date', 'month', 'from'].find(k => m.cols.some(c => c.key === k));
@@ -844,7 +865,9 @@
             ${rows.length ? rows.map(r => `<tr>
               ${cols.map(c => `<td class="${c.cls ?? ''}">${cell(r, c)}</td>`).join('')}
               <td><div class="row-actions">
+                ${canApprove(name, r) ? `<button class="ok" data-apr="${r.id}" title="اعتماد">✓</button><button class="del" data-rej="${r.id}" title="رفض">✕</button>` : ''}
                 ${(m.actions || []).map((a, i) => !a.show || a.show(r) ? `<button data-act="${i}" data-id="${r.id}" class="${a.write ? 'w' : ''}" title="${a.title}">${icons[a.icon]}</button>` : '').join('')}
+                ${APPR_MODULES.includes(name) || m.key === 'no' ? `<button data-print="${r.id}" title="طباعة المستند">${icons.print}</button>` : ''}
                 <button data-edit="${r.id}" title="تعديل">${icons.edit}</button>
                 <button class="del" data-del="${r.id}" title="حذف">${icons.del}</button>
               </div></td></tr>`).join('')
@@ -864,6 +887,9 @@
     $('#exportBtn').onclick = () => downloadCSV(name, cols.map(c => c.label), rows.map(r => cols.map(c => val(r, c))));
     const find = id => db[name].find(r => r.id === id);
     $$('[data-act]', content).forEach(b => b.onclick = () => m.actions[+b.dataset.act].fn(find(b.dataset.id)));
+    $$('[data-print]', content).forEach(b => b.onclick = () => printDoc(name, find(b.dataset.print), true));
+    $$('[data-apr]', content).forEach(b => b.onclick = () => { if (decide(name, b.dataset.apr, true)) { save(); renderNav(); renderModule(name); toast(afterDecideMsg(name, b.dataset.apr)); } });
+    $$('[data-rej]', content).forEach(b => b.onclick = () => rejectDoc(name, b.dataset.rej));
     $$('[data-edit]', content).forEach(b => b.onclick = () => openRecordForm(name, find(b.dataset.edit)));
     $$('[data-del]', content).forEach(b => b.onclick = () => deleteRecord(name, find(b.dataset.del)));
   }
@@ -949,6 +975,7 @@
       if (m.key && db[name].some(r => r !== cur && r[m.key] === data[m.key])) { toast(`"${data[m.key]}" مسجل من قبل`); return false; }
       const err = m.validate?.(data, cur);
       if (err) { toast(err, 3500); return false; }
+      const changed = !cur || fields.some(c => String(cur[c.key] ?? '') !== String(data[c.key] ?? ''));
       let saved = cur;
       if (cur) {
         if (m.key && cur[m.key] !== data[m.key]) (refs[name] || []).forEach(([tb, f]) => db[tb].forEach(r => { if (r[f] === cur[m.key]) r[f] = data[m.key]; }));
@@ -959,7 +986,9 @@
         afterCreate?.(saved);
       }
       m.afterSave?.(saved);
+      submitForApproval(name, saved, changed);
       save(); renderPage(); renderNav();
+      if (saved.appr?.status === 'pending') return toast(`تم الحفظ — ${apprText(name, saved)} · لن يُرحّل قبل الاعتماد`, 4000);
       const posted = glEntries().find(e => e.module === name && e.id === saved.id);
       toast(posted ? `تم الحفظ والترحيل — قيد ${posted.no}` : cur ? 'تم حفظ التعديلات' : 'تمت الإضافة بنجاح');
     });
@@ -989,27 +1018,27 @@
 
   function customerStatement(c) {
     const rows = [
-      ...db.salesInvoices.filter(i => i.customer === c.name).map(i => ({ date: i.date, ref: i.no, desc: 'فاتورة مبيعات', a: invTotal(i), go: 'salesInvoices' })),
-      ...db.salesReturns.filter(i => i.customer === c.name).map(i => ({ date: i.date, ref: i.no, desc: `مرتجع — ${i.reason}`, b: +i.amount, go: 'salesReturns' })),
-      ...db.receipts.filter(i => i.party === c.name).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند قبض', b: +i.amount, go: 'receipts' })),
+      ...eff('salesInvoices').filter(i => i.customer === c.name).map(i => ({ date: i.date, ref: i.no, desc: 'فاتورة مبيعات', a: invTotal(i), go: 'salesInvoices' })),
+      ...eff('salesReturns').filter(i => i.customer === c.name).map(i => ({ date: i.date, ref: i.no, desc: `مرتجع — ${i.reason}`, b: +i.amount, go: 'salesReturns' })),
+      ...eff('receipts').filter(i => i.party === c.name).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند قبض', b: +i.amount, go: 'receipts' })),
     ];
     openInfo(`كشف حساب العميل: ${c.name}`, statementHTML(+c.opening || 0, rows, { summary: [['التصنيف', esc(c.category || '—')], ['حد الائتمان', money(c.limit)], ['الرصيد الحالي', money(custBal(c.name))], ['المتاح', money(Math.max(0, c.limit - custBal(c.name)))]] }));
     bindStatementLinks();
   }
   function supplierStatement(s) {
     const rows = [
-      ...db.purchaseInvoices.filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: 'فاتورة مشتريات', a: +i.amount, go: 'purchaseInvoices' })),
-      ...db.purchaseReturns.filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: `مرتجع — ${i.reason}`, b: +i.amount, go: 'purchaseReturns' })),
-      ...db.payments.filter(i => i.party === s.name).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند صرف', b: +i.amount, go: 'payments' })),
+      ...eff('purchaseInvoices').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: 'فاتورة مشتريات', a: +i.amount, go: 'purchaseInvoices' })),
+      ...eff('purchaseReturns').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: `مرتجع — ${i.reason}`, b: +i.amount, go: 'purchaseReturns' })),
+      ...eff('payments').filter(i => i.party === s.name).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند صرف', b: +i.amount, go: 'payments' })),
     ];
     openInfo(`كشف حساب المورد: ${s.name}`, statementHTML(+s.opening || 0, rows, { inc: 'دائن (له)', dec: 'مدين (منه)', summary: [['التصنيف', esc(s.category || '—')], ['المستحق له', money(suppBal(s.name))], ['عدد الفواتير', rows.filter(r => r.a).length], ['المسدد', money(sum(rows, r => r.b))]] }));
     bindStatementLinks();
   }
   function itemCard(it) {
     const rows = [
-      ...db.stockIn.filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `إضافة إلى ${r.warehouse} — من ${r.source}`, a: +r.qty, go: 'stockIn' })),
-      ...db.stockOut.filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `صرف من ${r.warehouse} — إلى ${r.to}`, b: +r.qty, go: 'stockOut' })),
-      ...db.transfers.filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `تحويل من ${r.from} إلى ${r.to} (${num(r.qty)})`, go: 'transfers' })),
+      ...eff('stockIn').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `إضافة إلى ${r.warehouse} — من ${r.source}`, a: +r.qty, go: 'stockIn' })),
+      ...eff('stockOut').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `صرف من ${r.warehouse} — إلى ${r.to}`, b: +r.qty, go: 'stockOut' })),
+      ...eff('transfers').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `تحويل من ${r.from} إلى ${r.to} (${num(r.qty)})`, go: 'transfers' })),
     ];
     const whs = db.warehouses.map(w => [w.name, stockAt(it.name, w.name)]).filter(([, q]) => q);
     openInfo(`كارت الصنف: ${it.name}`, statementHTML(+it.opening || 0, rows, { inc: 'وارد', dec: 'منصرف', fmt: num,
@@ -1409,9 +1438,9 @@
   // =====================================================================
   const ACT_NAMES = { v: 'عرض', a: 'إضافة', e: 'تعديل', d: 'حذف' };
   const SPECIALS = [['export', 'تصدير وطباعة البيانات'], ['backup', 'النسخ الاحتياطي والاستعادة'],
-    ['adminTools', 'أدوات المدير (تفريغ الخزائن وحذف الحركات)'], ['users', 'إدارة المستخدمين والصلاحيات'], ['import', 'استيراد البيانات من Excel / CSV']];
+    ['adminTools', 'أدوات المدير (تفريغ الخزائن وحذف الحركات)'], ['users', 'إدارة المستخدمين والصلاحيات'], ['import', 'استيراد البيانات من Excel / CSV'], ['approvalsSetup', 'إعداد دورة الموافقات']];
   const VIEW_ONLY = ['dashboard', 'ledger', 'reports', 'stockBalances', 'database'];
-  const SPECIAL_PAGES = { users: 'users', import: 'import' };
+  const SPECIAL_PAGES = { users: 'users', import: 'import', approvals: 'approvalsSetup', reportCenter: '_all' };
   const actsOf = p => SPECIAL_PAGES[p] ? [] : VIEW_ONLY.includes(p) ? ['v'] : p === 'settings' ? ['v', 'e'] : ['v', 'a', 'e', 'd'];
   const permPages = () => Object.keys(pagePath).filter(p => !SPECIAL_PAGES[p]);
   const grant = (list, acts) => Object.fromEntries(list.map(p => [p, actsOf(p).filter(a => acts.includes(a)).join('')]));
@@ -1435,6 +1464,8 @@
   function can(page, act = 'v') {
     const u = curUser(); if (!u) return false;
     if (isAdminUser(u)) return true;
+    if (page === 'reportCenter') return true;
+    if (page === 'approvals') return isApprover(u) || (u.special || []).includes('approvalsSetup');
     if (SPECIAL_PAGES[page]) return (u.special || []).includes(SPECIAL_PAGES[page]);
     return String(u.perms?.[page] || '').includes(act);
   }
@@ -1963,6 +1994,7 @@
         if (cur) { Object.assign(cur, data); updated++; }
         else { rec = { id: genId(), ...(def.defaults?.() || {}), ...data }; db[t].push(rec); added++; }
         def.afterSave?.(rec);
+        submitForApproval(t, rec, true);
         cache = {};
       }
     } finally { importing = false; }
@@ -2080,6 +2112,462 @@
           <div class="imp-btns"><button class="btn ghost" data-tpl="${x}">نموذج</button><button class="btn primary" data-imp="${x}">استيراد</button></div></div>`).join('')}</div>` : ''; }).join('')}`;
     $$('[data-tpl]', content).forEach(b => b.onclick = () => downloadTemplate(b.dataset.tpl));
     $$('[data-imp]', content).forEach(b => b.onclick = () => openImport(b.dataset.imp));
+  }
+
+  // =====================================================================
+  //                 دورة الموافقات (الاعتمادات) وطباعة المستندات
+  // المستند الذي يحتاج اعتماداً لا يُرحّل ولا يؤثر في أي رصيد حتى تكتمل كل مستوياته
+  // =====================================================================
+  const APPR_MODULES = ['journal', 'receipts', 'payments', 'boxTransfers', 'salesInvoices', 'salesReturns', 'purchaseInvoices', 'purchaseReturns',
+    'stockIn', 'stockOut', 'transfers', 'payroll', 'dailyLabor', 'advances', 'maintenanceOrders'];
+  const QTY_MODULES = ['stockIn', 'stockOut', 'transfers'];
+  const amountOf = (t, r) => t === 'payroll' ? (+r.basic + +r.allowances - +r.deductions) : t === 'dailyLabor' ? r.days * r.wage
+    : t === 'maintenanceOrders' ? +r.cost || 0 : QTY_MODULES.includes(t) ? +r.qty || 0 : +r.amount || 0;
+  const apprGlobal = () => db.approvalCfg || {};
+  const apprCfg = t => apprGlobal().modules?.[t];
+  const apprOn = t => { const c = apprCfg(t); return !!(c?.enabled && c.levels?.length); };
+  const needsAppr = (t, r) => apprOn(t) && amountOf(t, r) >= (+apprCfg(t).minAmount || 0);
+  const userName = id => db.appUsers.find(u => u.id === id)?.name || '—';
+
+  // عند إنشاء مستند أو تعديله: يدخل دورة الاعتماد من أولها
+  function submitForApproval(t, r, changed = true) {
+    if (!APPR_MODULES.includes(t) || !changed) return;
+    if (!needsAppr(t, r)) { if (r.appr && r.appr.status !== 'approved') delete r.appr; return; }
+    const by = curUser()?.id || null, at = new Date().toISOString();
+    r.appr = { status: 'pending', level: 0, steps: [...(r.appr?.steps || []), { action: r.appr ? 'resubmit' : 'submit', by, at }] };
+  }
+  const isApprover = u => !!u && Object.values(apprGlobal().modules || {}).some(c => (c.levels || []).some(l => (l.users || []).includes(u.id)));
+  function canApprove(t, r) {
+    if (!r?.appr || r.appr.status !== 'pending' || !store.canWrite) return false;
+    const u = curUser(); if (!u) return false;
+    const g = apprGlobal();
+    if (isAdminUser(u) && g.adminOverride !== false) return true;
+    if (g.noSelf !== false && r.appr.steps?.[0]?.by === u.id) return false;
+    const lvl = apprCfg(t)?.levels?.[r.appr.level];
+    return !!lvl && (lvl.users || []).includes(u.id);
+  }
+  function decide(t, id, ok, note = '') {
+    const r = db[t].find(x => x.id === id);
+    if (!r || !canApprove(t, r)) return false;
+    const levels = apprCfg(t)?.levels || [];
+    r.appr.steps = [...(r.appr.steps || []), { action: ok ? 'approve' : 'reject', level: r.appr.level, by: curUser().id, at: new Date().toISOString(), note }];
+    if (!ok) r.appr.status = 'rejected';
+    else { r.appr.level++; if (r.appr.level >= levels.length) r.appr.status = 'approved'; }
+    return true;
+  }
+  const apprText = (t, r) => {
+    if (!r.appr) return '';
+    if (r.appr.status === 'approved') return 'معتمد';
+    if (r.appr.status === 'rejected') return 'مرفوض';
+    const lv = apprCfg(t)?.levels || [];
+    return `بانتظار: ${lv[r.appr.level]?.title || 'الاعتماد'} (${r.appr.level + 1}/${Math.max(lv.length, 1)})`;
+  };
+  const apprPill = (t, r) => !r.appr ? '<span class="hint">—</span>'
+    : `<span class="pill ${r.appr.status === 'approved' ? 'green' : r.appr.status === 'rejected' ? 'red' : 'amber'}">${esc(apprText(t, r))}</span>`;
+  const docNo = (t, r) => r.no || (t === 'payroll' ? `PAY-${r.month}` : t === 'dailyLabor' ? `LAB-${r.date}` : t === 'advances' ? `ADV-${r.date}` : '—');
+  const docParty = r => r.customer || r.supplier || r.party || r.employee || r.worker || r.machine || (r.from && r.to ? `${r.from} ← ${r.to}` : '') || r.desc || '';
+  const myApprovals = () => APPR_MODULES.flatMap(t => db[t].filter(r => canApprove(t, r)).map(r => ({ t, r })));
+  const ACTION_TXT = { submit: 'أنشأ المستند', resubmit: 'عدّل وأعاد الإرسال', approve: 'اعتمد', reject: 'رفض' };
+
+  // ----- شاشة الموافقات -----
+  function renderApprovals() {
+    const canSetup = canSp('approvalsSetup') && store.canAdmin;
+    const tab = ['mine', 'pending', 'rejected', 'approved', 'setup'].includes(state.filter) ? state.filter : 'mine';
+    if (tab === 'setup' && canSetup) return renderApprSetup();
+    const all = APPR_MODULES.flatMap(t => db[t].filter(r => r.appr).map(r => ({ t, r })));
+    const pick = { mine: x => canApprove(x.t, x.r), pending: x => x.r.appr.status === 'pending', rejected: x => x.r.appr.status === 'rejected', approved: x => x.r.appr.status === 'approved' }[tab];
+    const list = all.filter(pick).sort((a, b) => String(b.r.date || b.r.month || '').localeCompare(String(a.r.date || a.r.month || '')));
+    const cnt = k => all.filter({ mine: x => canApprove(x.t, x.r), pending: x => x.r.appr.status === 'pending', rejected: x => x.r.appr.status === 'rejected', approved: x => x.r.appr.status === 'approved' }[k]).length;
+    const enabled = APPR_MODULES.filter(apprOn);
+    content.innerHTML = `
+      <div class="tabs-bar">
+        ${[['mine', 'بانتظار اعتمادي'], ['pending', 'كل المعلّق'], ['rejected', 'المرفوض'], ['approved', 'المعتمد']].map(([k, l]) => `<button class="tab-btn ${tab === k ? 'on' : ''}" data-tab="${k}">${l} <em>${cnt(k)}</em></button>`).join('')}
+        ${canSetup ? `<button class="tab-btn ${tab === 'setup' ? 'on' : ''}" data-tab="setup">⚙️ إعداد دورة الموافقات</button>` : ''}
+      </div>
+      ${!enabled.length ? `<div class="af-note warn">لم يتم تفعيل دورة موافقات لأي مستند بعد — كل الحركات تُرحّل فور حفظها.${canSetup ? ' فعّلها من "إعداد دورة الموافقات".' : ''}</div>` : ''}
+      <div class="card">
+        <div class="card-head"><div><h3>${{ mine: 'مستندات بانتظار اعتمادي', pending: 'كل المستندات المعلّقة', rejected: 'المستندات المرفوضة', approved: 'المستندات المعتمدة' }[tab]}</h3>
+          <div class="sub">المستند المعلّق لا يُرحّل ولا يؤثر في الأرصدة حتى يُعتمد من كل المستويات</div></div>
+          <div class="spacer"></div>
+          ${tab === 'mine' && list.length ? `<div class="toolbar"><button class="btn primary" id="bulkApprove">✓ اعتماد المحدد</button></div>` : ''}</div>
+        <div class="table-wrap"><table>
+          <thead><tr>${tab === 'mine' ? '<th><label class="pchk"><input type="checkbox" id="selAll"><i>' + IC.check + '</i></label></th>' : ''}<th>المستند</th><th>الرقم</th><th>التاريخ</th><th>الطرف / البيان</th><th>المبلغ</th><th>الحالة</th><th>أنشأه</th><th></th></tr></thead>
+          <tbody>${list.map(({ t, r }) => `<tr>
+            ${tab === 'mine' ? `<td><label class="pchk"><input type="checkbox" class="sel" data-t="${t}" data-id="${r.id}"><i>${IC.check}</i></label></td>` : ''}
+            <td><span class="pill">${EMO[t] || ''} ${esc(modules[t].single)}</span></td><td class="code">${esc(docNo(t, r))}</td><td>${esc(r.date || r.month || '')}</td>
+            <td>${esc(docParty(r))}</td><td class="num">${QTY_MODULES.includes(t) ? num(amountOf(t, r)) : money(amountOf(t, r))}</td>
+            <td>${apprPill(t, r)}${r.appr.status === 'rejected' && r.appr.steps.at(-1)?.note ? `<small class="hint d-block">السبب: ${esc(r.appr.steps.at(-1).note)}</small>` : ''}</td>
+            <td>${esc(userName(r.appr.steps?.[0]?.by))}</td>
+            <td><div class="row-actions">
+              <button data-view="${t}|${r.id}" title="عرض المستند">${icons.open}</button>
+              <button data-print="${t}|${r.id}" title="طباعة">${icons.print}</button>
+              ${canApprove(t, r) ? `<button class="ok" data-apr="${t}|${r.id}" title="اعتماد">✓</button><button class="del" data-rej="${t}|${r.id}" title="رفض">✕</button>` : ''}
+            </div></td></tr>`).join('') || `<tr><td colspan="9" class="empty">${tab === 'mine' ? 'لا توجد مستندات بانتظار اعتمادك 👍' : 'لا توجد مستندات'}</td></tr>`}</tbody>
+        </table></div>
+      </div>`;
+    $$('[data-tab]', content).forEach(b => b.onclick = () => { state.filter = b.dataset.tab; renderPage(); });
+    const split = v => v.split('|');
+    $$('[data-view]', content).forEach(b => b.onclick = () => { const [t, id] = split(b.dataset.view); viewDoc(t, id); });
+    $$('[data-print]', content).forEach(b => b.onclick = () => { const [t, id] = split(b.dataset.print); printDoc(t, db[t].find(x => x.id === id)); });
+    $$('[data-apr]', content).forEach(b => b.onclick = () => { const [t, id] = split(b.dataset.apr); if (decide(t, id, true)) { save(); renderNav(); renderPage(); toast(afterDecideMsg(t, id)); } });
+    $$('[data-rej]', content).forEach(b => b.onclick = () => { const [t, id] = split(b.dataset.rej); rejectDoc(t, id); });
+    $('#selAll')?.addEventListener('change', e => $$('.sel', content).forEach(c => { c.checked = e.target.checked; }));
+    $('#bulkApprove')?.addEventListener('click', () => {
+      const sel = $$('.sel:checked', content); if (!sel.length) return toast('اختر مستنداً واحداً على الأقل');
+      let n = 0; sel.forEach(c => { if (decide(c.dataset.t, c.dataset.id, true)) n++; });
+      save(); renderNav(); renderPage(); toast(`تم اعتماد ${n} مستند`, 3000);
+    });
+  }
+  const afterDecideMsg = (t, id) => { const r = db[t].find(x => x.id === id); return r?.appr?.status === 'approved' ? `تم الاعتماد النهائي والترحيل — ${docNo(t, r)}` : `تم الاعتماد — المستند انتقل إلى: ${apprText(t, r)}`; };
+  function rejectDoc(t, id) {
+    openModal('رفض المستند', [{ key: 'note', label: 'سبب الرفض (يظهر لمن أنشأ المستند)', input: 'text', full: true }], {}, d => {
+      if (!d.note.trim()) { toast('اكتب سبب الرفض'); return false; }
+      if (decide(t, id, false, d.note.trim())) { save(); renderNav(); renderPage(); toast('تم رفض المستند'); }
+    });
+  }
+  function viewDoc(t, id) {
+    const r = db[t].find(x => x.id === id); if (!r) return;
+    if (can(t, 'e') && r.appr?.status !== 'approved') return openRecordForm(t, r);
+    printDoc(t, r, true);
+  }
+
+  // ----- إعداد دورة الموافقات -----
+  let apprDraft = null;
+  function renderApprSetup() {
+    const g = apprDraft ??= structuredClone(apprGlobal());
+    g.modules ??= {};
+    const users = db.appUsers.filter(u => u.active !== false);
+    content.innerHTML = `
+      <div class="tabs-bar">
+        ${[['mine', 'بانتظار اعتمادي'], ['pending', 'كل المعلّق'], ['rejected', 'المرفوض'], ['approved', 'المعتمد']].map(([k, l]) => `<button class="tab-btn" data-tab="${k}">${l}</button>`).join('')}
+        <button class="tab-btn on" data-tab="setup">⚙️ إعداد دورة الموافقات</button>
+      </div>
+      <form id="apprForm">
+        <div class="card" style="margin-bottom:16px"><div class="card-body appr-global">
+          <label class="check"><input type="checkbox" name="noSelf" ${g.noSelf !== false ? 'checked' : ''}><span>لا يعتمد المستخدم مستنداً أنشأه بنفسه (فصل المهام)</span></label>
+          <label class="check"><input type="checkbox" name="adminOverride" ${g.adminOverride !== false ? 'checked' : ''}><span>مدير النظام يستطيع الاعتماد في أي مستوى</span></label>
+        </div></div>
+        <div class="appr-grid">${APPR_MODULES.map(t => { const c = g.modules[t] ||= { enabled: false, minAmount: 0, levels: [] }; return `
+          <div class="card appr-card ${c.enabled ? 'on' : ''}" data-mod="${t}">
+            <div class="appr-top">
+              <label class="switch"><input type="checkbox" name="en:${t}" ${c.enabled ? 'checked' : ''}><i></i></label>
+              <b>${EMO[t] || ''} ${esc(modules[t].title)}</b>
+              <span class="spacer"></span>
+              <label class="mini">${QTY_MODULES.includes(t) ? 'من كمية' : 'من مبلغ'} <input class="input" type="number" min="0" step="any" name="min:${t}" value="${+c.minAmount || 0}"></label>
+            </div>
+            <div class="appr-levels">${(c.levels || []).map((l, i) => `
+              <div class="appr-level"><div class="lvl-head"><span class="lvl-no">${i + 1}</span>
+                <input class="input" name="lt:${t}:${i}" value="${esc(l.title || '')}" placeholder="اسم المستوى، مثل: مراجعة المحاسب">
+                <button type="button" class="icon-btn" data-rmlvl="${t}:${i}" title="حذف المستوى">${icons.del}</button></div>
+                <div class="lvl-users">${users.map(u => `<label class="chip"><input type="checkbox" name="lu:${t}:${i}" value="${u.id}" ${(l.users || []).includes(u.id) ? 'checked' : ''}><span>${esc(u.name)}</span></label>`).join('') || '<span class="hint">أضف مستخدمين أولاً</span>'}</div>
+              </div>`).join('') || '<div class="hint">لا توجد مستويات — أضف مستوى واحداً على الأقل</div>'}
+              <button type="button" class="btn ghost add-lvl" data-addlvl="${t}">${icons.plus}إضافة مستوى اعتماد</button>
+            </div>
+          </div>`; }).join('')}</div>
+        <div class="appr-save"><button class="btn primary" type="submit">حفظ دورة الموافقات</button><span class="hint">المستندات التي أُنشئت قبل التفعيل تبقى مرحّلة كما هي</span></div>
+      </form>`;
+    const collect = () => {
+      const f = $('#apprForm'), fd = new FormData(f);
+      g.noSelf = !!fd.get('noSelf'); g.adminOverride = !!fd.get('adminOverride');
+      APPR_MODULES.forEach(t => {
+        const c = g.modules[t];
+        c.enabled = !!fd.get(`en:${t}`); c.minAmount = +fd.get(`min:${t}`) || 0;
+        c.levels = (c.levels || []).map((l, i) => ({ title: String(fd.get(`lt:${t}:${i}`) || '').trim() || `المستوى ${i + 1}`, users: fd.getAll(`lu:${t}:${i}`) }));
+      });
+    };
+    $$('[data-tab]', content).forEach(b => b.onclick = () => { apprDraft = null; state.filter = b.dataset.tab; renderPage(); });
+    $$('[data-addlvl]', content).forEach(b => b.onclick = () => { collect(); const c = g.modules[b.dataset.addlvl]; c.levels.push({ title: `المستوى ${c.levels.length + 1}`, users: [] }); c.enabled = true; renderApprSetup(); });
+    $$('[data-rmlvl]', content).forEach(b => b.onclick = () => { collect(); const [t, i] = b.dataset.rmlvl.split(':'); g.modules[t].levels.splice(+i, 1); renderApprSetup(); });
+    $$('[name^="en:"]', content).forEach(x => x.onchange = () => x.closest('.appr-card').classList.toggle('on', x.checked));
+    $('#apprForm').addEventListener('submit', e => {
+      e.preventDefault(); collect();
+      const bad = APPR_MODULES.find(t => g.modules[t].enabled && (!g.modules[t].levels.length || g.modules[t].levels.some(l => !l.users.length) && g.adminOverride === false));
+      if (bad) return toast(`"${modules[bad].title}": أضف مستوى واحداً على الأقل وحدد من يعتمده`, 4000);
+      db.approvalCfg = structuredClone(g); apprDraft = null;
+      save({ approvals: true }); renderNav(); toast('تم حفظ دورة الموافقات');
+    });
+  }
+
+  // ----- طباعة مستند احترافي -----
+  const plainText = html => { const d = document.createElement('div'); d.innerHTML = html; return d.textContent.trim(); };
+  function printDoc(t, r, previewOnly) {
+    if (!r) return;
+    const m = modules[t], s = db.settings;
+    const fieldRows = m.cols.map(c => { const v = val(r, c); if (v === '' || v == null) return null;
+      const txt = c.input === 'number' || c.compute && c.render === money ? (c.render === num ? num(v) : money(v)) : c.render ? plainText(c.render(v, r)) : String(v);
+      return [c.label, txt]; }).filter(Boolean);
+    const entries = glEntries().filter(e => e.module === t && e.id === r.id);
+    const nm = c => acc(c) ? accLabel(acc(c)) : c;
+    const html = `
+      <div class="doc">
+        <div class="doc-head"><div><h1>${esc(s.company || '')}</h1><p>${esc(s.address || '')}${s.taxNo ? ` · رقم التسجيل الضريبي: ${esc(s.taxNo)}` : ''}${s.commercialReg ? ` · س.ت: ${esc(s.commercialReg)}` : ''}</p></div>
+          <div class="doc-title"><h2>${esc(m.single)}</h2><b>${esc(docNo(t, r))}</b><span>${esc(r.date || r.month || '')}</span></div></div>
+        <div class="doc-status">${r.appr ? `حالة الاعتماد: <b>${esc(apprText(t, r))}</b>` : 'مستند مرحّل'}</div>
+        <table class="doc-fields">${fieldRows.map(([l, v]) => `<tr><th>${esc(l)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
+        ${entries.length ? `<h3>القيد المحاسبي</h3><table class="doc-lines"><thead><tr><th>رقم القيد</th><th>الحساب</th><th>مدين</th><th>دائن</th></tr></thead><tbody>
+          ${entries.flatMap(e => e.lines.map(l => `<tr><td>${esc(e.no)}</td><td>${esc(nm(l.acc))}</td><td>${l.dr ? money(l.dr) : ''}</td><td>${l.cr ? money(l.cr) : ''}</td></tr>`)).join('')}</tbody></table>`
+          : r.appr && r.appr.status !== 'approved' ? '<p class="doc-note">لم يُرحّل القيد بعد — بانتظار اكتمال الاعتمادات</p>' : ''}
+        ${r.appr?.steps?.length ? `<h3>سجل الاعتمادات</h3><table class="doc-lines"><thead><tr><th>الإجراء</th><th>المستخدم</th><th>التاريخ</th><th>ملاحظة</th></tr></thead><tbody>
+          ${r.appr.steps.map(st => `<tr><td>${ACTION_TXT[st.action] || st.action}${st.action === 'approve' || st.action === 'reject' ? ` (${esc(apprCfg(t)?.levels?.[st.level]?.title || `المستوى ${st.level + 1}`)})` : ''}</td><td>${esc(userName(st.by))}</td><td>${new Date(st.at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${esc(st.note || '')}</td></tr>`).join('')}</tbody></table>` : ''}
+        <div class="doc-sign">${['المُعِد', 'المراجع', 'المعتمد', 'المستلم'].map(x => `<div><span>${x}</span><i></i></div>`).join('')}</div>
+        <div class="doc-foot">طُبع بواسطة ${esc(curUser()?.name || '')} — ${new Date().toLocaleString('ar-EG')}</div>
+      </div>`;
+    if (previewOnly) { openInfo(`${m.single} ${docNo(t, r)}`, `<div class="doc-preview">${html}</div><div style="margin-top:14px"><button type="button" class="btn primary" id="docPrint">${icons.print}طباعة</button></div>`); $('#docPrint').onclick = () => printDoc(t, r); return; }
+    const area = $('#printArea'); area.innerHTML = html;
+    document.body.classList.add('printing');
+    const done = () => { document.body.classList.remove('printing'); area.innerHTML = ''; window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => { window.print(); setTimeout(done, 500); }, 50);
+  }
+
+  // =====================================================================
+  //                           مركز التقارير
+  // كل التقارير تعتمد على المستندات المعتمدة فقط، وبفترة (من / إلى)
+  // =====================================================================
+  const inRange = (d, f, t) => (!f || String(d) >= f) && (!t || String(d) <= t);
+  const docDate = r => r.date || (r.month ? `${r.month}-28` : '');
+  const monthOf = d => String(d || '').slice(0, 7);
+  const sumBy = (list, keyFn, valFn) => { const m = new Map(); list.forEach(x => { const k = keyFn(x); m.set(k, (m.get(k) || 0) + (+valFn(x) || 0)); }); return m; };
+  // حركة الحسابات خلال فترة وقبلها
+  const mvBetween = (f, t) => { const m = {}; glEntries().forEach(e => { if (!inRange(e.date, f, t)) return; e.lines.forEach(l => { const x = m[l.acc] ??= { dr: 0, cr: 0 }; x.dr += l.dr; x.cr += l.cr; }); }); return m; };
+  const mvBefore = f => { const m = {}; if (!f) return m; glEntries().forEach(e => { if (e.date >= f) return; e.lines.forEach(l => { const x = m[l.acc] ??= { dr: 0, cr: 0 }; x.dr += l.dr; x.cr += l.cr; }); }); return m; };
+  const dayDiff = (a, b) => Math.floor((new Date(a) - new Date(b)) / 864e5);
+  const M$ = 'money', N$ = 'num';
+  const col = (label, type = 'text', o = {}) => ({ label, type, ...o });
+
+  const REPORTS = [
+    // ===== التقارير المالية =====
+    { id: 'income', group: 'التقارير المالية', title: 'قائمة الدخل للفترة', need: 'reports', run: (f, t) => {
+      const mv = mvBetween(f, t), withOpen = !f;
+      const amt = a => { const x = mv[a.code] || { dr: 0, cr: 0 }; const base = withOpen ? +a.balance : 0; return a.code[0] === '4' ? base + x.cr - x.dr : base + x.dr - x.cr; };
+      const rows = []; let rev = 0, exp = 0;
+      [['4', 'الإيرادات'], ['3', 'المصروفات']].forEach(([root, title]) => {
+        rows.push({ cls: 'section', cells: [title, '', ''] });
+        let tot = 0;
+        leafAccounts().filter(a => a.code[0] === root).forEach(a => { const v = amt(a); if (Math.abs(v) < 0.005) return; tot += v; rows.push([a.code, a.name, v]); });
+        rows.push({ cls: 'total', cells: [`إجمالي ${title}`, '', tot] });
+        root === '4' ? rev = tot : exp = tot;
+      });
+      rows.push({ cls: 'grand', cells: [rev - exp >= 0 ? 'صافي الربح' : 'صافي الخسارة', '', rev - exp] });
+      return { cols: [col('الكود'), col('الحساب'), col('المبلغ', M$)], rows, noTotal: true, note: withOpen ? 'بدون تاريخ بداية: تشمل الأرصدة الافتتاحية' : 'حركة الفترة فقط' };
+    } },
+    { id: 'cashflow', group: 'التقارير المالية', title: 'حركة النقدية (الخزائن والبنوك)', need: 'cashboxes', run: (f, t) => {
+      const mv = mvBetween(f, t), before = mvBefore(f);
+      return { cols: [col('الخزينة / البنك'), col('النوع'), col('رصيد أول الفترة', M$), col('مقبوضات', M$), col('مدفوعات', M$), col('رصيد آخر الفترة', M$)],
+        rows: db.cashboxes.map(b => { const a = acc(b.accountNo); const o = (a ? +a.balance : 0) + ((before[b.accountNo]?.dr || 0) - (before[b.accountNo]?.cr || 0));
+          const i = mv[b.accountNo]?.dr || 0, out = mv[b.accountNo]?.cr || 0; return [b.name, b.type, o, i, out, o + i - out]; }) };
+    } },
+    { id: 'expgroups', group: 'التقارير المالية', title: 'المصروفات حسب المجموعة', need: 'reports', run: (f, t) => {
+      const mv = mvBetween(f, t), withOpen = !f;
+      const rows = childrenOf('3').map(g => { const v = sum([...subtree(g.code)].map(acc).filter(a => a && !hasChildren(a.code)), a => (withOpen ? +a.balance : 0) + (mv[a.code]?.dr || 0) - (mv[a.code]?.cr || 0)); return [g.code, g.name, v]; });
+      const tot = sum(rows, r => r[2]);
+      return { cols: [col('الكود'), col('المجموعة'), col('المبلغ', M$), col('النسبة %', N$, { noSum: true })], rows: rows.map(r => [...r, tot ? +(r[2] / tot * 100).toFixed(1) : 0]) };
+    } },
+    { id: 'monthly', group: 'التقارير المالية', title: 'الإيرادات والمصروفات شهرياً', need: 'reports', run: (f, t) => {
+      const by = {}; glEntries().forEach(e => { if (!inRange(e.date, f, t)) return; const k = monthOf(e.date); const x = by[k] ??= { r: 0, e: 0 };
+        e.lines.forEach(l => { if (l.acc[0] === '4') x.r += l.cr - l.dr; if (l.acc[0] === '3') x.e += l.dr - l.cr; }); });
+      return { cols: [col('الشهر'), col('الإيرادات', M$), col('المصروفات', M$), col('الصافي', M$)], rows: Object.keys(by).sort().map(k => [k, by[k].r, by[k].e, by[k].r - by[k].e]) };
+    } },
+    // ===== التقارير المحاسبية =====
+    { id: 'tb', group: 'التقارير المحاسبية', title: 'ميزان المراجعة بالمجاميع والأرصدة', need: 'reports', run: (f, t) => {
+      const mv = mvBetween(f, t), before = mvBefore(f);
+      const rows = db.accounts.filter(a => !hasChildren(a.code) || +a.balance).sort((x, y) => x.code.localeCompare(y.code)).map(a => {
+        const deb = isDebitNature(a.code); const ob = deb ? +a.balance : -a.balance;
+        const o = ob + (before[a.code]?.dr || 0) - (before[a.code]?.cr || 0); const d = mv[a.code]?.dr || 0, c = mv[a.code]?.cr || 0; const cl = o + d - c;
+        return [a.code, a.name, o > 0 ? o : 0, o < 0 ? -o : 0, d, c, cl > 0 ? cl : 0, cl < 0 ? -cl : 0];
+      }).filter(r => r.slice(2).some(v => Math.abs(v) > 0.005));
+      return { cols: [col('الكود'), col('الحساب'), col('افتتاحي مدين', M$), col('افتتاحي دائن', M$), col('حركة مدين', M$), col('حركة دائن', M$), col('ختامي مدين', M$), col('ختامي دائن', M$)], rows };
+    } },
+    { id: 'daybook', group: 'التقارير المحاسبية', title: 'دفتر اليومية للفترة', need: 'journal', run: (f, t) => {
+      const nm = c => acc(c) ? accLabel(acc(c)) : c;
+      const rows = glEntries().filter(e => inRange(e.date, f, t)).sort(byDate).flatMap(e => e.lines.map(l => [e.date, e.no, e.src, e.desc, nm(l.acc), l.dr, l.cr]));
+      return { cols: [col('التاريخ'), col('رقم القيد'), col('المصدر'), col('البيان'), col('الحساب'), col('مدين', M$), col('دائن', M$)], rows };
+    } },
+    { id: 'araging', group: 'التقارير المحاسبية', title: 'أعمار ديون العملاء', need: 'customers', dateOnly: true, run: (f, t) => {
+      const asOf = t || today();
+      const rows = db.customers.map(c => {
+        const b = [0, 0, 0, 0, 0];
+        eff('salesInvoices').filter(i => i.customer === c.name && i.date <= asOf).forEach(i => { const rem = invTotal(i) - salesPaid(i); if (rem <= 0.005) return;
+          const d = dayDiff(asOf, i.due || i.date); b[d <= 0 ? 0 : d <= 30 ? 1 : d <= 60 ? 2 : d <= 90 ? 3 : 4] += rem; });
+        const bal = custBal(c.name); const other = bal - sum(b, x => x);
+        return [c.name, c.category || '', ...b, other, bal];
+      }).filter(r => Math.abs(r.at(-1)) > 0.005);
+      return { cols: [col('العميل'), col('التصنيف'), col('غير مستحق', M$), col('1-30 يوم', M$), col('31-60 يوم', M$), col('61-90 يوم', M$), col('أكثر من 90', M$), col('أرصدة سابقة/غير موزعة', M$), col('الرصيد', M$)], rows, note: `حتى تاريخ ${asOf} — حسب تاريخ الاستحقاق` };
+    } },
+    { id: 'apaging', group: 'التقارير المحاسبية', title: 'أعمار ديون الموردين', need: 'suppliers', dateOnly: true, run: (f, t) => {
+      const asOf = t || today();
+      const rows = db.suppliers.map(s => {
+        const b = [0, 0, 0, 0, 0];
+        eff('purchaseInvoices').filter(i => i.supplier === s.name && i.date <= asOf).forEach(i => { const rem = +i.amount - purchPaid(i); if (rem <= 0.005) return;
+          const d = dayDiff(asOf, i.due || i.date); b[d <= 0 ? 0 : d <= 30 ? 1 : d <= 60 ? 2 : d <= 90 ? 3 : 4] += rem; });
+        const bal = suppBal(s.name); return [s.name, s.category || '', ...b, bal - sum(b, x => x), bal];
+      }).filter(r => Math.abs(r.at(-1)) > 0.005);
+      return { cols: [col('المورد'), col('التصنيف'), col('غير مستحق', M$), col('1-30 يوم', M$), col('31-60 يوم', M$), col('61-90 يوم', M$), col('أكثر من 90', M$), col('أرصدة سابقة/غير موزعة', M$), col('الرصيد', M$)], rows, note: `حتى تاريخ ${asOf}` };
+    } },
+    { id: 'partybal', group: 'التقارير المحاسبية', title: 'أرصدة العملاء والموردين حسب التصنيف', need: 'customers', noDate: true, run: () => ({
+      cols: [col('النوع'), col('التصنيف'), col('الاسم'), col('الرصيد', M$)],
+      rows: [...db.customers.map(c => ['عميل', c.category || '', c.name, custBal(c.name)]), ...db.suppliers.map(s => ['مورد', s.category || '', s.name, suppBal(s.name)])]
+        .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1], 'ar')) }) },
+    // ===== الخزينة =====
+    { id: 'treasuryDaily', group: 'الخزينة', title: 'حركة الخزينة اليومية', need: 'receipts', run: (f, t) => {
+      const days = {}; const addD = (d, k, v) => { if (!inRange(d, f, t)) return; (days[d] ??= { r: 0, p: 0, tr: 0 })[k] += +v || 0; };
+      eff('receipts').forEach(r => addD(r.date, 'r', r.amount)); eff('payments').forEach(r => addD(r.date, 'p', r.amount)); eff('boxTransfers').forEach(r => addD(r.date, 'tr', r.amount));
+      return { cols: [col('التاريخ'), col('المقبوضات', M$), col('المدفوعات', M$), col('الصافي', M$), col('تحويلات داخلية', M$)], rows: Object.keys(days).sort().map(d => [d, days[d].r, days[d].p, days[d].r - days[d].p, days[d].tr]) };
+    } },
+    { id: 'payParties', group: 'الخزينة', title: 'المدفوعات حسب المستفيد / الحساب', need: 'payments', run: (f, t) => {
+      const m = sumBy(eff('payments').filter(r => inRange(r.date, f, t)), r => r.party === 'أخرى' ? `أخرى: ${r.account || ''}` : r.party, r => r.amount);
+      return { cols: [col('المستفيد'), col('المبلغ', M$)], rows: [...m].sort((a, b) => b[1] - a[1]) };
+    } },
+    // ===== المبيعات =====
+    { id: 'salesCust', group: 'المبيعات', title: 'المبيعات حسب العميل', need: 'salesInvoices', run: (f, t) => {
+      const inv = eff('salesInvoices').filter(r => inRange(r.date, f, t)), ret = eff('salesReturns').filter(r => inRange(r.date, f, t)), rec = eff('receipts').filter(r => inRange(r.date, f, t));
+      const rows = db.customers.map(c => { const iv = inv.filter(i => i.customer === c.name); const net = sum(iv, i => i.amount), vat = sum(iv, vatOf);
+        return [c.name, c.category || '', iv.length, net, vat, net + vat, sum(ret.filter(r => r.customer === c.name), r => r.amount), sum(rec.filter(r => r.party === c.name), r => r.amount), custBal(c.name)]; })
+        .filter(r => r[2] || r[6] || r[7]);
+      return { cols: [col('العميل'), col('التصنيف'), col('عدد الفواتير', N$), col('الصافي', M$), col('الضريبة', M$), col('الإجمالي', M$), col('المرتجعات', M$), col('المحصّل', M$), col('الرصيد الحالي', M$, { noSum: false })], rows };
+    } },
+    { id: 'salesCat', group: 'المبيعات', title: 'المبيعات حسب تصنيف العملاء', need: 'salesInvoices', run: (f, t) => {
+      const cat = n => db.customers.find(c => c.name === n)?.category || 'بدون تصنيف';
+      const inv = sumBy(eff('salesInvoices').filter(r => inRange(r.date, f, t)), r => cat(r.customer), r => r.amount);
+      const ret = sumBy(eff('salesReturns').filter(r => inRange(r.date, f, t)), r => cat(r.customer), r => r.amount);
+      const keys = [...new Set([...custCats(), ...inv.keys(), ...ret.keys()])];
+      return { cols: [col('التصنيف'), col('المبيعات', M$), col('المرتجعات', M$), col('صافي المبيعات', M$)], rows: keys.map(k => [k, inv.get(k) || 0, ret.get(k) || 0, (inv.get(k) || 0) - (ret.get(k) || 0)]) };
+    } },
+    { id: 'salesMonth', group: 'المبيعات', title: 'المبيعات الشهرية', need: 'salesInvoices', run: (f, t) => {
+      const list = eff('salesInvoices').filter(r => inRange(r.date, f, t)); const months = [...new Set(list.map(r => monthOf(r.date)))].sort();
+      return { cols: [col('الشهر'), col('عدد الفواتير', N$), col('الصافي', M$), col('الضريبة', M$), col('الإجمالي', M$)],
+        rows: months.map(m => { const l = list.filter(r => monthOf(r.date) === m); return [m, l.length, sum(l, r => r.amount), sum(l, vatOf), sum(l, invTotal)]; }) };
+    } },
+    // ===== المشتريات =====
+    { id: 'purSupp', group: 'المشتريات', title: 'المشتريات حسب المورد', need: 'purchaseInvoices', run: (f, t) => {
+      const inv = eff('purchaseInvoices').filter(r => inRange(r.date, f, t)), ret = eff('purchaseReturns').filter(r => inRange(r.date, f, t)), pay = eff('payments').filter(r => inRange(r.date, f, t));
+      const rows = db.suppliers.map(s => { const iv = inv.filter(i => i.supplier === s.name);
+        return [s.name, s.category || '', iv.length, sum(iv, i => i.amount), sum(ret.filter(r => r.supplier === s.name), r => r.amount), sum(pay.filter(r => r.party === s.name), r => r.amount), suppBal(s.name)]; })
+        .filter(r => r[2] || r[4] || r[5]);
+      return { cols: [col('المورد'), col('التصنيف'), col('عدد الفواتير', N$), col('المشتريات', M$), col('المرتجعات', M$), col('المسدد', M$), col('المستحق له', M$)], rows };
+    } },
+    { id: 'purCat', group: 'المشتريات', title: 'المشتريات حسب تصنيف الموردين', need: 'purchaseInvoices', run: (f, t) => {
+      const cat = n => db.suppliers.find(s => s.name === n)?.category || 'بدون تصنيف';
+      const inv = sumBy(eff('purchaseInvoices').filter(r => inRange(r.date, f, t)), r => cat(r.supplier), r => r.amount);
+      const keys = [...new Set([...suppCats(), ...inv.keys()])];
+      return { cols: [col('التصنيف'), col('المشتريات', M$)], rows: keys.map(k => [k, inv.get(k) || 0]) };
+    } },
+    // ===== المخازن =====
+    { id: 'stkMove', group: 'المخازن', title: 'حركة الأصناف للفترة', need: 'items', run: (f, t) => {
+      const q = (list, it, sign, fieldWh) => sum(list.filter(r => r.item === it), r => +r.qty * sign);
+      const rows = db.items.map(it => {
+        const before = r => f && r.date < f, within = r => inRange(r.date, f, t);
+        const open = +it.opening + q(eff('stockIn').filter(before), it.name, 1) - q(eff('stockOut').filter(before), it.name, 1);
+        const inn = q(eff('stockIn').filter(within), it.name, 1), out = q(eff('stockOut').filter(within), it.name, 1);
+        const close = open + inn - out;
+        return [it.code, it.name, it.unit, open, inn, out, close, close * it.cost];
+      });
+      return { cols: [col('الكود'), col('الصنف'), col('الوحدة'), col('رصيد أول الفترة', N$), col('وارد', N$), col('منصرف', N$), col('رصيد آخر الفترة', N$), col('القيمة بالتكلفة', M$)], rows };
+    } },
+    { id: 'stkLow', group: 'المخازن', title: 'أصناف تحت حد الطلب', need: 'items', noDate: true, run: () => ({
+      cols: [col('الكود'), col('الصنف'), col('المجموعة'), col('الرصيد', N$), col('حد الطلب', N$), col('العجز', N$)],
+      rows: db.items.filter(i => itemQty(i.name) < +i.min).map(i => [i.code, i.name, i.category, itemQty(i.name), +i.min, +i.min - itemQty(i.name)]) }) },
+    { id: 'stkValue', group: 'المخازن', title: 'قيمة المخزون حسب المخزن والمجموعة', need: 'stockBalances', noDate: true, run: () => {
+      const rows = []; db.warehouses.forEach(w => { const m = sumBy(db.items.filter(i => stockAt(i.name, w.name)), i => i.category, i => stockAt(i.name, w.name) * i.cost); m.forEach((v, k) => rows.push([w.name, k, v])); });
+      return { cols: [col('المخزن'), col('المجموعة'), col('القيمة', M$)], rows };
+    } },
+    // ===== شئون العاملين =====
+    { id: 'payrollRep', group: 'شئون العاملين', title: 'كشف الرواتب', need: 'payroll', run: (f, t) => {
+      const list = eff('payroll').filter(r => inRange(r.month, f && f.slice(0, 7), t && t.slice(0, 7))).sort((a, b) => a.month.localeCompare(b.month));
+      return { cols: [col('الشهر'), col('الموظف'), col('فئة المرتبات'), col('الأساسي', M$), col('البدلات', M$), col('الاستقطاعات', M$), col('الصافي', M$), col('الحالة')],
+        rows: list.map(r => [r.month, r.employee, r.group || '', +r.basic, +r.allowances, +r.deductions, r.basic + r.allowances - r.deductions, r.paid || 'مصروف']) };
+    } },
+    { id: 'attRep', group: 'شئون العاملين', title: 'ملخص الحضور والانصراف', need: 'attendance', run: (f, t) => {
+      const list = db.attendance.filter(r => inRange(r.date, f, t)); const st = ['حاضر', 'متأخر', 'غائب', 'إجازة'];
+      return { cols: [col('الموظف'), ...st.map(s => col(s, N$)), col('الإجمالي', N$)],
+        rows: [...new Set(list.map(r => r.employee))].map(e => { const c = st.map(s => list.filter(r => r.employee === e && r.status === s).length); return [e, ...c, sum(c, x => x)]; }) };
+    } },
+    { id: 'deptRep', group: 'شئون العاملين', title: 'الموظفون والرواتب حسب الإدارة', need: 'employees', noDate: true, run: () => ({
+      cols: [col('الإدارة'), col('عدد الموظفين', N$), col('إجمالي الرواتب الأساسية', M$)],
+      rows: db.departments.map(d => { const e = db.employees.filter(x => x.department === d.name); return [d.name, e.length, sum(e, x => x.salary)]; }) }) },
+    // ===== شئون العمالة =====
+    { id: 'laborRep', group: 'شئون العمالة', title: 'أجور وسلف العمال', need: 'dailyLabor', run: (f, t) => {
+      const lab = eff('dailyLabor').filter(r => inRange(r.date, f, t)), adv = eff('advances').filter(r => inRange(r.date, f, t));
+      const s = (w, type) => sum(adv.filter(a => a.worker === w && a.type === type), a => a.amount);
+      return { cols: [col('العامل'), col('الحرفة'), col('أيام العمل', N$), col('الأجور', M$), col('السلف', M$), col('المكافآت', M$), col('الجزاءات', M$), col('الصافي المستحق', M$)],
+        rows: db.workers.map(w => { const l = lab.filter(x => x.worker === w.name); const wages = sum(l, x => x.days * x.wage);
+          return [w.name, w.craft, sum(l, x => x.days), wages, s(w.name, 'سلفة'), s(w.name, 'مكافأة'), s(w.name, 'جزاء'), wages + s(w.name, 'مكافأة') - s(w.name, 'سلفة') - s(w.name, 'جزاء')]; })
+          .filter(r => r[2] || r[4] || r[5] || r[6]) };
+    } },
+    // ===== الميكنة والصيانة =====
+    { id: 'machRep', group: 'الميكنة والصيانة', title: 'تشغيل وتكلفة المعدات', need: 'machines', run: (f, t) => {
+      const ops = db.machineOps.filter(r => inRange(r.date, f, t)), mo = eff('maintenanceOrders').filter(r => inRange(r.date, f, t));
+      return { cols: [col('المعدة'), col('الحالة'), col('ساعات التشغيل', N$), col('الوقود (لتر)', N$), col('تكلفة التشغيل', M$), col('أوامر الصيانة', N$), col('تكلفة الصيانة', M$), col('التكلفة الكلية', M$)],
+        rows: db.machines.map(m => { const o = ops.filter(x => x.machine === m.name), mm = mo.filter(x => x.machine === m.name); const run = sum(o, x => x.hours) * m.hourRate, mc = sum(mm.filter(x => x.status === 'مكتمل'), x => x.cost);
+          return [m.name, machineState(m), sum(o, x => x.hours), sum(o, x => x.fuel), run, mm.length, mc, run + mc]; }) };
+    } },
+    { id: 'maintPlanRep', group: 'الميكنة والصيانة', title: 'الصيانة الدورية المستحقة', need: 'maintenancePlan', noDate: true, run: () => ({
+      cols: [col('المعدة'), col('العمل المطلوب'), col('آخر صيانة'), col('الصيانة القادمة'), col('الحالة'), col('أيام متبقية', N$, { noSum: true })],
+      rows: db.maintenancePlan.map(p => [p.machine, p.task, p.lastDate, p.nextDate, planStatus(p), dayDiff(p.nextDate, today())]).sort((a, b) => a[5] - b[5]) }) },
+    // ===== الاعتمادات =====
+    { id: 'apprRep', group: 'الاعتمادات', title: 'المستندات المعلّقة حسب النوع', need: 'approvals', noDate: true, run: () => ({
+      cols: [col('نوع المستند'), col('بانتظار الاعتماد', N$), col('مرفوض', N$), col('قيمة المعلّق', M$)],
+      rows: APPR_MODULES.map(t => { const p = db[t].filter(r => r.appr?.status === 'pending'), rj = db[t].filter(r => r.appr?.status === 'rejected');
+        return [modules[t].title, p.length, rj.length, QTY_MODULES.includes(t) ? 0 : sum(p, r => amountOf(t, r))]; }).filter(r => r[1] || r[2]) }) },
+  ];
+
+  const fmtCell = (c, v) => c.type === M$ ? money(v) : c.type === N$ ? num(v) : esc(v);
+  function runReport(rep) {
+    const out = rep.run(state.rFrom || '', state.rTo || '');
+    const rows = out.rows.map(r => Array.isArray(r) ? { cells: r } : r);
+    const totals = out.noTotal ? null : out.cols.map((c, i) => (c.type === M$ || c.type === N$) && !c.noSum ? sum(rows.filter(r => !r.cls), r => r.cells[i]) : null);
+    return { ...out, rows, totals };
+  }
+  function reportTableHTML(rep, res) {
+    return `<table class="rep-table">
+      <thead><tr>${res.cols.map(c => `<th class="${c.type !== 'text' ? 'num' : ''}">${esc(c.label)}</th>`).join('')}</tr></thead>
+      <tbody>${res.rows.map(r => `<tr class="${r.cls || ''}">${r.cells.map((v, i) => `<td class="${res.cols[i].type !== 'text' ? 'num' : ''}">${v === '' ? '' : fmtCell(res.cols[i], v)}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${res.cols.length}" class="empty">لا توجد بيانات في هذه الفترة</td></tr>`}</tbody>
+      ${res.totals && res.rows.length ? `<tfoot><tr>${res.totals.map((v, i) => `<td class="${v != null ? 'num' : ''}">${i === 0 ? 'الإجمالي' : v != null ? fmtCell(res.cols[i], v) : ''}</td>`).join('')}</tr></tfoot>` : ''}
+    </table>`;
+  }
+  function renderReportCenter() {
+    const list = REPORTS.filter(r => can(r.need));
+    const groups = [...new Set(list.map(r => r.group))];
+    const rep = list.find(r => r.id === state.report) || list[0];
+    if (!rep) { content.innerHTML = '<div class="boot"><p>لا توجد تقارير متاحة لصلاحياتك</p></div>'; return; }
+    state.report = rep.id;
+    const res = runReport(rep);
+    const period = rep.noDate ? 'الوضع الحالي' : rep.dateOnly ? `حتى ${state.rTo || today()}` : `${state.rFrom || 'من البداية'} — ${state.rTo || 'حتى اليوم'}`;
+    content.innerHTML = `
+      <div class="rep-layout">
+        <aside class="rep-menu">${groups.map(g => `<div class="rep-group"><h4>${esc(g)}</h4>${list.filter(r => r.group === g).map(r => `<button class="rep-item ${r.id === rep.id ? 'on' : ''}" data-rep="${r.id}">${esc(r.title)}</button>`).join('')}</div>`).join('')}</aside>
+        <section class="card rep-main">
+          <div class="card-head"><div><h3>${esc(rep.title)}</h3><div class="sub">${esc(rep.group)} · ${esc(period)}${res.note ? ` · ${esc(res.note)}` : ''}</div></div>
+            <div class="spacer"></div>
+            <div class="toolbar">
+              ${rep.noDate ? '' : `${rep.dateOnly ? '' : `<label class="date-f">من <input class="input" type="date" id="rFrom" value="${esc(state.rFrom || '')}"></label>`}<label class="date-f">${rep.dateOnly ? 'حتى تاريخ' : 'إلى'} <input class="input" type="date" id="rTo" value="${esc(state.rTo || '')}"></label>
+              <select class="input" id="rQuick"><option value="">فترة سريعة…</option><option value="month">هذا الشهر</option><option value="lastMonth">الشهر السابق</option><option value="quarter">هذا الربع</option><option value="year">هذه السنة</option><option value="all">كل الفترات</option></select>`}
+              <button class="btn ghost" id="exportBtn">${icons.export}تصدير</button>
+              <button class="btn ghost" id="repPrint">${icons.print}طباعة</button>
+            </div></div>
+          <div class="table-wrap">${reportTableHTML(rep, res)}</div>
+          <div class="table-foot"><span>${res.rows.filter(r => !r.cls).length} صف</span><span>يعتمد على المستندات المعتمدة فقط</span></div>
+        </section>
+      </div>`;
+    $$('[data-rep]', content).forEach(b => b.onclick = () => { state.report = b.dataset.rep; renderPage(); });
+    const setP = () => { state.rFrom = $('#rFrom')?.value || ''; state.rTo = $('#rTo')?.value || ''; renderPage(); };
+    $('#rFrom')?.addEventListener('change', setP); $('#rTo')?.addEventListener('change', setP);
+    $('#rQuick')?.addEventListener('change', e => {
+      const d = new Date(), y = d.getFullYear(), m = d.getMonth(), iso = x => isoOf(x);
+      const q = { month: [new Date(y, m, 1), new Date(y, m + 1, 0)], lastMonth: [new Date(y, m - 1, 1), new Date(y, m, 0)], quarter: [new Date(y, m - m % 3, 1), new Date(y, m - m % 3 + 3, 0)], year: [new Date(y, 0, 1), new Date(y, 11, 31)] }[e.target.value];
+      if (e.target.value === 'all') { state.rFrom = ''; state.rTo = ''; } else if (q) { state.rFrom = iso(q[0]); state.rTo = iso(q[1]); }
+      renderPage();
+    });
+    $('#exportBtn').onclick = () => downloadCSV(rep.title, res.cols.map(c => c.label), [...res.rows.map(r => r.cells), ...(res.totals ? [res.totals.map((v, i) => i === 0 ? 'الإجمالي' : v ?? '')] : [])]);
+    $('#repPrint').onclick = () => {
+      const s = db.settings, area = $('#printArea');
+      area.innerHTML = `<div class="doc"><div class="doc-head"><div><h1>${esc(s.company || '')}</h1><p>${esc(s.address || '')}</p></div>
+        <div class="doc-title"><h2>${esc(rep.title)}</h2><span>${esc(period)}</span></div></div>${reportTableHTML(rep, res)}
+        <div class="doc-foot">طُبع بواسطة ${esc(curUser()?.name || '')} — ${new Date().toLocaleString('ar-EG')}</div></div>`;
+      document.body.classList.add('printing');
+      const done = () => { document.body.classList.remove('printing'); area.innerHTML = ''; window.removeEventListener('afterprint', done); };
+      window.addEventListener('afterprint', done); setTimeout(() => { window.print(); setTimeout(done, 500); }, 50);
+    };
   }
 
   // ---------- التوجيه ----------
