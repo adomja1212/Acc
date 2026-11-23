@@ -28,7 +28,7 @@
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
   const SETTINGS_PATH = 'meta/settings';
-  const TABLES = ['accounts', 'customers', 'suppliers', 'items', 'warehouses', 'departments', 'employees', 'attendance', 'payroll', 'leaves',
+  const TABLES = ['appUsers', 'accounts', 'customers', 'suppliers', 'items', 'warehouses', 'departments', 'employees', 'attendance', 'payroll', 'leaves',
     'workers', 'dailyLabor', 'advances', 'cashboxes', 'receipts', 'payments', 'journal', 'salesInvoices', 'salesQuotes', 'salesReturns',
     'purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'stockIn', 'stockOut', 'transfers', 'machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan'];
   const TX_TABLES = ['journal', 'receipts', 'payments', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
@@ -41,7 +41,7 @@
     if (data?.settings) Object.assign(d.settings, data.settings);
     return d;
   };
-  const stripMeta = r => { const { id, _at, _by, ...rest } = r; return rest; };
+  const stripMeta = r => { const { id, _at, _by, _u, ...rest } = r; return rest; };
   const stable = o => JSON.stringify(o, Object.keys(o).sort());
 
   let db = emptyDb();
@@ -62,7 +62,8 @@
       const cmp = stable(stripMeta(r)), prev = store.saved.get(path);
       if (prev === cmp) continue;
       r._at = new Date().toISOString(); if (store.me.id) r._by = store.me.id;
-      store.queue.push({ path, body: { ...stripMeta(r), _at: r._at, ...(r._by ? { _by: r._by } : {}) }, cmp, prev });
+      const cu = curUser(); if (cu) r._u = cu.username;
+      store.queue.push({ path, body: { ...stripMeta(r), _at: r._at, ...(r._by ? { _by: r._by } : {}), ...(r._u ? { _u: r._u } : {}) }, cmp, prev });
       store.saved.set(path, cmp);
     }
     for (const path of [...store.saved.keys()]) if (path !== SETTINGS_PATH && !seen.has(path)) {
@@ -128,7 +129,7 @@
 
   function attachCloud() {
     const waiting = new Set([...TABLES, SETTINGS_PATH]);
-    const ready = () => { if (store.ready) return; store.ready = true; clearTimeout(slowTimer); setSync('saved'); route(); };
+    const ready = () => { if (store.ready) return; store.ready = true; clearTimeout(slowTimer); setSync('saved'); authGate(); };
     const got = key => { waiting.delete(key); if (!waiting.size) ready(); else if (store.ready) scheduleRender(); };
     const slowTimer = setTimeout(() => { setSync('slow'); ready(); }, 10000);
     const fail = e => { if (e?.code === 'revoked') { store.canWrite = false; applyRole(); } setSync('error'); };
@@ -157,7 +158,7 @@
     try { data = JSON.parse(localStorage.getItem(LOCAL_KEY)); } catch {}
     if (!data && !hasRuntime) data = await loadSeed();
     db = normalize(data);
-    store.ready = true; setSync(hasRuntime ? 'offline' : 'local'); route();
+    store.ready = true; setSync(hasRuntime ? 'offline' : 'local'); authGate();
   }
   const loadSeed = () => new Promise(res => {
     if (window.ACC_SEED) return res(window.ACC_SEED);
@@ -417,7 +418,7 @@
       C('remaining', 'المتبقي', computed(r => invTotal(r) - salesPaid(r), { total: true })),
       C('status', 'الحالة', statusOf(salesStatus, 'معلقة', 'مدفوعة جزئياً', 'مدفوعة', 'متأخرة'))],
       defaults: () => ({ vatRate: db.settings.vat, due: addDays(today(), 30) }),
-      actions: [{ icon: 'receive', title: 'تحصيل (سند قبض)', write: true, show: r => salesStatus(r) !== 'مدفوعة',
+      actions: [{ icon: 'receive', title: 'تحصيل (سند قبض)', write: true, target: 'receipts', show: r => salesStatus(r) !== 'مدفوعة',
         fn: r => openRecordForm('receipts', null, { party: r.customer, invoice: r.no, amount: +(invTotal(r) - salesPaid(r)).toFixed(2), desc: `سداد فاتورة ${r.no}` }) }],
       validate: (d, rec) => {
         const c = db.customers.find(x => x.name === d.customer); if (!c || !+c.limit) return;
@@ -427,7 +428,7 @@
     salesQuotes: { title: 'عروض الأسعار', sub: 'عروض الأسعار المقدمة للعملاء (لا تُرحّل)', single: 'عرض سعر', key: 'no', filter: 'status', cols: [
       C('no', 'رقم العرض', CODE), C('customer', 'العميل', { input: 'select', options: names('customers'), full: true }), C('date', 'التاريخ', D), C('validUntil', 'ساري حتى', D),
       C('amount', 'القيمة', { ...M, total: true }), C('status', 'الحالة', status('مرسل', 'مقبول', 'مرفوض'))],
-      actions: [{ icon: 'sales', title: 'تحويل إلى فاتورة', show: r => r.status !== 'مرفوض',
+      actions: [{ icon: 'sales', title: 'تحويل إلى فاتورة', target: 'salesInvoices', show: r => r.status !== 'مرفوض',
         fn: r => openRecordForm('salesInvoices', null, { customer: r.customer, amount: r.amount }, () => { const x = db.salesQuotes.find(q => q.id === r.id); if (x) x.status = 'مقبول'; }), write: true }] },
     salesReturns: { title: 'مرتجعات المبيعات', sub: 'تُرحّل: من حـ/ المبيعات إلى حـ/ العملاء', single: 'مرتجع', key: 'no', cols: [
       C('no', 'رقم المرتجع', CODE), C('customer', 'العميل', { input: 'select', options: names('customers') }),
@@ -439,7 +440,7 @@
     purchaseOrders: { title: 'أوامر الشراء', sub: 'طلبات الشراء (لا تُرحّل حتى تصدر الفاتورة)', single: 'أمر شراء', key: 'no', filter: 'status', cols: [
       C('no', 'رقم الأمر', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers'), full: true }), C('date', 'التاريخ', D), C('delivery', 'موعد التوريد', D),
       C('amount', 'القيمة', { ...M, total: true }), C('status', 'الحالة', status('جديد', 'معتمد', 'مستلم'))],
-      actions: [{ icon: 'cart', title: 'تحويل إلى فاتورة مشتريات', show: r => r.status !== 'جديد',
+      actions: [{ icon: 'cart', title: 'تحويل إلى فاتورة مشتريات', target: 'purchaseInvoices', show: r => r.status !== 'جديد',
         fn: r => openRecordForm('purchaseInvoices', null, { supplier: r.supplier, amount: r.amount }, () => { const x = db.purchaseOrders.find(q => q.id === r.id); if (x) x.status = 'مستلم'; }), write: true }] },
     purchaseInvoices: { title: 'فواتير المشتريات', sub: 'تُرحّل: من حـ/ المخزون أو المصروف إلى حـ/ الموردين', single: 'فاتورة شراء', key: 'no', filter: 'status', cols: [
       C('no', 'رقم الفاتورة', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers'), full: true }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
@@ -448,7 +449,7 @@
       C('remaining', 'المتبقي', computed(r => +r.amount - purchPaid(r), { total: true })),
       C('status', 'الحالة', statusOf(purchStatus, 'معلقة', 'مدفوعة جزئياً', 'مدفوعة', 'متأخرة'))],
       defaults: () => ({ due: addDays(today(), 30), account: '1231 - مخزون الخامات' }),
-      actions: [{ icon: 'pay', title: 'سداد (سند صرف)', write: true, show: r => purchStatus(r) !== 'مدفوعة',
+      actions: [{ icon: 'pay', title: 'سداد (سند صرف)', write: true, target: 'payments', show: r => purchStatus(r) !== 'مدفوعة',
         fn: r => openRecordForm('payments', null, { party: r.supplier, invoice: r.no, amount: +(r.amount - purchPaid(r)).toFixed(2), desc: `سداد فاتورة ${r.no}` }) }] },
     purchaseReturns: { title: 'مرتجعات المشتريات', sub: 'تُرحّل: من حـ/ الموردين إلى حـ/ المخزون', single: 'مرتجع', key: 'no', cols: [
       C('no', 'رقم المرتجع', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers') }),
@@ -542,7 +543,7 @@
     maintenancePlan: { title: 'الصيانة الدورية', sub: 'الحالة تُحسب من تاريخ الصيانة القادمة', single: 'بند صيانة', filter: 'status', cols: [
       C('machine', 'المعدة', { input: 'select', options: names('machines') }), C('task', 'العمل المطلوب', { full: true }), C('interval', 'الدورية'),
       C('lastDate', 'آخر صيانة', D), C('nextDate', 'الصيانة القادمة', D), C('status', 'الحالة', statusOf(planStatus, 'منتظمة', 'قريبة', 'متأخرة'))],
-      actions: [{ icon: 'wrench', title: 'إنشاء أمر صيانة', write: true, fn: r => openRecordForm('maintenanceOrders', null, { machine: r.machine, type: 'وقائية' }) }] },
+      actions: [{ icon: 'wrench', title: 'إنشاء أمر صيانة', write: true, target: 'maintenanceOrders', fn: r => openRecordForm('maintenanceOrders', null, { machine: r.machine, type: 'وقائية' }) }] },
   };
 
   // الروابط بين الجداول: عند تغيير الاسم يتحدث في كل مكان، ولا يُحذف سجل مستخدم
@@ -569,6 +570,7 @@
     ledger: { title: 'كشف حساب', sub: 'حركة الحساب التفصيلية والرصيد المتحرك', render: renderLedger },
     reports: { title: 'القوائم المالية', sub: 'قائمة الدخل، المركز المالي، ميزان المراجعة', render: renderReports },
     stockBalances: { title: 'أرصدة المخازن', sub: 'رصيد كل صنف في كل مخزن', render: renderStockBalances },
+    users: { title: 'المستخدمون والصلاحيات', sub: 'حسابات الدخول وصلاحيات كل مستخدم', render: renderUsers },
     database: { title: 'قاعدة البيانات', sub: 'الجداول والسعة والنسخ الاحتياطي', render: renderDatabase },
     settings: { title: 'الإعدادات', sub: 'بيانات المنشأة', render: renderSettings },
   };
@@ -588,10 +590,10 @@
       { title: 'الصيانة', icon: 'wrench', items: ['maintenanceOrders', 'maintenancePlan'] },
     ] },
     { title: 'قواعد البيانات', icon: 'db', items: ['customers', 'suppliers', 'items', 'warehouses', 'employees', 'workers', 'departments', 'machines'] },
-    { title: 'الإدارة والإعدادات', icon: 'shield', items: ['dashboard', 'database', 'settings'] },
+    { title: 'الإدارة والإعدادات', icon: 'shield', items: ['dashboard', 'users', 'database', 'settings'] },
   ];
   const EMO = {
-    dashboard: '📊', database: '🗄️', settings: '⚙️', accounts: '🌳', journal: '📒', ledger: '📄', reports: '📈',
+    dashboard: '📊', users: '👥', database: '🗄️', settings: '⚙️', accounts: '🌳', journal: '📒', ledger: '📄', reports: '📈',
     cashboxes: '🏦', receipts: '📥', payments: '📤', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
     purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
     attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
@@ -620,6 +622,7 @@
   let pendingQuery = null;
 
   function leafHTML(p, withPath) {
+    if (!can(p)) return '';
     const fav = prefs.fav.includes(p), info = pageInfo(p);
     return `<div class="nav-leaf ${state.page === p ? 'active' : ''}">
       <a href="#${p}" data-page="${p}"><span class="emo">${EMO[p] || '•'}</span><span class="nav-title">${info.title}${withPath ? `<small>${pagePath[p].titles.join(' › ')}</small>` : ''}</span>${badge(badges[p]?.() || 0)}</a>
@@ -627,7 +630,8 @@
   }
   function groupHTML(g, key, lvl) {
     const open = state.open.has(key);
-    const leaves = leavesOf(g);
+    const leaves = leavesOf(g).filter(p => can(p));
+    if (!leaves.length) return '';
     const total = sum(leaves, p => badges[p]?.() || 0);
     return `<div class="nav-group lvl${lvl} ${open ? 'open' : ''} ${leaves.includes(state.page) ? 'current' : ''}">
       <button class="nav-head" data-toggle="${key}" aria-expanded="${open}"><span class="nav-ico">${icons[g.icon]}</span><span class="nav-title">${g.title}</span>${open ? '' : badge(total)}${icons.chevDown}</button>
@@ -638,14 +642,14 @@
     const q = state.navQ.trim().toLowerCase();
     let html;
     if (q) {
-      const hits = Object.keys(pagePath).filter(p => [pageInfo(p).title, ...pagePath[p].titles].some(t => t.toLowerCase().includes(q)));
+      const hits = Object.keys(pagePath).filter(p => can(p) && [pageInfo(p).title, ...pagePath[p].titles].some(t => t.toLowerCase().includes(q)));
       html = hits.length ? hits.map(p => leafHTML(p, true)).join('') : '<div class="nav-empty">لا توجد نتائج في القائمة</div>';
     } else if (state.navTab === 'fav') {
-      const fav = prefs.fav.filter(p => pagePath[p]);
+      const fav = prefs.fav.filter(p => pagePath[p] && can(p));
       html = fav.length ? fav.map(p => leafHTML(p, true)).join('') : '<div class="nav-empty">لا توجد شاشات في المفضلة.<br>اضغط ☆ بجانب أي شاشة لإضافتها.</div>';
     } else html = nav.map((g, i) => groupHTML(g, String(i), 0)).join('');
     $('#nav').innerHTML = html;
-    $('#favCount').textContent = prefs.fav.filter(p => pagePath[p]).length;
+    $('#favCount').textContent = prefs.fav.filter(p => pagePath[p] && can(p)).length;
     $$('.nav-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === state.navTab));
   }
   $('#nav').addEventListener('click', e => {
@@ -811,6 +815,7 @@
   }
 
   function deleteRecord(name, r) {
+    if (!can(name, 'd')) return denied();
     const m = modules[name];
     const used = m.key ? usages(name, r[m.key]) : [];
     if (used.length) return toast(`لا يمكن الحذف: مستخدم في ${used.map(([t, n]) => `${pageInfo(t).title} (${n})`).join('، ')}`, 4000);
@@ -861,6 +866,7 @@
     const when = new Date(r._at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
     el.textContent = `آخر تعديل: ${when}`;
     $('#modalBody').appendChild(el);
+    if (r._u) { const au = db.appUsers.find(x => x.username === r._u); el.textContent = `آخر تعديل: ${au?.name || r._u} — ${when}`; return; }
     if (r._by && store.user) { const ps = await store.user.profiles([r._by]); const n = ps[r._by]?.name; if (n) el.textContent = `آخر تعديل: ${n} — ${when}`; }
   }
 
@@ -873,6 +879,7 @@
   };
 
   function openRecordForm(name, record, prefill = {}, afterCreate) {
+    if (!can(name, record ? 'e' : 'a')) return denied();
     const m = modules[name];
     const fields = m.cols.filter(c => !c.compute);
     const t = today();
@@ -1142,6 +1149,7 @@
     $$('[data-addchild]', content).forEach(b => b.onclick = () => openAccountForm(null, b.dataset.addchild));
     $$('[data-editacc]', content).forEach(b => b.onclick = () => openAccountForm(db.accounts.find(a => a.id === b.dataset.editacc)));
     $$('[data-delacc]', content).forEach(b => b.onclick = () => {
+      if (!can('accounts', 'd')) return denied();
       const a = db.accounts.find(x => x.id === b.dataset.delacc);
       if (hasChildren(a.code)) return toast('لا يمكن حذف حساب له حسابات فرعية');
       if (movements()[a.code]) return toast('لا يمكن حذف حساب عليه حركات مرحّلة');
@@ -1162,6 +1170,7 @@
 
   const accRefFields = [['journal', 'debit'], ['journal', 'credit'], ['receipts', 'account'], ['payments', 'account'], ['purchaseInvoices', 'account'], ['purchaseReturns', 'account']];
   function openAccountForm(a, parent) {
+    if (!can('accounts', a ? 'e' : 'a')) return denied();
     const p = a ? a.parent : parent ?? null;
     const isLeaf = !a || !hasChildren(a.code);
     const fields = [
@@ -1245,11 +1254,12 @@
   // ---------- الإعدادات ----------
   function renderSettings() {
     const s = db.settings;
-    const dis = store.canAdmin ? '' : 'disabled';
+    const canSet = store.canAdmin && can('settings', 'e');
+    const dis = canSet ? '' : 'disabled';
     const f = (k, l, t = 'text', full = false) => `<div class="field ${full ? 'full' : ''}"><label>${l}</label><input class="input" name="${k}" type="${t}" value="${esc(s[k])}" ${dis}></div>`;
     content.innerHTML = `
       <div class="card" style="max-width:860px">
-        <div class="card-head"><div><h3>بيانات المنشأة</h3><div class="sub">${store.canAdmin ? 'تظهر في رأس القائمة والفواتير والتقارير' : 'تعديلها متاح لمدير النظام فقط'}</div></div></div>
+        <div class="card-head"><div><h3>بيانات المنشأة</h3><div class="sub">${canSet ? 'تظهر في رأس القائمة والفواتير والتقارير' : 'ليس لديك صلاحية تعديل الإعدادات'}</div></div></div>
         <form class="card-body" id="settingsForm">
           <div class="form-grid">
             ${f('company', 'اسم المنشأة', 'text', true)}
@@ -1260,7 +1270,7 @@
             ${f('fiscalStart', 'بداية السنة المالية', 'date')}
             ${f('address', 'العنوان', 'text')}
           </div>
-          ${store.canAdmin ? '<div style="margin-top:20px"><button class="btn primary" type="submit">حفظ الإعدادات</button></div>' : ''}
+          ${canSet ? '<div style="margin-top:20px"><button class="btn primary" type="submit">حفظ الإعدادات</button></div>' : ''}
         </form>
       </div>`;
     $('#settingsForm').addEventListener('submit', e => {
@@ -1293,15 +1303,15 @@
           <thead><tr><th>الجدول</th><th>المسار</th><th>عدد السجلات</th><th>آخر تعديل</th><th>بواسطة</th><th></th></tr></thead>
           <tbody>${rows.map(r => `<tr><td><b>${esc(TABLE_TITLE(r.t))}</b></td><td class="code">${r.t}</td><td class="num">${num(r.n)}</td>
             <td>${r.last ? new Date(r.last._at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
-            <td data-uid="${esc(r.last?._by || '')}">—</td>
+            <td data-uid="${esc(r.last?._by || '')}">${esc(r.last?._u ? (db.appUsers.find(x => x.username === r.last._u)?.name || r.last._u) : '—')}</td>
             <td><a class="link-btn" href="#${r.t}">فتح</a></td></tr>`).join('')}</tbody>
         </table></div>
       </div>
       <div class="card">
         <div class="card-head"><div><h3>النسخ الاحتياطي والاستعادة</h3><div class="sub">ملف JSON يحتوي على كل الجداول والإعدادات</div></div></div>
         <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn ghost" id="backupBtn">${icons.export}تنزيل نسخة احتياطية</button>
-          <label class="btn ghost admin-only" style="cursor:pointer">استعادة نسخة احتياطية<input type="file" id="restoreInput" accept=".json,application/json" hidden></label>
+          <button class="btn ghost ${canSp('backup') ? '' : 'hide'}" id="backupBtn">${icons.export}تنزيل نسخة احتياطية</button>
+          <label class="btn ghost admin-only ${canSp('backup') ? '' : 'hide'}" style="cursor:pointer">استعادة نسخة احتياطية<input type="file" id="restoreInput" accept=".json,application/json" hidden></label>
           ${store.mode === 'local' ? '<button class="btn ghost" id="demoBtn">تحميل البيانات التجريبية</button>' : ''}
         </div>
       </div>`;
@@ -1319,7 +1329,7 @@
       const sd = await loadSeed(); if (!sd) return toast('ملف البيانات التجريبية غير متاح');
       db = normalize(sd); save(); renderBrand(); renderNav(); renderDatabase(); toast('تم تحميل البيانات التجريبية');
     });
-    const ids = [...new Set(rows.map(r => r.last?._by).filter(Boolean))];
+    const ids = [...new Set(rows.filter(r => !r.last?._u).map(r => r.last?._by).filter(Boolean))];
     if (ids.length && store.user) {
       const ps = await store.user.profiles(ids);
       $$('[data-uid]', content).forEach(td => { const p = ps[td.dataset.uid]; if (p) td.textContent = p.name || 'مستخدم'; });
@@ -1338,14 +1348,446 @@
     download(`${name}.csv`, '﻿' + [line(header), ...rows.map(line)].join('\n'), 'text/csv;charset=utf-8');
   }
 
+  // =====================================================================
+  //               تسجيل الدخول والمستخدمون والصلاحيات
+  // =====================================================================
+  const ACT_NAMES = { v: 'عرض', a: 'إضافة', e: 'تعديل', d: 'حذف' };
+  const SPECIALS = [['export', 'تصدير وطباعة البيانات'], ['backup', 'النسخ الاحتياطي والاستعادة'],
+    ['adminTools', 'أدوات المدير (تفريغ الخزائن وحذف الحركات)'], ['users', 'إدارة المستخدمين والصلاحيات']];
+  const VIEW_ONLY = ['dashboard', 'ledger', 'reports', 'stockBalances', 'database'];
+  const actsOf = p => p === 'users' ? [] : VIEW_ONLY.includes(p) ? ['v'] : p === 'settings' ? ['v', 'e'] : ['v', 'a', 'e', 'd'];
+  const permPages = () => Object.keys(pagePath).filter(p => p !== 'users');
+  const grant = (list, acts) => Object.fromEntries(list.map(p => [p, actsOf(p).filter(a => acts.includes(a)).join('')]));
+  const ROLES = {
+    admin: { title: 'مدير النظام', build: () => ({ perms: grant(permPages(), 'vaed'), special: SPECIALS.map(s => s[0]) }) },
+    accountant: { title: 'محاسب', build: () => ({ perms: { ...grant(permPages(), 'v'), ...grant(['accounts', 'journal', 'cashboxes', 'receipts', 'payments', 'salesInvoices', 'salesReturns', 'purchaseInvoices', 'purchaseReturns', 'payroll', 'customers', 'suppliers'], 'vae') }, special: ['export'] }) },
+    storekeeper: { title: 'أمين مخزن', build: () => ({ perms: { ...grant(['dashboard', 'suppliers', 'purchaseOrders'], 'v'), ...grant(['items', 'warehouses', 'stockBalances', 'stockIn', 'stockOut', 'transfers'], 'vae') }, special: ['export'] }) },
+    sales: { title: 'مندوب مبيعات', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['customers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'receipts'], 'vae') }, special: [] }) },
+    hr: { title: 'شئون العاملين', build: () => ({ perms: { ...grant(['dashboard'], 'v'), ...grant(['employees', 'attendance', 'payroll', 'leaves', 'departments', 'workers', 'dailyLabor', 'advances'], 'vae') }, special: ['export'] }) },
+    maint: { title: 'الميكنة والصيانة', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan', 'stockOut'], 'vae') }, special: [] }) },
+    viewer: { title: 'مشاهد', build: () => ({ perms: grant(permPages(), 'v'), special: [] }) },
+    custom: { title: 'مخصص', build: () => ({ perms: { dashboard: 'v' }, special: [] }) },
+  };
+  const roleTitle = u => ROLES[u?.role]?.title || 'مخصص';
+
+  const SESSION_KEY = 'acc-erp-session', LAST_USER_KEY = 'acc-erp-last-user';
+  let session = null;
+  const curUser = () => session ? db.appUsers.find(u => u.id === session.uid) : null;
+  const isAdminUser = u => u?.role === 'admin';
+  const activeAdmins = () => db.appUsers.filter(u => isAdminUser(u) && u.active !== false);
+  function can(page, act = 'v') {
+    const u = curUser(); if (!u) return false;
+    if (isAdminUser(u)) return true;
+    if (page === 'users') return (u.special || []).includes('users');
+    return String(u.perms?.[page] || '').includes(act);
+  }
+  const canSp = sp => { const u = curUser(); return !!u && (isAdminUser(u) || (u.special || []).includes(sp)); };
+  const denied = () => toast('ليس لديك صلاحية لهذا الإجراء — راجع مدير النظام', 3500);
+
+  // ----- تشفير كلمات المرور (PBKDF2 + ملح عشوائي) -----
+  const enc = new TextEncoder();
+  const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  const randHex = n => hex(crypto.getRandomValues(new Uint8Array(n)));
+  async function hashPass(pass, salt, iter = 150000) {
+    const key = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveBits']);
+    return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(salt), iterations: iter }, key, 256));
+  }
+  const sha = async s => hex(await crypto.subtle.digest('SHA-256', enc.encode(s)));
+  async function setPassword(u, pass) { u.salt = randHex(16); u.iter = 150000; u.passHash = await hashPass(pass, u.salt, u.iter); }
+  const USERNAME_RE = /^[A-Za-z0-9._\-؀-ۿ]{3,30}$/;
+  const checkPass = (p, c) => p.length < 6 ? 'كلمة المرور يجب ألا تقل عن 6 أحرف' : p !== c ? 'كلمتا المرور غير متطابقتين' : '';
+
+  // ----- الجلسة -----
+  async function startSession(u, remember) {
+    const exp = Date.now() + (remember ? 30 : 1) * 864e5;
+    session = { uid: u.id, exp, sig: await sha(u.passHash + exp + (store.me.id || '')) };
+    try {
+      (remember ? localStorage : sessionStorage).setItem(SESSION_KEY, JSON.stringify(session));
+      (remember ? sessionStorage : localStorage).removeItem(SESSION_KEY);
+      localStorage.setItem(LAST_USER_KEY, u.username);
+    } catch {}
+  }
+  async function restoreSession() {
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY)); } catch {}
+    if (!s || !(s.exp > Date.now())) return false;
+    const u = db.appUsers.find(x => x.id === s.uid);
+    if (!u || u.active === false || s.sig !== await sha(u.passHash + s.exp + (store.me.id || ''))) return false;
+    session = s; return true;
+  }
+  async function sessionStillValid() {
+    const u = curUser();
+    return !!u && u.active !== false && session.sig === await sha(u.passHash + session.exp + (store.me.id || ''));
+  }
+  function logout(msg) {
+    session = null;
+    try { localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); } catch {}
+    closeModal(); $('#userMenu').hidden = true;
+    showAuth('login', msg);
+  }
+
+  async function authGate() {
+    if (!db.appUsers.length) return showAuth('setup');
+    if (await restoreSession()) return unlock();
+    showAuth('login');
+  }
+  function unlock() {
+    state.authMode = null;
+    document.body.classList.remove('locked');
+    $('#auth').hidden = true; $('#auth').innerHTML = '';
+    applyRole(); route();
+  }
+
+  // ----- شاشة الدخول -----
+  const IC = {
+    user: I('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+    lock: I('<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'),
+    eye: I('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+    eyeOff: I('<path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
+    id: I('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5.5 16.5a3.5 3.5 0 0 1 7 0M14 10h4M14 13h3"/>'),
+    check: I('<path d="m5 12 5 5 9-10"/>'),
+    shield: I('<path d="M12 3 4 6v6c0 5 3.4 8.6 8 9.9 4.6-1.3 8-4.9 8-9.9V6z"/><path d="m9 12 2 2 4-4"/>'),
+    cloud: I('<path d="M7 18a5 5 0 0 1-.6-10A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/>'),
+    tree: I('<path d="M12 3v18M12 8H6v4M12 8h6v4M6 12v3M18 12v3"/>'),
+  };
+  const inputBox = (icon, attrs, eye) => `<div class="af-in">${icon}<input ${attrs}>${eye ? `<button type="button" class="eye" aria-label="إظهار كلمة المرور">${IC.eye}</button>` : ''}</div>`;
+  let failCount = 0, lockUntil = 0;
+
+  function showAuth(mode, notice = '') {
+    state.authMode = mode;
+    document.body.classList.add('locked');
+    const box = $('#auth'); box.hidden = false;
+    const company = db.settings.company || 'نظام المحاسب';
+    const letter = [...company.trim()][0] || 'م';
+    const canSetup = store.mode !== 'cloud' || store.canAdmin;
+    const lastUser = (() => { try { return localStorage.getItem(LAST_USER_KEY) || ''; } catch { return ''; } })();
+    let form;
+    if (mode === 'setup' && !canSetup) {
+      form = `<div class="auth-card"><div class="ac-head"><div class="ac-logo">${esc(letter)}</div><h2>النظام لم يُجهّز بعد</h2>
+        <p>يجب أن يقوم مالك النظام بفتح البرنامج أولاً وإنشاء حساب مدير النظام، ثم يضيفك كمستخدم.</p></div>
+        <button type="button" class="af-submit" onclick="location.reload()">إعادة المحاولة</button></div>`;
+    } else if (mode === 'setup') {
+      form = `<form class="auth-card" id="authForm" autocomplete="off">
+        <div class="ac-head"><div class="ac-logo">${esc(letter)}</div><span class="ac-chip">${IC.shield} الإعداد الأول</span>
+          <h2>إنشاء حساب مدير النظام</h2><p>هذا الحساب يملك كل الصلاحيات، ومنه تضيف باقي المستخدمين وتحدد صلاحياتهم.</p></div>
+        <label class="af"><span>الاسم بالكامل</span>${inputBox(IC.id, 'name="name" required maxlength="60" placeholder="مثال: أحمد الصاوي"')}</label>
+        <label class="af"><span>اسم المستخدم</span>${inputBox(IC.user, 'name="username" required autocomplete="username" placeholder="مثال: admin" dir="ltr"')}</label>
+        <div class="af-2">
+          <label class="af"><span>كلمة المرور</span>${inputBox(IC.lock, 'type="password" name="password" required autocomplete="new-password" placeholder="6 أحرف على الأقل" dir="ltr"', true)}</label>
+          <label class="af"><span>تأكيد كلمة المرور</span>${inputBox(IC.lock, 'type="password" name="confirm" required autocomplete="new-password" dir="ltr"', true)}</label>
+        </div>
+        <div class="af-err" role="alert"></div>
+        <button class="af-submit" type="submit"><span>إنشاء الحساب والدخول</span></button>
+      </form>`;
+    } else {
+      form = `<form class="auth-card" id="authForm" autocomplete="on">
+        <div class="ac-head"><div class="ac-logo">${esc(letter)}</div><h2>تسجيل الدخول</h2><p>أهلاً بعودتك! أدخل بيانات حسابك للمتابعة</p></div>
+        ${notice ? `<div class="af-note">${esc(notice)}</div>` : ''}
+        <label class="af"><span>اسم المستخدم</span>${inputBox(IC.user, `name="username" required autocomplete="username" dir="ltr" value="${esc(lastUser)}" placeholder="اسم المستخدم"`)}</label>
+        <label class="af"><span>كلمة المرور</span>${inputBox(IC.lock, 'type="password" name="password" required autocomplete="current-password" dir="ltr" placeholder="••••••••"', true)}</label>
+        <div class="af-row">
+          <label class="remember"><input type="checkbox" name="remember" ${lastUser ? 'checked' : ''}><i>${IC.check}</i><span>تذكرني لمدة 30 يوماً</span></label>
+          <button type="button" class="forgot" id="forgotBtn">نسيت كلمة المرور؟</button>
+        </div>
+        <div class="af-forgot" id="forgotBox" hidden>
+          <b>استعادة كلمة المرور</b>
+          <p>تواصل مع مدير النظام ليعيّن لك كلمة مرور جديدة من شاشة <b>المستخدمون والصلاحيات</b>.</p>
+          ${store.mode === 'local' || store.me.isOwner ? '<button type="button" class="af-link" id="ownerReset">أنا مالك النظام — إعادة تعيين كلمة مرور أي مستخدم</button>' : ''}
+        </div>
+        <div class="af-err" role="alert"></div>
+        <button class="af-submit" type="submit"><span>تسجيل الدخول</span></button>
+      </form>`;
+    }
+    box.innerHTML = `
+      <div class="auth-wrap">
+        <section class="auth-brand">
+          <div class="ab-shapes"><i></i><i></i><i></i></div>
+          <div class="ab-inner">
+            <div class="ab-logo">${esc(letter)}</div>
+            <h1>${esc(company)}</h1>
+            <p class="ab-tag">نظام محاسبة متكامل لإدارة الحسابات والخزينة والمبيعات والمشتريات والمخازن وشئون العاملين</p>
+            <ul class="ab-feats">
+              <li><span>${IC.tree}</span>شجرة حسابات كاملة وقيود يومية تلقائية</li>
+              <li><span>${IC.cloud}</span>قاعدة بيانات سحابية بمزامنة لحظية</li>
+              <li><span>${IC.shield}</span>صلاحيات دقيقة لكل مستخدم في كل شاشة</li>
+            </ul>
+          </div>
+          <div class="ab-foot">الإصدار ${APP_VERSION}</div>
+        </section>
+        <section class="auth-panel">
+          ${form}
+          <div class="auth-status"><i class="online ${store.status === 'saved' ? 'ok' : store.mode === 'local' ? 'local' : ''}"></i>${store.mode === 'cloud' ? 'متصل بقاعدة البيانات السحابية' : 'قاعدة بيانات محلية في هذا المتصفح'}</div>
+        </section>
+      </div>`;
+
+    $$('#auth .eye').forEach(b => b.onclick = () => {
+      const inp = b.parentElement.querySelector('input'); const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password'; b.innerHTML = show ? IC.eyeOff : IC.eye;
+      b.setAttribute('aria-label', show ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+    });
+    $('#forgotBtn')?.addEventListener('click', () => { const f = $('#forgotBox'); f.hidden = !f.hidden; });
+    $('#ownerReset')?.addEventListener('click', ownerReset);
+    const f = $('#authForm');
+    if (!f) return;
+    (f.querySelector(mode === 'login' && lastUser ? '[name=password]' : 'input'))?.focus();
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(f));
+      const err = f.querySelector('.af-err'), btn = f.querySelector('.af-submit');
+      const fail = m => { err.textContent = m; f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); btn.disabled = false; btn.classList.remove('busy'); };
+      err.textContent = ''; btn.disabled = true; btn.classList.add('busy');
+      if (mode === 'setup') {
+        const uname = d.username.trim().toLowerCase();
+        if (!USERNAME_RE.test(uname)) return fail('اسم المستخدم من 3 إلى 30 حرفاً أو رقماً بدون مسافات');
+        const pe = checkPass(d.password, d.confirm); if (pe) return fail(pe);
+        if (db.appUsers.length) return showAuth('login');
+        const u = { id: genId(), name: d.name.trim(), username: uname, role: 'admin', active: true, ...ROLES.admin.build(), createdAt: new Date().toISOString() };
+        await setPassword(u, d.password);
+        db.appUsers.push(u); save();
+        await startSession(u, true); unlock(); toast(`مرحباً ${u.name} — تم إنشاء حساب مدير النظام`, 3500);
+        return;
+      }
+      if (Date.now() < lockUntil) return fail(`محاولات كثيرة خاطئة — انتظر ${Math.ceil((lockUntil - Date.now()) / 1000)} ثانية`);
+      const uname = d.username.trim().toLowerCase();
+      const u = db.appUsers.find(x => x.username === uname);
+      const h = await hashPass(d.password, u?.salt || 'none', u?.iter || 150000);
+      if (!u || h !== u.passHash) {
+        failCount++;
+        if (failCount >= 5) { lockUntil = Date.now() + 30000; failCount = 0; return fail('محاولات كثيرة خاطئة — تم إيقاف الدخول 30 ثانية'); }
+        return fail('اسم المستخدم أو كلمة المرور غير صحيحة');
+      }
+      if (u.active === false) return fail('هذا الحساب موقوف — راجع مدير النظام');
+      failCount = 0;
+      await startSession(u, !!d.remember);
+      if (store.canWrite) { u.lastLogin = new Date().toISOString(); save(); }
+      unlock(); toast(`مرحباً ${u.name}`);
+    });
+  }
+
+  // استعادة بواسطة مالك النظام (هويته موثقة من claude.ai)
+  function ownerReset() {
+    openModal('إعادة تعيين كلمة مرور', [
+      { key: 'uid', label: 'المستخدم', input: 'select', options: () => db.appUsers.map(u => [u.id, `${u.name} (${u.username})`]), full: true },
+      { key: 'password', label: 'كلمة المرور الجديدة', input: 'password' }, { key: 'confirm', label: 'تأكيدها', input: 'password' }], {}, async d => {
+      const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
+      const u = db.appUsers.find(x => x.id === d.uid); if (!u) return;
+      await setPassword(u, d.password); u.active = true; save(); toast(`تم تعيين كلمة مرور جديدة للمستخدم ${u.username}`, 3500);
+    });
+  }
+
+  // ----- قائمة المستخدم في التذييل -----
+  $('#userBtn').onclick = e => { e.stopPropagation(); const m = $('#userMenu'); m.hidden = !m.hidden; $('#umUsers').hidden = !can('users'); };
+  document.addEventListener('click', e => { if (!e.target.closest('#userMenu')) $('#userMenu').hidden = true; });
+  $('#userMenu').addEventListener('click', e => {
+    const b = e.target.closest('[data-um]'); if (!b) return;
+    $('#userMenu').hidden = true;
+    if (b.dataset.um === 'logout') logout('تم تسجيل الخروج بنجاح');
+    if (b.dataset.um === 'users') goTo('users');
+    if (b.dataset.um === 'pass') changeOwnPassword();
+  });
+  function changeOwnPassword() {
+    const u = curUser(); if (!u) return;
+    openModal('تغيير كلمة المرور', [{ key: 'current', label: 'كلمة المرور الحالية', input: 'password', full: true },
+      { key: 'password', label: 'كلمة المرور الجديدة', input: 'password' }, { key: 'confirm', label: 'تأكيد كلمة المرور', input: 'password' }], {}, async d => {
+      if (await hashPass(d.current, u.salt, u.iter) !== u.passHash) { toast('كلمة المرور الحالية غير صحيحة'); return false; }
+      const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
+      const live = db.appUsers.find(x => x.id === u.id);
+      await setPassword(live, d.password); save();
+      await startSession(live, !!localStorage.getItem(SESSION_KEY));
+      toast('تم تغيير كلمة المرور');
+    });
+  }
+
+  // ----- شاشة المستخدمين والصلاحيات -----
+  const permCount = u => isAdminUser(u) ? permPages().length : permPages().filter(p => String(u.perms?.[p] || '').includes('v')).length;
+  function renderUsers() {
+    const me = curUser();
+    const list = db.appUsers.slice().sort((a, b) => (isAdminUser(b) - isAdminUser(a)) || a.name.localeCompare(b.name, 'ar'));
+    const fmt = d => d ? new Date(d).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+    content.innerHTML = `
+      <div class="kpis">
+        ${kpi('عدد المستخدمين', num(db.appUsers.length), `${db.appUsers.filter(u => u.active !== false).length} نشط`, '', '', icons.users)}
+        ${kpi('مديرو النظام', num(activeAdmins().length), 'يملكون كل الصلاحيات', '', 'amber', icons.shield)}
+        ${kpi('الشاشات', num(permPages().length), 'يمكن تحديد صلاحية كل منها', '', 'green', icons.list)}
+        ${kpi('أنت', esc(me?.name || ''), roleTitle(me), '', '', icons.wallet)}
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h3>المستخدمون</h3><div class="sub">أضف مستخدماً وحدد اسم الدخول وكلمة المرور والصلاحيات في كل شاشة</div></div>
+          <div class="spacer"></div><div class="toolbar"><button class="btn primary" id="addUserBtn">${icons.plus}إضافة مستخدم</button></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>المستخدم</th><th>اسم الدخول</th><th>الدور</th><th>الحالة</th><th>الشاشات المتاحة</th><th>آخر دخول</th><th></th></tr></thead>
+          <tbody>${list.map(u => `<tr>
+            <td><div class="u-cell"><span class="u-av">${esc([...u.name.trim()][0] || '؟')}</span><b>${esc(u.name)}</b>${u.id === me?.id ? '<span class="pill">أنت</span>' : ''}</div></td>
+            <td class="code" dir="ltr">${esc(u.username)}</td>
+            <td>${isAdminUser(u) ? `<span class="pill amber">${roleTitle(u)}</span>` : `<span class="pill">${roleTitle(u)}</span>`}</td>
+            <td>${pill(u.active === false ? 'موقوف' : 'نشط')}</td>
+            <td class="num">${permCount(u)} / ${permPages().length}</td>
+            <td>${fmt(u.lastLogin)}</td>
+            <td><div class="row-actions">
+              <button data-uperm="${u.id}" title="الصلاحيات">${icons.shield}</button>
+              <button data-upass="${u.id}" title="تعيين كلمة مرور">${IC.lock}</button>
+              <button data-uedit="${u.id}" title="تعديل">${icons.edit}</button>
+              <button class="del" data-udel="${u.id}" title="حذف">${icons.del}</button>
+            </div></td></tr>`).join('')}</tbody>
+        </table></div>
+        <div class="table-foot"><span>كلمات المرور مشفّرة (PBKDF2) ولا يمكن لأحد قراءتها</span><span>${db.appUsers.length} مستخدم</span></div>
+      </div>`;
+    const find = id => db.appUsers.find(u => u.id === id);
+    $('#addUserBtn').onclick = () => openUserForm();
+    $$('[data-uedit]', content).forEach(b => b.onclick = () => openUserForm(find(b.dataset.uedit)));
+    $$('[data-uperm]', content).forEach(b => b.onclick = () => openPerms(find(b.dataset.uperm)));
+    $$('[data-upass]', content).forEach(b => b.onclick = () => resetUserPass(find(b.dataset.upass)));
+    $$('[data-udel]', content).forEach(b => b.onclick = () => {
+      const u = find(b.dataset.udel);
+      if (u.id === me?.id) return toast('لا يمكنك حذف حسابك الحالي');
+      if (isAdminUser(u) && activeAdmins().length <= 1) return toast('لا يمكن حذف آخر مدير للنظام');
+      if (!confirm(`حذف المستخدم "${u.name}" نهائياً؟`)) return;
+      db.appUsers = db.appUsers.filter(x => x.id !== u.id); save(); renderUsers(); toast('تم حذف المستخدم');
+    });
+  }
+
+  function openUserForm(u) {
+    const roleOpts = () => Object.entries(ROLES).map(([k, r]) => [k, r.title]);
+    const fields = [
+      { key: 'name', label: 'الاسم بالكامل', input: 'text', full: true },
+      { key: 'username', label: 'اسم المستخدم (للدخول)', input: 'text' },
+      { key: 'role', label: 'الدور', input: 'select', options: roleOpts },
+      ...(u ? [] : [{ key: 'password', label: 'كلمة المرور', input: 'password' }, { key: 'confirm', label: 'تأكيد كلمة المرور', input: 'password' }]),
+      { key: 'active', label: 'الحالة', input: 'select', options: () => [['1', 'نشط'], ['0', 'موقوف']] },
+    ];
+    openModal(u ? 'تعديل مستخدم' : 'إضافة مستخدم', fields, u ? { ...u, active: u.active === false ? '0' : '1' } : { role: 'accountant', active: '1' }, async d => {
+      const uname = d.username.trim().toLowerCase();
+      if (!USERNAME_RE.test(uname)) { toast('اسم المستخدم من 3 إلى 30 حرفاً أو رقماً بدون مسافات'); return false; }
+      if (db.appUsers.some(x => x.username === uname && x.id !== u?.id)) { toast('اسم المستخدم مستخدم من قبل'); return false; }
+      const active = d.active === '1';
+      if (u) {
+        const live = db.appUsers.find(x => x.id === u.id); if (!live) return;
+        const losingAdmin = isAdminUser(live) && live.active !== false && (d.role !== 'admin' || !active);
+        if (losingAdmin && activeAdmins().length <= 1) { toast('لا يمكن إلغاء صلاحية آخر مدير للنظام'); return false; }
+        if (live.id === session.uid && !active) { toast('لا يمكنك إيقاف حسابك الحالي'); return false; }
+        const roleChanged = live.role !== d.role;
+        Object.assign(live, { name: d.name.trim(), username: uname, role: d.role, active });
+        if (roleChanged && (d.role === 'admin' || confirm(`تطبيق صلاحيات الدور "${ROLES[d.role].title}" على المستخدم؟ (ستُستبدل صلاحياته الحالية)`))) Object.assign(live, ROLES[d.role].build());
+        save(); scheduleRender(); toast('تم حفظ بيانات المستخدم');
+      } else {
+        const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
+        const nu = { id: genId(), name: d.name.trim(), username: uname, role: d.role, active, ...ROLES[d.role].build(), createdAt: new Date().toISOString() };
+        await setPassword(nu, d.password);
+        db.appUsers.push(nu); save(); scheduleRender();
+        toast(`تمت إضافة ${nu.name} — يمكنك تعديل صلاحياته بالتفصيل`, 3500);
+      }
+    });
+  }
+
+  function resetUserPass(u) {
+    openModal(`تعيين كلمة مرور: ${u.name}`, [{ key: 'password', label: 'كلمة المرور الجديدة', input: 'password' }, { key: 'confirm', label: 'تأكيد كلمة المرور', input: 'password' }], {}, async d => {
+      const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
+      const live = db.appUsers.find(x => x.id === u.id); if (!live) return;
+      await setPassword(live, d.password); save();
+      if (live.id === session.uid) await startSession(live, !!localStorage.getItem(SESSION_KEY));
+      toast('تم تعيين كلمة المرور — ستنتهي جلسات هذا المستخدم المفتوحة', 3500);
+    });
+  }
+
+  // مصفوفة الصلاحيات: كل شاشة × (عرض، إضافة، تعديل، حذف)
+  function permMatrixHTML(perms, special, locked) {
+    const dis = locked ? 'disabled' : '';
+    const row = p => `<tr><td><span class="emo">${EMO[p] || '•'}</span>${esc(pageInfo(p).title)}</td>${['v', 'a', 'e', 'd'].map(a => actsOf(p).includes(a)
+      ? `<td><label class="pchk"><input type="checkbox" name="p:${p}:${a}" ${locked || String(perms[p] || '').includes(a) ? 'checked' : ''} ${dis}><i>${IC.check}</i></label></td>` : '<td class="na">—</td>').join('')}</tr>`;
+    const groups = [];
+    const walk = (items, titles) => items.forEach(it => {
+      if (typeof it === 'string') { if (it === 'users') return; let g = groups.find(x => x.t === titles.join(' › ')); if (!g) groups.push(g = { t: titles.join(' › '), p: [] }); g.p.push(it); }
+      else walk(it.items, [...titles, it.title]);
+    });
+    walk(nav, []);
+    return `
+      <div class="perm-tools">
+        <label>تطبيق قالب جاهز:</label>
+        <select class="input" id="permTpl" ${dis}><option value="">— اختر دوراً —</option>${Object.entries(ROLES).filter(([k]) => k !== 'admin').map(([k, r]) => `<option value="${k}">${r.title}</option>`).join('')}</select>
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost" data-all="1" ${dis}>تحديد الكل</button>
+        <button type="button" class="btn ghost" data-all="0" ${dis}>إلغاء الكل</button>
+        <button type="button" class="btn ghost" data-all="v" ${dis}>عرض فقط للكل</button>
+      </div>
+      ${locked ? '<div class="af-note">هذا المستخدم "مدير النظام" ويملك كل الصلاحيات دائماً. لتقييده غيّر دوره أولاً.</div>' : ''}
+      <div class="table-wrap perm-wrap"><table class="perm">
+        <thead><tr><th>الشاشة</th>${['v', 'a', 'e', 'd'].map(a => `<th><button type="button" class="col-t" data-col="${a}" ${dis}>${ACT_NAMES[a]}</button></th>`).join('')}</tr></thead>
+        <tbody>${groups.map((g, gi) => `<tr class="pg"><td colspan="5"><label class="pchk"><input type="checkbox" data-grp="${gi}" ${dis}><i>${IC.check}</i></label>${esc(g.t)}</td></tr>${g.p.map(row).join('').replace(/<tr>/g, `<tr data-g="${gi}">`)}`).join('')}</tbody>
+      </table></div>
+      <div class="perm-sp"><h4>صلاحيات خاصة</h4>${SPECIALS.map(([k, t]) => `<label class="check"><input type="checkbox" name="sp:${k}" ${locked || special.includes(k) ? 'checked' : ''} ${dis}><span>${t}</span></label>`).join('')}</div>`;
+  }
+  function openPerms(u) {
+    const locked = isAdminUser(u);
+    form.classList.add('wide'); form.classList.remove('info');
+    if (locked) form.classList.add('info');
+    $('#modalTitle').textContent = `صلاحيات: ${u.name} (${u.username})`;
+    $('#modalBody').innerHTML = permMatrixHTML(u.perms || {}, u.special || [], locked);
+    modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false');
+    const body = $('#modalBody');
+    const boxes = () => $$('input[name^="p:"]', body);
+    const sync = () => $$('[data-grp]', body).forEach(g => { const bs = $$(`tr[data-g="${g.dataset.grp}"] input`, body); g.checked = bs.length && bs.every(b => b.checked); g.indeterminate = !g.checked && bs.some(b => b.checked); });
+    body.addEventListener('change', e => {
+      const t = e.target;
+      if (t.dataset.grp) $$(`tr[data-g="${t.dataset.grp}"] input`, body).forEach(b => { b.checked = t.checked; });
+      else if (t.name?.startsWith('p:')) {
+        const [, p, a] = t.name.split(':');
+        if (a === 'v' && !t.checked) $$(`input[name^="p:${p}:"]`, body).forEach(b => { b.checked = false; });
+        if (a !== 'v' && t.checked) { const v = body.querySelector(`input[name="p:${p}:v"]`); if (v) v.checked = true; }
+      }
+      sync();
+    });
+    body.querySelectorAll('[data-all]').forEach(b => b.onclick = () => { boxes().forEach(x => { x.checked = b.dataset.all === '1' || (b.dataset.all === 'v' && x.name.endsWith(':v')); }); sync(); });
+    body.querySelectorAll('[data-col]').forEach(b => b.onclick = () => {
+      const col = boxes().filter(x => x.name.endsWith(':' + b.dataset.col)); const on = !col.every(x => x.checked);
+      col.forEach(x => { x.checked = on; if (on) { const v = body.querySelector(`input[name="p:${x.name.split(':')[1]}:v"]`); if (v) v.checked = true; } });
+      if (!on && b.dataset.col === 'v') boxes().forEach(x => { x.checked = false; });
+      sync();
+    });
+    $('#permTpl')?.addEventListener('change', e => {
+      const k = e.target.value; if (!k) return;
+      const t = ROLES[k].build();
+      boxes().forEach(x => { const [, p, a] = x.name.split(':'); x.checked = String(t.perms[p] || '').includes(a); });
+      $$('input[name^="sp:"]', body).forEach(x => { x.checked = t.special.includes(x.name.slice(3)); });
+      body.dataset.tpl = k; sync();
+    });
+    sync();
+    onSubmit = locked ? null : (d, fd) => {
+      const live = db.appUsers.find(x => x.id === u.id); if (!live) return;
+      const perms = {};
+      for (const k of fd.keys()) if (k.startsWith('p:')) { const [, p, a] = k.split(':'); perms[p] = (perms[p] || '') + a; }
+      live.perms = perms;
+      live.special = [...fd.keys()].filter(k => k.startsWith('sp:')).map(k => k.slice(3));
+      live.role = body.dataset.tpl || (live.role === 'admin' ? 'admin' : live.role);
+      if (live.role !== 'admin') { const t = ROLES[live.role]?.build(); if (t && (JSON.stringify(t.perms) !== JSON.stringify(perms))) live.role = 'custom'; }
+      save(); scheduleRender(); toast(`تم حفظ صلاحيات ${live.name}`);
+    };
+  }
+
+  // إخفاء ما لا يسمح به الدور بعد رسم أي شاشة
+  function enforce() {
+    const p = state.page;
+    const rm = sel => $$(sel, content).forEach(el => el.remove());
+    if (!can(p, 'a')) rm('#addBtn, [data-addchild]');
+    if (!can(p, 'e')) rm('[data-edit], [data-editacc]');
+    if (!can(p, 'd')) rm('[data-del], [data-delacc]');
+    if (!canSp('export')) rm('#exportBtn, [onclick="window.print()"]');
+    $$('[data-act]', content).forEach(b => { const a = modules[p]?.actions?.[+b.dataset.act]; if (a?.target && !can(a.target, 'a')) b.remove(); });
+    $$('[data-go], [data-src], .link-btn[href]', content).forEach(b => { const g = b.dataset.go || b.dataset.src || b.getAttribute('href')?.slice(1); if (g && pageInfo(g) && !can(g)) b.replaceWith(document.createTextNode(b.textContent)); });
+  }
+
   // ---------- التوجيه ----------
   const content = $('#content');
-  const renderPage = () => (pages[state.page] ? pages[state.page].render() : renderModule(state.page));
+  const renderPage = () => {
+    if (!can(state.page)) { content.innerHTML = '<div class="boot"><p>لا توجد شاشات متاحة لحسابك — راجع مدير النظام لتحديد صلاحياتك.</p></div>'; return; }
+    const r = pages[state.page] ? pages[state.page].render() : renderModule(state.page);
+    enforce(); if (r?.then) r.then(enforce);
+  };
   const isMobile = () => matchMedia('(max-width: 900px)').matches;
   function route() {
-    if (!store.ready) return;
+    if (!store.ready || !curUser()) return;
     const hash = decodeURIComponent(location.hash.slice(1)) || 'dashboard';
-    const page = pageInfo(hash) ? hash : 'dashboard';
+    let page = pageInfo(hash) ? hash : 'dashboard';
+    if (!can(page)) page = ['dashboard', ...Object.keys(pagePath)].find(x => can(x)) || page;
     if (page !== state.page || pendingQuery !== null) { state.q = pendingQuery ?? ''; state.filter = ''; pendingQuery = null; }
     const changed = page !== state.page;
     state.page = page;
@@ -1369,7 +1811,10 @@
   function scheduleRender() {
     clearTimeout(renderTimer);
     renderTimer = setTimeout(() => {
-      if (!store.ready || !state.page) return;
+      if (!store.ready) return;
+      if (document.body.classList.contains('locked')) { const want = db.appUsers.length ? 'login' : 'setup'; if (state.authMode !== want) showAuth(want); return; }
+      if (!state.page) return;
+      sessionStillValid().then(ok => { if (!ok && session) logout('انتهت جلستك أو تم تعديل حسابك — سجّل الدخول مرة أخرى'); });
       const a = document.activeElement, id = a?.id, pos = a?.selectionStart;
       const inContent = a && content.contains(a);
       renderBrand(); renderNav();
@@ -1391,14 +1836,14 @@
     return store.canWrite ? 'إدخال وتعديل' : 'مشاهدة فقط';
   }
   function applyRole() {
+    const u = curUser();
     document.body.classList.toggle('ro', !store.canWrite);
     document.body.classList.toggle('no-admin', !store.canAdmin);
-    $('#userName').textContent = store.me.name || (store.mode === 'local' ? 'مستخدم محلي' : 'مستخدم');
-    $('#userRole').textContent = roleText();
-    const av = $('#userAvatar');
-    av.textContent = [...(store.me.name || 'م').trim()][0] || 'م';
-    if (store.me.avatarUrl && store.me.name) av.style.backgroundImage = `url("${store.me.avatarUrl}")`, av.classList.add('img');
+    $('#userName').textContent = u?.name || store.me.name || 'مستخدم';
+    $('#userRole').textContent = u ? roleTitle(u) : roleText();
+    $('#userAvatar').textContent = [...(u?.name || 'م').trim()][0] || 'م';
     $('#roBanner').hidden = store.canWrite;
+    $('.admin-tools').hidden = !(canSp('adminTools') && store.canWrite);
   }
   function setSync(s) {
     store.status = s;
@@ -1417,6 +1862,7 @@
 
   // ---------- أدوات المدير ----------
   $('#clearBoxesBtn').onclick = () => {
+    if (!canSp('adminTools')) return denied();
     openModal('تفريغ خزائن محددة', [{ key: 'boxes', label: 'اختر الخزائن / البنوك التي ستُحذف سندات القبض والصرف الخاصة بها', input: 'checks', options: () => db.cashboxes.map(b => b.name) },
       { key: 'confirm', label: 'للتأكيد اكتب كلمة: تفريغ', input: 'text', full: true }], {}, (data, fd) => {
       const boxes = fd.getAll('boxes');
@@ -1429,6 +1875,7 @@
     });
   };
   $('#clearMovesBtn').onclick = () => {
+    if (!canSp('adminTools')) return denied();
     const n = sum(TX_TABLES, t => db[t].length);
     openModal('حذف كل الحركات', [{ key: 'confirm', label: `سيتم حذف ${n} حركة (فواتير، سندات، قيود، أذون، رواتب...) مع الإبقاء على البيانات الأساسية وشجرة الحسابات. للتأكيد اكتب: حذف`, input: 'text', full: true }], {}, data => {
       if (data.confirm.trim() !== 'حذف') { toast('اكتب كلمة "حذف" للتأكيد'); return false; }
@@ -1450,7 +1897,7 @@
     const q = e.target.value.trim().toLowerCase();
     if (!q) return;
     const hitAcc = db.accounts.some(a => a.code.includes(q) || a.name.toLowerCase().includes(q));
-    const hit = Object.keys(modules).filter(k => k !== 'journal').find(k => db[k].some(r => modules[k].cols.some(c => String(val(r, c) ?? '').toLowerCase().includes(q))))
+    const hit = Object.keys(modules).filter(k => k !== 'journal' && can(k)).find(k => db[k].some(r => modules[k].cols.some(c => String(val(r, c) ?? '').toLowerCase().includes(q))))
       || (hitAcc ? 'accounts' : glEntries().some(en => en.no.toLowerCase().includes(q) || en.desc.toLowerCase().includes(q)) ? 'journal' : null);
     if (!hit) return toast('لا توجد نتائج');
     goTo(hit, e.target.value.trim());

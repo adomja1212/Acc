@@ -9,7 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="locked">
+  <div class="auth" id="auth"><div class="auth-boot"><div class="spinner"></div><p>جارٍ الاتصال بقاعدة البيانات…</p></div></div>
   <div class="overlay" id="overlay"></div>
 
   <!-- القائمة الجانبية -->
@@ -47,10 +48,17 @@
     </div>
 
     <div class="sidebar-footer">
-      <div class="avatar" id="userAvatar">م</div>
-      <div class="user-info">
-        <div class="user-name" id="userName">مستخدم</div>
-        <div class="user-role" id="userRole">—</div>
+      <button type="button" class="user-btn" id="userBtn" aria-haspopup="menu" title="حسابي">
+        <span class="avatar" id="userAvatar">م</span>
+        <span class="user-info">
+          <span class="user-name" id="userName">مستخدم</span>
+          <span class="user-role" id="userRole">—</span>
+        </span>
+      </button>
+      <div class="user-menu" id="userMenu" role="menu" hidden>
+        <button type="button" data-um="pass" role="menuitem">🔑 تغيير كلمة المرور</button>
+        <button type="button" data-um="users" id="umUsers" role="menuitem">👥 المستخدمون والصلاحيات</button>
+        <button type="button" data-um="logout" class="um-out" role="menuitem">⎋ تسجيل الخروج</button>
       </div>
       <i class="online" id="onlineDot"></i>
       <button type="button" class="lang" id="langBtn" title="لغة الواجهة">
