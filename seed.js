@@ -486,6 +486,27 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
+   "id": "acc2365",
+   "code": "2365",
+   "name": "حراسة مستحقة",
+   "parent": "236",
+   "balance": 0
+  },
+  {
+   "id": "acc2366",
+   "code": "2366",
+   "name": "عقود واستشارات مستحقة",
+   "parent": "236",
+   "balance": 0
+  },
+  {
+   "id": "acc2367",
+   "code": "2367",
+   "name": "دائنون",
+   "parent": "236",
+   "balance": 0
+  },
+  {
    "id": "acc3",
    "code": "3",
    "name": "المصروفات",
@@ -591,6 +612,20 @@ window.ACC_SEED = {
    "balance": 48000
   },
   {
+   "id": "acc335",
+   "code": "335",
+   "name": "مصروفات الحراسة",
+   "parent": "33",
+   "balance": 0
+  },
+  {
+   "id": "acc336",
+   "code": "336",
+   "name": "مصروفات العقود والاستشارات",
+   "parent": "33",
+   "balance": 0
+  },
+  {
    "id": "acc34",
    "code": "34",
    "name": "مصروفات إدارية وعمومية",
@@ -624,6 +659,13 @@ window.ACC_SEED = {
    "name": "إهلاك الأصول الثابتة",
    "parent": "34",
    "balance": 96000
+  },
+  {
+   "id": "acc345",
+   "code": "345",
+   "name": "مصروفات دائنين متنوعة",
+   "parent": "34",
+   "balance": 0
   },
   {
    "id": "acc4",

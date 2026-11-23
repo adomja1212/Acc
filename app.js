@@ -206,8 +206,9 @@
   const suppAcc = name => catAcc(SYS.suppliers, db.suppliers.find(s => s.name === name)?.category);
   const ownerAcc = name => childrenOf(SYS.drawings).find(a => a.name === name)?.code;
   // فئات المرتبات: كل التزام تحت "أرصدة دائنة أخرى" يقابله مصروف بنفس الاسم بدون "المستحقة" تحت "الأجور والمرتبات"
-  const SUFFIX = /\s*المستحقة$/;
-  const payGroups = () => childrenOf(SYS.accruedSal).map(a => a.name.replace(SUFFIX, ''));
+  const SUFFIX = /\s*(ال)?مستحقة$/;
+  // فئات المرتبات = الالتزامات التي لها مصروف مقابل تحت الأجور والمرتبات فقط (لا تظهر الحراسة أو الدائنون مثلاً)
+  const payGroups = () => childrenOf(SYS.accruedSal).map(a => a.name.replace(SUFFIX, '')).filter(n => childrenOf(SYS.wages).some(e => e.name === n));
   const payAccs = group => {
     const liab = childrenOf(SYS.accruedSal).find(a => a.name.replace(SUFFIX, '') === group);
     const exp = childrenOf(SYS.wages).find(a => a.name === group);
