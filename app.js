@@ -3,7 +3,6 @@
  * وكل الأرصدة (الحسابات، العملاء، الموردون، الخزائن، المخزون) تُحسب من الحركات ولا تُكتب يدوياً.
  */
 (() => {
-  const STORE_KEY = 'acc-erp-v3';
 
   // ---------- أدوات ----------
   const $ = (s, el = document) => el.querySelector(s);
@@ -11,280 +10,175 @@
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
   const sum = (arr, f) => arr.reduce((s, x) => s + (+f(x) || 0), 0);
-  const nextId = list => Math.max(0, ...list.map(x => x.id)) + 1;
-  const T = (keys, rows) => { const k = keys.split(','); return rows.map((r, i) => ({ id: i + 1, ...Object.fromEntries(k.map((key, j) => [key, r[j]])) })); };
+  const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   const today = () => new Date().toISOString().slice(0, 10);
   const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
   const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   const accCode = v => String(v ?? '').split(' - ')[0].trim();
 
-  // ---------- البيانات الافتراضية ----------
-  // شجرة الحسابات: [الكود، الاسم، كود الأب، الرصيد الافتتاحي]
-  const chart = [
-    ['1', 'الأصول', null],
-    ['11', 'الأصول الثابتة', '1'],
-    ['111', 'الأراضي', '11', 500000],
-    ['112', 'المباني والإنشاءات', '11', 750000],
-    ['113', 'الآلات والمعدات', '11', 420000],
-    ['114', 'وسائل النقل', '11', 280000],
-    ['115', 'الأثاث والتجهيزات', '11', 65000],
-    ['116', 'أجهزة الحاسب الآلي', '11', 48000],
-    ['12', 'الأصول المتداولة', '1'],
-    ['121', 'النقدية بالخزائن والبنوك', '12'],
-    ['1211', 'الخزينة الرئيسية', '121', 85000],
-    ['1212', 'خزينة المصنع', '121', 22000],
-    ['1213', 'بنك مصر', '121', 640000],
-    ['1214', 'البنك الأهلي المصري', '121', 310000],
-    ['122', 'العملاء', '12', 105500],
-    ['123', 'المخزون', '12'],
-    ['1231', 'مخزون الخامات', '123', 215000],
-    ['1232', 'مخزون الإنتاج التام', '123', 162000],
-    ['1233', 'مخزون قطع الغيار', '123', 38000],
-    ['124', 'أوراق القبض', '12', 75000],
-    ['125', 'سلف العاملين', '12', 14000],
-    ['126', 'مصروفات مدفوعة مقدماً', '12', 12000],
-    ['2', 'الخصوم وحقوق الملكية', null],
-    ['21', 'حقوق الملكية', '2'],
-    ['211', 'رأس المال', '21', 1800000],
-    ['212', 'الاحتياطيات', '21', 180000],
-    ['213', 'الأرباح المرحلة', '21', 149500],
-    ['22', 'الخصوم طويلة الأجل', '2'],
-    ['221', 'قروض طويلة الأجل', '22', 600000],
-    ['23', 'الخصوم المتداولة', '2'],
-    ['231', 'الموردون', '23', 100000],
-    ['232', 'أوراق الدفع', '23', 60000],
-    ['233', 'مصروفات مستحقة', '23', 28000],
-    ['234', 'مصلحة الضرائب', '23', 42000],
-    ['235', 'هيئة التأمينات الاجتماعية', '23', 19000],
-    ['3', 'المصروفات', null],
-    ['31', 'تكلفة المبيعات', '3'],
-    ['311', 'تكلفة البضاعة المباعة', '31', 1240000],
-    ['32', 'الأجور والمرتبات', '3'],
-    ['321', 'رواتب الموظفين', '32', 420000],
-    ['322', 'أجور العمالة', '32', 265000],
-    ['323', 'حصة الشركة في التأمينات', '32', 58000],
-    ['33', 'مصروفات التشغيل', '3'],
-    ['331', 'وقود وزيوت المعدات', '33', 74000],
-    ['332', 'صيانة وقطع غيار', '33', 52000],
-    ['333', 'كهرباء ومياه', '33', 36000],
-    ['334', 'إيجارات', '33', 48000],
-    ['34', 'مصروفات إدارية وعمومية', '3'],
-    ['341', 'أدوات مكتبية ومطبوعات', '34', 9000],
-    ['342', 'اتصالات وإنترنت', '34', 12000],
-    ['343', 'مصروفات بنكية', '34', 4000],
-    ['344', 'إهلاك الأصول الثابتة', '34', 96000],
-    ['4', 'الإيرادات', null],
-    ['41', 'إيرادات النشاط', '4'],
-    ['411', 'المبيعات', '41', 2980000],
-    ['42', 'إيرادات أخرى', '4'],
-    ['421', 'إيرادات تأجير المعدات', '42', 85000],
-    ['422', 'إيرادات متنوعة', '42', 12000],
-  ].map(([code, name, parent, balance], i) => ({ id: i + 1, code, name, parent, balance: balance ?? 0 }));
 
-  const seed = {
-    accounts: chart,
-    // ----- البيانات الأساسية -----
-    customers: T('code,name,phone,city,limit,opening', [
-      ['C-001', 'شركة النيل للمقاولات', '01001234567', 'القاهرة', 300000, 60000],
-      ['C-002', 'مؤسسة الدلتا للتجارة', '01112345678', 'طنطا', 150000, 18500],
-      ['C-003', 'شركة الصعيد للإنشاءات', '01223456789', 'أسيوط', 200000, 15000],
-      ['C-004', 'مصنع الإسكندرية للحديد', '01098765432', 'الإسكندرية', 250000, 12000],
-      ['C-005', 'مكتب المستقبل الهندسي', '01555667788', 'الجيزة', 80000, 0],
-    ]),
-    suppliers: T('code,name,phone,city,activity,opening', [
-      ['S-001', 'شركة السويس للأسمنت', '0623334455', 'السويس', 'خامات', 50000],
-      ['S-002', 'مؤسسة الفتح لقطع الغيار', '0225556677', 'القاهرة', 'قطع غيار', 0],
-      ['S-003', 'شركة مصر للبترول', '0227778899', 'القاهرة', 'وقود وزيوت', 20000],
-      ['S-004', 'مصنع العاشر للحديد', '0554443322', 'العاشر من رمضان', 'خامات', 30000],
-    ]),
-    items: T('code,name,category,unit,warehouse,opening,min,cost,price', [
-      ['I-001', 'أسمنت بورتلاندي', 'خامات', 'طن', 'المخزن الرئيسي', 420, 100, 2400, 2750],
-      ['I-002', 'حديد تسليح 16 مم', 'خامات', 'طن', 'المخزن الرئيسي', 38, 20, 38000, 41500],
-      ['I-003', 'رمل مغسول', 'خامات', 'م³', 'مخزن الموقع', 260, 80, 180, 240],
-      ['I-004', 'بلوك أسمنتي 20 سم', 'إنتاج تام', 'قطعة', 'مخزن الإنتاج', 12500, 3000, 7, 10],
-      ['I-005', 'زيت هيدروليك', 'قطع غيار', 'لتر', 'مخزن الصيانة', 140, 200, 95, 120],
-      ['I-006', 'فلتر زيت محرك', 'قطع غيار', 'قطعة', 'مخزن الصيانة', 6, 10, 450, 550],
-      ['I-007', 'إطار لودر', 'قطع غيار', 'قطعة', 'مخزن الصيانة', 4, 2, 18500, 21000],
-    ]),
-    warehouses: T('code,name,type,location,keeper', [
-      ['W-01', 'المخزن الرئيسي', 'خامات', 'العاشر من رمضان', 'محمود عبد الله'],
-      ['W-02', 'مخزن الإنتاج', 'إنتاج تام', 'العاشر من رمضان', 'سامي فؤاد'],
-      ['W-03', 'مخزن الصيانة', 'قطع غيار', 'الورشة المركزية', 'ياسر حسن'],
-      ['W-04', 'مخزن الموقع', 'مواقع', 'موقع القاهرة الجديدة', 'عادل رمضان'],
-    ]),
-    departments: T('code,name,manager', [
-      ['D-01', 'الإدارة العامة', 'م. أحمد السيد'],
-      ['D-02', 'الحسابات', 'أ. خالد منصور'],
-      ['D-03', 'المبيعات', 'أ. هشام علي'],
-      ['D-04', 'المشتريات', 'أ. منى عادل'],
-      ['D-05', 'المخازن', 'أ. محمود عبد الله'],
-      ['D-06', 'شئون العاملين', 'أ. نهى سمير'],
-      ['D-07', 'الميكنة', 'م. طارق فتحي'],
-      ['D-08', 'الصيانة', 'م. وليد رشاد'],
-    ]),
-    // ----- شئون العاملين -----
-    employees: T('code,name,department,job,hireDate,salary,status', [
-      ['E-001', 'أحمد السيد إبراهيم', 'الإدارة العامة', 'المدير العام', '2015-03-01', 45000, 'نشط'],
-      ['E-002', 'خالد منصور حسن', 'الحسابات', 'رئيس الحسابات', '2017-06-15', 28000, 'نشط'],
-      ['E-003', 'سارة محمد عبد الرحمن', 'الحسابات', 'محاسبة', '2021-01-10', 14000, 'نشط'],
-      ['E-004', 'هشام علي فرج', 'المبيعات', 'مدير المبيعات', '2018-09-01', 24000, 'نشط'],
-      ['E-005', 'منى عادل شكري', 'المشتريات', 'مسئول مشتريات', '2019-04-20', 16000, 'نشط'],
-      ['E-006', 'محمود عبد الله سالم', 'المخازن', 'أمين مخزن', '2016-11-05', 12000, 'نشط'],
-      ['E-007', 'نهى سمير كامل', 'شئون العاملين', 'أخصائي موارد بشرية', '2020-02-01', 13500, 'نشط'],
-      ['E-008', 'طارق فتحي زكي', 'الميكنة', 'مدير الميكنة', '2014-07-12', 26000, 'نشط'],
-      ['E-009', 'وليد رشاد مصطفى', 'الصيانة', 'مهندس صيانة', '2019-10-01', 19000, 'نشط'],
-    ]),
-    attendance: T('date,employee,timeIn,timeOut,status', [
-      ['2026-11-17', 'أحمد السيد إبراهيم', '08:55', '17:10', 'حاضر'],
-      ['2026-11-17', 'خالد منصور حسن', '09:20', '17:00', 'متأخر'],
-      ['2026-11-17', 'سارة محمد عبد الرحمن', '08:50', '16:30', 'حاضر'],
-      ['2026-11-17', 'هشام علي فرج', '', '', 'غائب'],
-      ['2026-11-17', 'وليد رشاد مصطفى', '07:30', '16:00', 'حاضر'],
-    ]),
-    payroll: T('month,employee,basic,allowances,deductions,box', [
-      ['2026-10', 'أحمد السيد إبراهيم', 45000, 6000, 4950, 'البنك الأهلي - مصر الجديدة'],
-      ['2026-10', 'خالد منصور حسن', 28000, 3500, 3080, 'البنك الأهلي - مصر الجديدة'],
-      ['2026-10', 'سارة محمد عبد الرحمن', 14000, 1500, 1540, 'البنك الأهلي - مصر الجديدة'],
-      ['2026-10', 'هشام علي فرج', 24000, 5000, 2640, 'البنك الأهلي - مصر الجديدة'],
-      ['2026-10', 'طارق فتحي زكي', 26000, 4000, 2860, 'البنك الأهلي - مصر الجديدة'],
-      ['2026-10', 'وليد رشاد مصطفى', 19000, 2500, 2090, 'البنك الأهلي - مصر الجديدة'],
-    ]),
-    leaves: T('employee,type,from,to,status', [
-      ['نهى سمير كامل', 'اعتيادية', '2026-11-15', '2026-11-21', 'معتمدة'],
-      ['محمود عبد الله سالم', 'عارضة', '2026-11-24', '2026-11-25', 'قيد المراجعة'],
-      ['سارة محمد عبد الرحمن', 'مرضية', '2026-10-05', '2026-10-07', 'معتمدة'],
-    ]),
-    // ----- شئون العمالة -----
-    workers: T('code,name,craft,site,wage,status', [
-      ['L-001', 'سيد عبد الحميد', 'نجار مسلح', 'موقع القاهرة الجديدة', 450, 'نشط'],
-      ['L-002', 'رمضان فوزي', 'حداد مسلح', 'موقع القاهرة الجديدة', 450, 'نشط'],
-      ['L-003', 'عبد الله جمعة', 'عامل خرسانة', 'موقع القاهرة الجديدة', 350, 'نشط'],
-      ['L-004', 'مصطفى شعبان', 'سائق لودر', 'مصنع العاشر', 500, 'نشط'],
-      ['L-005', 'جابر حسين', 'عامل عادي', 'مصنع العاشر', 300, 'موقوف'],
-      ['L-006', 'إبراهيم عيد', 'كهربائي', 'مصنع العاشر', 480, 'نشط'],
-    ]),
-    dailyLabor: T('date,worker,site,days,wage,box', [
-      ['2026-11-14', 'سيد عبد الحميد', 'موقع القاهرة الجديدة', 6, 450, 'خزينة المصنع'],
-      ['2026-11-14', 'رمضان فوزي', 'موقع القاهرة الجديدة', 6, 450, 'خزينة المصنع'],
-      ['2026-11-14', 'عبد الله جمعة', 'موقع القاهرة الجديدة', 5, 350, 'خزينة المصنع'],
-      ['2026-11-14', 'مصطفى شعبان', 'مصنع العاشر', 6, 500, 'خزينة المصنع'],
-      ['2026-11-14', 'إبراهيم عيد', 'مصنع العاشر', 4, 480, 'خزينة المصنع'],
-    ]),
-    advances: T('date,worker,type,amount,box,notes', [
-      ['2026-11-10', 'سيد عبد الحميد', 'سلفة', 1500, 'خزينة المصنع', 'تخصم على 3 أسابيع'],
-      ['2026-11-12', 'جابر حسين', 'جزاء', 300, 'خزينة المصنع', 'غياب بدون إذن'],
-      ['2026-11-13', 'مصطفى شعبان', 'مكافأة', 500, 'خزينة المصنع', 'ساعات تشغيل إضافية'],
-    ]),
-    // ----- الخزينة -----
-    cashboxes: T('code,name,type,accountNo', [
-      ['B-01', 'الخزينة الرئيسية', 'خزينة', '1211'],
-      ['B-02', 'خزينة المصنع', 'خزينة', '1212'],
-      ['B-03', 'بنك مصر - فرع العاشر', 'بنك', '1213'],
-      ['B-04', 'البنك الأهلي - مصر الجديدة', 'بنك', '1214'],
-    ]),
-    receipts: T('no,date,box,party,invoice,account,amount,desc', [
-      ['RV-0231', '2026-11-16', 'بنك مصر - فرع العاشر', 'شركة النيل للمقاولات', 'INV-3104', '', 45000, 'دفعة من فاتورة INV-3104'],
-      ['RV-0230', '2026-11-12', 'الخزينة الرئيسية', 'مؤسسة الدلتا للتجارة', '', '', 18500, 'سداد الرصيد السابق'],
-      ['RV-0229', '2026-11-03', 'البنك الأهلي - مصر الجديدة', 'مكتب المستقبل الهندسي', 'INV-3101', '', 25080, 'سداد فاتورة INV-3101'],
-      ['RV-0228', '2026-11-01', 'الخزينة الرئيسية', 'أخرى', '', '421 - إيرادات تأجير المعدات', 9600, 'تأجير لودر لمدة 8 أيام'],
-    ]),
-    payments: T('no,date,box,party,invoice,account,amount,desc', [
-      ['PV-0419', '2026-11-16', 'الخزينة الرئيسية', 'أخرى', '', '334 - إيجارات', 4000, 'إيجار مخزن الموقع - نوفمبر'],
-      ['PV-0418', '2026-11-15', 'بنك مصر - فرع العاشر', 'شركة السويس للأسمنت', 'PI-2206', '', 60000, 'دفعة من فاتورة PI-2206'],
-      ['PV-0416', '2026-11-10', 'الخزينة الرئيسية', 'شركة مصر للبترول', '', '', 9800, 'سداد من الرصيد السابق'],
-    ]),
-    // ----- الحسابات (القيود اليدوية فقط؛ باقي القيود تتولد من المستندات) -----
-    journal: T('no,date,desc,debit,credit,amount', [
-      ['JV-1049', '2026-11-15', 'فاتورة كهرباء أكتوبر مستحقة', '333 - كهرباء ومياه', '233 - مصروفات مستحقة', 3100],
-      ['JV-1048', '2026-11-11', 'اشتراك إنترنت ومكالمات', '342 - اتصالات وإنترنت', '1211 - الخزينة الرئيسية', 1200],
-      ['JV-1047', '2026-11-04', 'تحويل نقدية من البنك للخزينة', '1211 - الخزينة الرئيسية', '1213 - بنك مصر', 50000],
-      ['JV-1046', '2026-10-31', 'إهلاك الآلات والمعدات - أكتوبر', '344 - إهلاك الأصول الثابتة', '113 - الآلات والمعدات', 8000],
-    ]),
-    // ----- المبيعات -----
-    salesInvoices: T('no,customer,date,due,amount,vatRate', [
-      ['INV-3105', 'مؤسسة الدلتا للتجارة', '2026-11-16', '2026-12-16', 42500, 14],
-      ['INV-3104', 'شركة النيل للمقاولات', '2026-11-08', '2026-12-08', 86000, 14],
-      ['INV-3103', 'شركة الصعيد للإنشاءات', '2026-10-20', '2026-11-05', 31500, 14],
-      ['INV-3102', 'مصنع الإسكندرية للحديد', '2026-10-15', '2026-11-10', 26000, 14],
-      ['INV-3101', 'مكتب المستقبل الهندسي', '2026-10-02', '2026-11-02', 22000, 14],
-    ]),
-    salesQuotes: T('no,customer,date,validUntil,amount,status', [
-      ['QT-0512', 'شركة النيل للمقاولات', '2026-11-15', '2026-11-30', 125000, 'مرسل'],
-      ['QT-0511', 'مكتب المستقبل الهندسي', '2026-11-09', '2026-11-24', 38000, 'مقبول'],
-      ['QT-0510', 'مؤسسة الدلتا للتجارة', '2026-11-01', '2026-11-15', 54000, 'مرفوض'],
-    ]),
-    salesReturns: T('no,invoice,customer,date,amount,reason', [
-      ['SR-0043', 'INV-3102', 'مصنع الإسكندرية للحديد', '2026-10-22', 3200, 'تلف أثناء النقل'],
-      ['SR-0042', '', 'شركة النيل للمقاولات', '2026-10-03', 1750, 'زيادة في الكمية'],
-    ]),
-    // ----- المشتريات -----
-    purchaseOrders: T('no,supplier,date,delivery,amount,status', [
-      ['PO-0712', 'شركة السويس للأسمنت', '2026-11-16', '2026-11-20', 240000, 'معتمد'],
-      ['PO-0711', 'مؤسسة الفتح لقطع الغيار', '2026-11-13', '2026-11-18', 12400, 'جديد'],
-      ['PO-0710', 'مصنع العاشر للحديد', '2026-11-04', '2026-11-09', 380000, 'مستلم'],
-    ]),
-    purchaseInvoices: T('no,supplier,date,due,account,amount', [
-      ['PI-2207', 'مصنع العاشر للحديد', '2026-11-09', '2026-12-09', '1231 - مخزون الخامات', 70000],
-      ['PI-2206', 'شركة السويس للأسمنت', '2026-10-28', '2026-11-28', '1231 - مخزون الخامات', 98000],
-      ['PI-2205', 'مؤسسة الفتح لقطع الغيار', '2026-10-12', '2026-11-12', '1233 - مخزون قطع الغيار', 41000],
-      ['PI-2204', 'شركة مصر للبترول', '2026-10-30', '2026-11-30', '331 - وقود وزيوت المعدات', 36000],
-    ]),
-    purchaseReturns: T('no,supplier,invoice,date,account,amount,reason', [
-      ['PR-0019', 'مؤسسة الفتح لقطع الغيار', 'PI-2205', '2026-10-14', '1233 - مخزون قطع الغيار', 2700, 'قطع غير مطابقة للمواصفات'],
-    ]),
-    // ----- المخازن -----
-    stockIn: T('no,date,warehouse,item,qty,source', [
-      ['GRN-0884', '2026-11-09', 'المخزن الرئيسي', 'حديد تسليح 16 مم', 10, 'مصنع العاشر للحديد'],
-      ['GRN-0883', '2026-11-07', 'مخزن الإنتاج', 'بلوك أسمنتي 20 سم', 4000, 'خط الإنتاج'],
-      ['GRN-0882', '2026-11-03', 'مخزن الصيانة', 'إطار لودر', 2, 'مؤسسة الفتح لقطع الغيار'],
-    ]),
-    stockOut: T('no,date,warehouse,item,qty,to', [
-      ['GIN-1203', '2026-11-15', 'المخزن الرئيسي', 'أسمنت بورتلاندي', 40, 'موقع القاهرة الجديدة'],
-      ['GIN-1202', '2026-11-12', 'مخزن الصيانة', 'زيت هيدروليك', 60, 'الصيانة - أمر MO-0157'],
-      ['GIN-1201', '2026-11-08', 'مخزن الإنتاج', 'بلوك أسمنتي 20 سم', 6000, 'شركة النيل للمقاولات'],
-    ]),
-    transfers: T('no,date,from,to,item,qty', [
-      ['TR-0091', '2026-11-11', 'المخزن الرئيسي', 'مخزن الموقع', 'أسمنت بورتلاندي', 25],
-      ['TR-0090', '2026-11-02', 'المخزن الرئيسي', 'مخزن الموقع', 'حديد تسليح 16 مم', 6],
-    ]),
-    // ----- الميكنة -----
-    machines: T('code,name,type,serial,site,hourRate,status', [
-      ['M-01', 'لودر كاتربيلر 950', 'لودر', 'CAT-950-2219', 'موقع القاهرة الجديدة', 1200, 'تعمل'],
-      ['M-02', 'حفار كوماتسو PC200', 'حفار', 'KOM-PC200-881', 'موقع القاهرة الجديدة', 1500, 'تعمل'],
-      ['M-03', 'خلاطة خرسانة 9 م³', 'خلاطة', 'MX-9-114', 'موقع القاهرة الجديدة', 800, 'تعمل'],
-      ['M-04', 'ونش برجي 8 طن', 'ونش', 'TC-8-302', 'موقع القاهرة الجديدة', 1800, 'تعمل'],
-      ['M-05', 'مولد كهرباء 250 ك.ف.أ', 'مولد', 'GEN-250-77', 'مصنع العاشر', 600, 'متوقفة'],
-    ]),
-    machineOps: T('date,machine,operator,site,hours,fuel', [
-      ['2026-11-16', 'لودر كاتربيلر 950', 'مصطفى شعبان', 'موقع القاهرة الجديدة', 9, 110],
-      ['2026-11-16', 'خلاطة خرسانة 9 م³', 'عبد الله جمعة', 'موقع القاهرة الجديدة', 7, 65],
-      ['2026-11-16', 'ونش برجي 8 طن', 'رمضان فوزي', 'موقع القاهرة الجديدة', 8, 0],
-      ['2026-11-15', 'لودر كاتربيلر 950', 'مصطفى شعبان', 'موقع القاهرة الجديدة', 10, 120],
-    ]),
-    // ----- الصيانة -----
-    maintenanceOrders: T('no,date,machine,type,technician,cost,box,status', [
-      ['MO-0158', '2026-11-16', 'حفار كوماتسو PC200', 'طارئة', 'وليد رشاد مصطفى', 18500, 'الخزينة الرئيسية', 'جاري التنفيذ'],
-      ['MO-0157', '2026-11-12', 'لودر كاتربيلر 950', 'وقائية', 'إبراهيم عيد', 6200, 'الخزينة الرئيسية', 'مكتمل'],
-      ['MO-0156', '2026-11-06', 'مولد كهرباء 250 ك.ف.أ', 'طارئة', 'إبراهيم عيد', 0, 'الخزينة الرئيسية', 'مفتوح'],
-      ['MO-0155', '2026-10-28', 'ونش برجي 8 طن', 'وقائية', 'وليد رشاد مصطفى', 4300, 'الخزينة الرئيسية', 'مكتمل'],
-    ]),
-    maintenancePlan: T('machine,task,interval,lastDate,nextDate', [
-      ['لودر كاتربيلر 950', 'تغيير زيت وفلاتر', 'كل 250 ساعة', '2026-11-12', '2026-12-20'],
-      ['حفار كوماتسو PC200', 'فحص الهيدروليك', 'كل 500 ساعة', '2026-08-01', '2026-11-10'],
-      ['ونش برجي 8 طن', 'فحص الكابلات والفرامل', 'شهرياً', '2026-10-28', '2026-11-28'],
-      ['خلاطة خرسانة 9 م³', 'تشحيم وفحص البرميل', 'أسبوعياً', '2026-11-14', '2026-11-21'],
-    ]),
-    settings: { company: 'شركة المحاسب للمقاولات والتوريدات', taxNo: '512-334-778', commercialReg: '145236', currency: 'ج.م', vat: 14, fiscalStart: '2026-01-01', address: 'العاشر من رمضان - المنطقة الصناعية الثالثة' },
+  // =====================================================================
+  //                         طبقة قاعدة البيانات
+  // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
+  // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
+  // =====================================================================
+  const APP_VERSION = '23/11/2026, 15:00';
+  const LOCAL_KEY = 'acc-erp-v4';
+  const PREFS_KEY = 'acc-erp-prefs';
+  const DB_CAPACITY = 25000;
+  const SETTINGS_PATH = 'meta/settings';
+  const TABLES = ['accounts', 'customers', 'suppliers', 'items', 'warehouses', 'departments', 'employees', 'attendance', 'payroll', 'leaves',
+    'workers', 'dailyLabor', 'advances', 'cashboxes', 'receipts', 'payments', 'journal', 'salesInvoices', 'salesQuotes', 'salesReturns',
+    'purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'stockIn', 'stockOut', 'transfers', 'machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan'];
+  const TX_TABLES = ['journal', 'receipts', 'payments', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
+    'stockIn', 'stockOut', 'transfers', 'attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders'];
+  const DEFAULT_SETTINGS = { company: 'نظام المحاسب', taxNo: '', commercialReg: '', currency: 'ج.م', vat: 14, fiscalStart: `${new Date().getFullYear()}-01-01`, address: '' };
+  const emptyDb = () => ({ ...Object.fromEntries(TABLES.map(t => [t, []])), settings: { ...DEFAULT_SETTINGS } });
+  const normalize = data => {
+    const d = emptyDb();
+    for (const t of TABLES) if (Array.isArray(data?.[t])) d[t] = data[t].map(r => ({ ...r, id: String(r.id ?? genId()) }));
+    if (data?.settings) Object.assign(d.settings, data.settings);
+    return d;
   };
+  const stripMeta = r => { const { id, _at, _by, ...rest } = r; return rest; };
+  const stable = o => JSON.stringify(o, Object.keys(o).sort());
 
-  // ---------- التخزين ----------
-  let db;
-  try { db = JSON.parse(localStorage.getItem(STORE_KEY)) || structuredClone(seed); }
-  catch { db = structuredClone(seed); }
-  for (const k in seed) if (!(k in db)) db[k] = structuredClone(seed[k]);
+  let db = emptyDb();
   let cache = {};
   const memo = (k, f) => (k in cache ? cache[k] : (cache[k] = f()));
-  const save = () => { cache = {}; try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch {} };
+  const store = { mode: 'loading', cloud: null, saved: new Map(), queue: [], pumping: false, status: 'connecting', lastSync: null,
+    me: { id: null, name: '', avatarUrl: '', isOwner: false, canEdit: false }, user: null, canWrite: true, canAdmin: true, ready: false };
+  let prefs = { fav: ['dashboard', 'salesInvoices', 'receipts', 'payments', 'accounts', 'journal', 'items', 'customers', 'reports', 'stockBalances'], pinned: true };
+
+  function save(opts = {}) {
+    cache = {};
+    if (store.mode === 'local') { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(db)); } catch {} return; }
+    if (store.mode !== 'cloud') return;
+    // يحسب الفرق بين الذاكرة وآخر حالة محفوظة، ويضيف عمليات الكتابة إلى الطابور فوراً
+    const seen = new Set();
+    for (const t of TABLES) for (const r of db[t]) {
+      const path = `${t}/${r.id}`; seen.add(path);
+      const cmp = stable(stripMeta(r)), prev = store.saved.get(path);
+      if (prev === cmp) continue;
+      r._at = new Date().toISOString(); if (store.me.id) r._by = store.me.id;
+      store.queue.push({ path, body: { ...stripMeta(r), _at: r._at, ...(r._by ? { _by: r._by } : {}) }, cmp, prev });
+      store.saved.set(path, cmp);
+    }
+    for (const path of [...store.saved.keys()]) if (path !== SETTINGS_PATH && !seen.has(path)) {
+      store.queue.push({ path, del: true, prev: store.saved.get(path) }); store.saved.delete(path);
+    }
+    const sc = stable(db.settings);
+    if (opts.settings && store.saved.get(SETTINGS_PATH) !== sc) { store.queue.push({ path: SETTINGS_PATH, body: { ...db.settings }, cmp: sc, prev: store.saved.get(SETTINGS_PATH) }); store.saved.set(SETTINGS_PATH, sc); }
+    pump();
+  }
+
+  async function pump() {
+    if (store.pumping || !store.queue.length) return;
+    store.pumping = true; setSync('saving');
+    while (store.queue.length) {
+      const op = store.queue.shift();
+      const run = () => op.del ? store.cloud.doc(op.path).delete() : store.cloud.doc(op.path).set(op.body);
+      try { await run(); }
+      catch (e) {
+        let err = e;
+        if (err?.code === 'unavailable') { await sleep(600 + Math.random() * 900); try { await run(); continue; } catch (e2) { err = e2; } }
+        writeFailed(err, op);
+      }
+    }
+    store.pumping = false; store.lastSync = new Date(); setSync('saved');
+  }
+
+  function writeFailed(e, op) {
+    // التراجع عن التعديل في الذاكرة
+    if (op.path === SETTINGS_PATH) { if (op.prev) db.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(op.prev) }; }
+    else {
+      const [t, id] = op.path.split('/');
+      db[t] = db[t].filter(r => r.id !== id);
+      if (op.prev) db[t].push({ ...JSON.parse(op.prev), id });
+    }
+    if (op.prev) store.saved.set(op.path, op.prev); else store.saved.delete(op.path);
+    cache = {};
+    const code = e?.code;
+    if (code === 'invalid_argument' || code === 'not_granted') {
+      if (op.path.startsWith('accounts/') || op.path === SETTINGS_PATH) toast('هذا التعديل متاح لمدير النظام فقط', 4000);
+      else { store.canWrite = false; applyRole(); toast('ليس لديك صلاحية التعديل — وضع المشاهدة فقط', 4000); }
+    } else if (code === 'quota_exceeded') toast('امتلأت سعة قاعدة البيانات — احذف بيانات قديمة أو صدّر نسخة احتياطية', 6000);
+    else toast('تعذّر الحفظ في قاعدة البيانات — تحقق من الاتصال', 4000);
+    scheduleRender();
+  }
+
+  // ----- الاتصال -----
+  async function boot() {
+    content.innerHTML = '<div class="boot"><div class="spinner"></div><p>جارٍ الاتصال بقاعدة البيانات…</p></div>';
+    const hasRuntime = typeof window.claude?.use === 'function';
+    const [cloud, user] = hasRuntime ? await Promise.all([claude.use('db').catch(() => null), claude.use('user').catch(() => null)]) : [null, null];
+    store.user = user;
+    if (user) {
+      const me = await user.me();
+      store.me = me;
+      const w = await user.can('data.write');
+      store.canAdmin = !!(me.isOwner || me.canEdit);
+      store.canWrite = w === null ? true : !!w || store.canAdmin;
+    }
+    await loadPrefs(cloud);
+    if (cloud) { store.cloud = cloud; store.mode = 'cloud'; attachCloud(); }
+    else await initLocal(hasRuntime);
+  }
+
+  function attachCloud() {
+    const waiting = new Set([...TABLES, SETTINGS_PATH]);
+    const ready = () => { if (store.ready) return; store.ready = true; clearTimeout(slowTimer); setSync('saved'); route(); };
+    const got = key => { waiting.delete(key); if (!waiting.size) ready(); else if (store.ready) scheduleRender(); };
+    const slowTimer = setTimeout(() => { setSync('slow'); ready(); }, 10000);
+    const fail = e => { if (e?.code === 'revoked') { store.canWrite = false; applyRole(); } setSync('error'); };
+    for (const t of TABLES) {
+      store.cloud.collection(t).onSnapshot(snap => {
+        for (const k of [...store.saved.keys()]) if (k.startsWith(t + '/')) store.saved.delete(k);
+        db[t] = snap.docs.map(d => { const body = d.data(); store.saved.set(`${t}/${d.id}`, stable(stripMeta(body))); return { ...structuredClone(body), id: d.id }; });
+        for (const op of store.queue) if (op.path.startsWith(t + '/')) { // عمليات لم تُرسل بعد: تبقى ظاهرة
+          const id = op.path.split('/')[1]; db[t] = db[t].filter(r => r.id !== id);
+          if (!op.del) db[t].push({ ...op.body, id }); if (op.del) store.saved.delete(op.path); else store.saved.set(op.path, op.cmp);
+        }
+        cache = {}; if (!snap.metadata.fromCache) store.lastSync = new Date();
+        got(t); if (store.ready) scheduleRender();
+      }, fail);
+    }
+    store.cloud.doc(SETTINGS_PATH).onSnapshot(snap => {
+      db.settings = { ...DEFAULT_SETTINGS, ...(snap.exists ? structuredClone(snap.data()) : {}) };
+      if (snap.exists) store.saved.set(SETTINGS_PATH, stable(db.settings));
+      cache = {}; got(SETTINGS_PATH); if (store.ready) scheduleRender();
+    }, fail);
+  }
+
+  async function initLocal(hasRuntime) {
+    store.mode = 'local';
+    let data = null;
+    try { data = JSON.parse(localStorage.getItem(LOCAL_KEY)); } catch {}
+    if (!data && !hasRuntime) data = await loadSeed();
+    db = normalize(data);
+    store.ready = true; setSync(hasRuntime ? 'offline' : 'local'); route();
+  }
+  const loadSeed = () => new Promise(res => {
+    if (window.ACC_SEED) return res(window.ACC_SEED);
+    const s = document.createElement('script'); s.src = 'seed.js';
+    s.onload = () => res(window.ACC_SEED || null); s.onerror = () => res(null);
+    document.head.appendChild(s);
+  });
+
+  // ----- تفضيلات المستخدم (المفضلة وتثبيت القائمة) — تُحفظ لكل مستخدم -----
+  const prefsDoc = cloud => cloud && store.me.id ? cloud.doc(`data/users/${store.me.id}/prefs`) : null;
+  async function loadPrefs(cloud) {
+    try { const p = JSON.parse(localStorage.getItem(PREFS_KEY)); if (p) prefs = { ...prefs, ...p }; } catch {}
+    const ref = prefsDoc(cloud);
+    if (ref) { try { const snap = await ref.get(); if (snap.exists) prefs = { ...prefs, ...snap.data() }; } catch {} }
+  }
+  let prefsWriting = Promise.resolve();
+  function savePrefs() {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch {}
+    const ref = prefsDoc(store.cloud);
+    if (ref) { const body = { fav: [...prefs.fav], pinned: prefs.pinned }; prefsWriting = prefsWriting.then(() => ref.set(body)).catch(() => {}); }
+  }
 
   const money = n => `${nf.format(+n || 0)} ${esc(db.settings.currency)}`;
   const num = n => nf.format(+n || 0);
@@ -403,6 +297,8 @@
     truck: I('<path d="M2 17V9h9l3 4h6v4"/><path d="M11 9V5H7v4"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/><path d="m14 13 3-6h3"/>'),
     wrench: I('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>'),
     gear: I('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>'),
+    shield: I('<path d="M12 3 4 6v6c0 5 3.4 8.6 8 9.9 4.6-1.3 8-4.9 8-9.9V6z"/><path d="m9 12 2 2 4-4"/>'),
+    chevDown: '<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
     chev: '<svg class="chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" transform="rotate(180 12 12)"/></svg>',
     caret: I('<path d="m6 9 6 6 6-6"/>'),
     edit: I('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
@@ -521,7 +417,7 @@
       C('remaining', 'المتبقي', computed(r => invTotal(r) - salesPaid(r), { total: true })),
       C('status', 'الحالة', statusOf(salesStatus, 'معلقة', 'مدفوعة جزئياً', 'مدفوعة', 'متأخرة'))],
       defaults: () => ({ vatRate: db.settings.vat, due: addDays(today(), 30) }),
-      actions: [{ icon: 'receive', title: 'تحصيل (سند قبض)', show: r => salesStatus(r) !== 'مدفوعة',
+      actions: [{ icon: 'receive', title: 'تحصيل (سند قبض)', write: true, show: r => salesStatus(r) !== 'مدفوعة',
         fn: r => openRecordForm('receipts', null, { party: r.customer, invoice: r.no, amount: +(invTotal(r) - salesPaid(r)).toFixed(2), desc: `سداد فاتورة ${r.no}` }) }],
       validate: (d, rec) => {
         const c = db.customers.find(x => x.name === d.customer); if (!c || !+c.limit) return;
@@ -532,7 +428,7 @@
       C('no', 'رقم العرض', CODE), C('customer', 'العميل', { input: 'select', options: names('customers'), full: true }), C('date', 'التاريخ', D), C('validUntil', 'ساري حتى', D),
       C('amount', 'القيمة', { ...M, total: true }), C('status', 'الحالة', status('مرسل', 'مقبول', 'مرفوض'))],
       actions: [{ icon: 'sales', title: 'تحويل إلى فاتورة', show: r => r.status !== 'مرفوض',
-        fn: r => openRecordForm('salesInvoices', null, { customer: r.customer, amount: r.amount }, () => { r.status = 'مقبول'; }) }] },
+        fn: r => openRecordForm('salesInvoices', null, { customer: r.customer, amount: r.amount }, () => { const x = db.salesQuotes.find(q => q.id === r.id); if (x) x.status = 'مقبول'; }), write: true }] },
     salesReturns: { title: 'مرتجعات المبيعات', sub: 'تُرحّل: من حـ/ المبيعات إلى حـ/ العملاء', single: 'مرتجع', key: 'no', cols: [
       C('no', 'رقم المرتجع', CODE), C('customer', 'العميل', { input: 'select', options: names('customers') }),
       C('invoice', 'الفاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]) }),
@@ -544,7 +440,7 @@
       C('no', 'رقم الأمر', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers'), full: true }), C('date', 'التاريخ', D), C('delivery', 'موعد التوريد', D),
       C('amount', 'القيمة', { ...M, total: true }), C('status', 'الحالة', status('جديد', 'معتمد', 'مستلم'))],
       actions: [{ icon: 'cart', title: 'تحويل إلى فاتورة مشتريات', show: r => r.status !== 'جديد',
-        fn: r => openRecordForm('purchaseInvoices', null, { supplier: r.supplier, amount: r.amount }, () => { r.status = 'مستلم'; }) }] },
+        fn: r => openRecordForm('purchaseInvoices', null, { supplier: r.supplier, amount: r.amount }, () => { const x = db.purchaseOrders.find(q => q.id === r.id); if (x) x.status = 'مستلم'; }), write: true }] },
     purchaseInvoices: { title: 'فواتير المشتريات', sub: 'تُرحّل: من حـ/ المخزون أو المصروف إلى حـ/ الموردين', single: 'فاتورة شراء', key: 'no', filter: 'status', cols: [
       C('no', 'رقم الفاتورة', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers'), full: true }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
       C('account', 'يُحمّل على حساب', { input: 'select', options: leafOpts('123', '3', '11'), full: true, render: v => `<span class="hint">${esc(v)}</span>` }),
@@ -552,7 +448,7 @@
       C('remaining', 'المتبقي', computed(r => +r.amount - purchPaid(r), { total: true })),
       C('status', 'الحالة', statusOf(purchStatus, 'معلقة', 'مدفوعة جزئياً', 'مدفوعة', 'متأخرة'))],
       defaults: () => ({ due: addDays(today(), 30), account: '1231 - مخزون الخامات' }),
-      actions: [{ icon: 'pay', title: 'سداد (سند صرف)', show: r => purchStatus(r) !== 'مدفوعة',
+      actions: [{ icon: 'pay', title: 'سداد (سند صرف)', write: true, show: r => purchStatus(r) !== 'مدفوعة',
         fn: r => openRecordForm('payments', null, { party: r.supplier, invoice: r.no, amount: +(r.amount - purchPaid(r)).toFixed(2), desc: `سداد فاتورة ${r.no}` }) }] },
     purchaseReturns: { title: 'مرتجعات المشتريات', sub: 'تُرحّل: من حـ/ الموردين إلى حـ/ المخزون', single: 'مرتجع', key: 'no', cols: [
       C('no', 'رقم المرتجع', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers') }),
@@ -646,7 +542,7 @@
     maintenancePlan: { title: 'الصيانة الدورية', sub: 'الحالة تُحسب من تاريخ الصيانة القادمة', single: 'بند صيانة', filter: 'status', cols: [
       C('machine', 'المعدة', { input: 'select', options: names('machines') }), C('task', 'العمل المطلوب', { full: true }), C('interval', 'الدورية'),
       C('lastDate', 'آخر صيانة', D), C('nextDate', 'الصيانة القادمة', D), C('status', 'الحالة', statusOf(planStatus, 'منتظمة', 'قريبة', 'متأخرة'))],
-      actions: [{ icon: 'wrench', title: 'إنشاء أمر صيانة', fn: r => openRecordForm('maintenanceOrders', null, { machine: r.machine, type: 'وقائية' }) }] },
+      actions: [{ icon: 'wrench', title: 'إنشاء أمر صيانة', write: true, fn: r => openRecordForm('maintenanceOrders', null, { machine: r.machine, type: 'وقائية' }) }] },
   };
 
   // الروابط بين الجداول: عند تغيير الاسم يتحدث في كل مكان، ولا يُحذف سجل مستخدم
@@ -667,31 +563,50 @@
 
   // ---------- الصفحات الخاصة ----------
   const pages = {
-    dashboard: { title: 'لوحة التحكم', sub: 'نظرة عامة على أداء الشركة', render: renderDashboard },
+    dashboard: { title: 'لوحة المعلومات', sub: 'نظرة عامة على أداء الشركة', render: renderDashboard },
     accounts: { title: 'شجرة الحسابات', sub: 'الأرصدة = الرصيد الافتتاحي + الحركات المرحّلة', render: renderTree },
     journal: { title: 'القيود اليومية', sub: 'القيود اليدوية والقيود المتولدة تلقائياً من المستندات', render: renderJournal },
     ledger: { title: 'كشف حساب', sub: 'حركة الحساب التفصيلية والرصيد المتحرك', render: renderLedger },
     reports: { title: 'القوائم المالية', sub: 'قائمة الدخل، المركز المالي، ميزان المراجعة', render: renderReports },
     stockBalances: { title: 'أرصدة المخازن', sub: 'رصيد كل صنف في كل مخزن', render: renderStockBalances },
-    settings: { title: 'الإعدادات', sub: 'بيانات المنشأة والنسخ الاحتياطي', render: renderSettings },
+    database: { title: 'قاعدة البيانات', sub: 'الجداول والسعة والنسخ الاحتياطي', render: renderDatabase },
+    settings: { title: 'الإعدادات', sub: 'بيانات المنشأة', render: renderSettings },
   };
   const pageInfo = id => pages[id] || modules[id];
 
   // ---------- القائمة الجانبية ----------
   const nav = [
-    { title: 'لوحة التحكم', icon: 'dash', page: 'dashboard' },
-    { title: 'البيانات الأساسية', icon: 'db', items: ['customers', 'suppliers', 'items', 'employees', 'workers', 'warehouses', 'departments'] },
-    { title: 'الحسابات', icon: 'ledger', items: ['accounts', 'journal', 'ledger', 'reports'] },
-    { title: 'الخزينة', icon: 'cash', items: ['cashboxes', 'receipts', 'payments'] },
-    { title: 'المبيعات', icon: 'sales', items: ['salesInvoices', 'salesQuotes', 'salesReturns', 'customers'] },
-    { title: 'المشتريات', icon: 'cart', items: ['purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'suppliers'] },
-    { title: 'المخازن', icon: 'box', items: ['items', 'stockBalances', 'stockIn', 'stockOut', 'transfers', 'warehouses'] },
-    { title: 'شئون العاملين', icon: 'users', items: ['employees', 'attendance', 'payroll', 'leaves', 'departments'] },
-    { title: 'شئون العمالة', icon: 'hardhat', items: ['workers', 'dailyLabor', 'advances'] },
-    { title: 'الميكنة', icon: 'truck', items: ['machines', 'machineOps'] },
-    { title: 'الصيانة', icon: 'wrench', items: ['maintenanceOrders', 'maintenancePlan'] },
-    { title: 'الإعدادات', icon: 'gear', page: 'settings' },
+    { title: 'دليل الحسابات', icon: 'list', items: ['accounts', 'journal', 'ledger', 'reports'] },
+    { title: 'الإدارات', icon: 'box', items: [
+      { title: 'الخزينة', icon: 'cash', items: ['cashboxes', 'receipts', 'payments'] },
+      { title: 'المبيعات', icon: 'sales', items: ['salesInvoices', 'salesQuotes', 'salesReturns'] },
+      { title: 'المشتريات', icon: 'cart', items: ['purchaseOrders', 'purchaseInvoices', 'purchaseReturns'] },
+      { title: 'المخازن', icon: 'box', items: ['stockBalances', 'stockIn', 'stockOut', 'transfers'] },
+      { title: 'شئون العاملين', icon: 'users', items: ['attendance', 'payroll', 'leaves'] },
+      { title: 'شئون العمالة', icon: 'hardhat', items: ['dailyLabor', 'advances'] },
+      { title: 'الميكنة', icon: 'truck', items: ['machineOps'] },
+      { title: 'الصيانة', icon: 'wrench', items: ['maintenanceOrders', 'maintenancePlan'] },
+    ] },
+    { title: 'قواعد البيانات', icon: 'db', items: ['customers', 'suppliers', 'items', 'warehouses', 'employees', 'workers', 'departments', 'machines'] },
+    { title: 'الإدارة والإعدادات', icon: 'shield', items: ['dashboard', 'database', 'settings'] },
   ];
+  const EMO = {
+    dashboard: '📊', database: '🗄️', settings: '⚙️', accounts: '🌳', journal: '📒', ledger: '📄', reports: '📈',
+    cashboxes: '🏦', receipts: '📥', payments: '📤', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
+    purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
+    attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
+    customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', workers: '🦺', departments: '🏢', machines: '🚜',
+  };
+  // مسار كل صفحة داخل القائمة (لفتح المجموعات التي تحتويها)
+  const pagePath = {};
+  const walkNav = (items, keys, titles) => items.forEach((it, i) => {
+    const k = keys.length ? `${keys[keys.length - 1]}.${i}` : String(i);
+    if (typeof it === 'string') pagePath[it] ??= { keys, titles };
+    else walkNav(it.items, [...keys, k], [...titles, it.title]);
+  });
+  walkNav(nav, [], []);
+  const leavesOf = g => g.items.flatMap(it => typeof it === 'string' ? [it] : leavesOf(it));
+
   const badges = {
     salesInvoices: () => db.salesInvoices.filter(r => salesStatus(r) === 'متأخرة').length,
     purchaseInvoices: () => db.purchaseInvoices.filter(r => purchStatus(r) === 'متأخرة').length,
@@ -701,30 +616,56 @@
   };
   const badge = n => n ? `<em class="badge">${n}</em>` : '';
 
-  const state = { page: null, lastPage: null, group: 0, open: new Set(), q: '', filter: '', collapsed: new Set(), ledger: '1211' };
+  const state = { page: null, open: new Set(['3']), navTab: 'all', navQ: '', q: '', filter: '', collapsed: new Set(), ledger: '1211' };
   let pendingQuery = null;
 
+  function leafHTML(p, withPath) {
+    const fav = prefs.fav.includes(p), info = pageInfo(p);
+    return `<div class="nav-leaf ${state.page === p ? 'active' : ''}">
+      <a href="#${p}" data-page="${p}"><span class="emo">${EMO[p] || '•'}</span><span class="nav-title">${info.title}${withPath ? `<small>${pagePath[p].titles.join(' › ')}</small>` : ''}</span>${badge(badges[p]?.() || 0)}</a>
+      <button class="star ${fav ? 'on' : ''}" data-fav="${p}" title="${fav ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}" aria-pressed="${fav}">${fav ? '★' : '☆'}</button></div>`;
+  }
+  function groupHTML(g, key, lvl) {
+    const open = state.open.has(key);
+    const leaves = leavesOf(g);
+    const total = sum(leaves, p => badges[p]?.() || 0);
+    return `<div class="nav-group lvl${lvl} ${open ? 'open' : ''} ${leaves.includes(state.page) ? 'current' : ''}">
+      <button class="nav-head" data-toggle="${key}" aria-expanded="${open}"><span class="nav-ico">${icons[g.icon]}</span><span class="nav-title">${g.title}</span>${open ? '' : badge(total)}${icons.chevDown}</button>
+      <div class="nav-sub">${g.items.map((it, j) => typeof it === 'string' ? leafHTML(it) : groupHTML(it, `${key}.${j}`, lvl + 1)).join('')}</div>
+    </div>`;
+  }
   function renderNav() {
-    $('#nav').innerHTML = nav.map((g, gi) => {
-      if (g.page) return `<a href="#${g.page}" data-page="${g.page}" data-group="${gi}" class="${state.page === g.page ? 'active' : ''}">${icons[g.icon]}<span>${g.title}</span></a>`;
-      const total = sum(g.items, id => badges[id]?.() || 0);
-      const open = state.open.has(gi);
-      return `<div class="nav-group ${open ? 'open' : ''} ${state.group === gi ? 'current' : ''}">
-        <button class="nav-head" data-toggle="${gi}" aria-expanded="${open}">${icons[g.icon]}<span>${g.title}</span>${open ? '' : badge(total)}${icons.chev}</button>
-        <div class="nav-sub">${g.items.map(id => `<a href="#${id}" data-page="${id}" data-group="${gi}" class="${state.page === id && state.group === gi ? 'active' : ''}"><span>${pageInfo(id).title}</span>${badge(badges[id]?.() || 0)}</a>`).join('')}</div>
-      </div>`;
-    }).join('');
+    const q = state.navQ.trim().toLowerCase();
+    let html;
+    if (q) {
+      const hits = Object.keys(pagePath).filter(p => [pageInfo(p).title, ...pagePath[p].titles].some(t => t.toLowerCase().includes(q)));
+      html = hits.length ? hits.map(p => leafHTML(p, true)).join('') : '<div class="nav-empty">لا توجد نتائج في القائمة</div>';
+    } else if (state.navTab === 'fav') {
+      const fav = prefs.fav.filter(p => pagePath[p]);
+      html = fav.length ? fav.map(p => leafHTML(p, true)).join('') : '<div class="nav-empty">لا توجد شاشات في المفضلة.<br>اضغط ☆ بجانب أي شاشة لإضافتها.</div>';
+    } else html = nav.map((g, i) => groupHTML(g, String(i), 0)).join('');
+    $('#nav').innerHTML = html;
+    $('#favCount').textContent = prefs.fav.filter(p => pagePath[p]).length;
+    $$('.nav-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === state.navTab));
   }
   $('#nav').addEventListener('click', e => {
+    const star = e.target.closest('[data-fav]');
+    if (star) {
+      const p = star.dataset.fav;
+      prefs.fav = prefs.fav.includes(p) ? prefs.fav.filter(x => x !== p) : [...prefs.fav, p];
+      savePrefs(); renderNav(); return;
+    }
     const t = e.target.closest('[data-toggle]');
-    if (t) { const gi = +t.dataset.toggle; state.open.has(gi) ? state.open.delete(gi) : state.open.add(gi); renderNav(); return; }
-    const a = e.target.closest('a[data-group]');
-    if (a) { state.group = +a.dataset.group; if (a.getAttribute('href') === location.hash) route(); }
+    if (t) { const k = t.dataset.toggle; state.open.has(k) ? state.open.delete(k) : state.open.add(k); renderNav(); return; }
+    const a = e.target.closest('a[data-page]');
+    if (a && a.getAttribute('href') === location.hash) route();
   });
+  $$('.nav-tabs button').forEach(b => b.onclick = () => { state.navTab = b.dataset.tab; renderNav(); });
+  $('#navSearch').addEventListener('input', e => { state.navQ = e.target.value; renderNav(); });
 
   // الانتقال إلى مستند مع البحث عنه
   function goTo(page, query = '') {
-    pendingQuery = query; state.group = -1;
+    pendingQuery = query;
     if (decodeURIComponent(location.hash.slice(1)) === page) route(); else location.hash = page;
   }
   function openLedger(code) { state.ledger = code; closeModal(); goTo('ledger'); }
@@ -738,7 +679,7 @@
     const expGroups = childrenOf('3').map(a => ({ name: a.name, v: rollup(a.code) }));
     const expMax = Math.max(1, ...expGroups.map(x => x.v));
 
-    const tile = (gi, icon, title, lines) => `<a class="tile" href="#${nav[gi].items[0]}" data-tile="${gi}"><div class="tile-icon">${icons[icon]}</div><div><h4>${title}</h4>${lines.map(l => `<p>${l}</p>`).join('')}</div></a>`;
+    const tile = (page, icon, title, lines) => `<a class="tile" href="#${page}"><div class="tile-icon">${icons[icon]}</div><div><h4>${title}</h4>${lines.map(l => `<p>${l}</p>`).join('')}</div></a>`;
     const low = db.items.filter(i => itemQty(i.name) < +i.min);
     const overdue = db.salesInvoices.filter(i => salesStatus(i) === 'متأخرة');
     const latePI = db.purchaseInvoices.filter(i => purchStatus(i) === 'متأخرة');
@@ -765,15 +706,15 @@
 
       <div class="section-title">الإدارات</div>
       <div class="tiles">
-        ${tile(2, 'ledger', 'الحسابات', [`<b>${db.accounts.length}</b> حساب في الشجرة`, `<b>${glEntries().length}</b> قيد (${db.journal.length} يدوي)`])}
-        ${tile(3, 'cash', 'الخزينة', [`الرصيد: <b>${money(sum(boxes, b => b.v))}</b>`, `<b>${db.receipts.length}</b> قبض · <b>${db.payments.length}</b> صرف`])}
-        ${tile(4, 'sales', 'المبيعات', [`مستحق من العملاء <b>${money(receivable)}</b>`, `<b>${overdue.length}</b> فاتورة متأخرة`])}
-        ${tile(5, 'cart', 'المشتريات', [`مستحق للموردين <b>${money(payable)}</b>`, `<b>${db.purchaseOrders.filter(p => p.status !== 'مستلم').length}</b> أمر شراء مفتوح`])}
-        ${tile(6, 'box', 'المخازن', [`قيمة المخزون <b>${money(sum(db.items, i => itemQty(i.name) * i.cost))}</b>`, `<b>${low.length}</b> صنف تحت حد الطلب`])}
-        ${tile(7, 'users', 'شئون العاملين', [`<b>${db.employees.length}</b> موظف`, `رواتب مرحّلة: <b>${money(sum(db.payroll, p => p.basic + p.allowances - p.deductions))}</b>`])}
-        ${tile(8, 'hardhat', 'شئون العمالة', [`<b>${db.workers.filter(w => w.status === 'نشط').length}</b> عامل نشط`, `أجور: <b>${money(sum(db.dailyLabor, d => d.days * d.wage))}</b>`])}
-        ${tile(9, 'truck', 'الميكنة', [`<b>${db.machines.length}</b> معدة · <b>${db.machines.filter(m => machineState(m) === 'تعمل').length}</b> تعمل`, `<b>${num(sum(db.machineOps, o => o.hours))}</b> ساعة تشغيل`])}
-        ${tile(10, 'wrench', 'الصيانة', [`<b>${openMOs.length}</b> أمر صيانة مفتوح`, `<b>${latePlan.length}</b> صيانة دورية متأخرة`])}
+        ${tile('accounts', 'ledger', 'الحسابات', [`<b>${db.accounts.length}</b> حساب في الشجرة`, `<b>${glEntries().length}</b> قيد (${db.journal.length} يدوي)`])}
+        ${tile('cashboxes', 'cash', 'الخزينة', [`الرصيد: <b>${money(sum(boxes, b => b.v))}</b>`, `<b>${db.receipts.length}</b> قبض · <b>${db.payments.length}</b> صرف`])}
+        ${tile('salesInvoices', 'sales', 'المبيعات', [`مستحق من العملاء <b>${money(receivable)}</b>`, `<b>${overdue.length}</b> فاتورة متأخرة`])}
+        ${tile('purchaseInvoices', 'cart', 'المشتريات', [`مستحق للموردين <b>${money(payable)}</b>`, `<b>${db.purchaseOrders.filter(p => p.status !== 'مستلم').length}</b> أمر شراء مفتوح`])}
+        ${tile('stockBalances', 'box', 'المخازن', [`قيمة المخزون <b>${money(sum(db.items, i => itemQty(i.name) * i.cost))}</b>`, `<b>${low.length}</b> صنف تحت حد الطلب`])}
+        ${tile('employees', 'users', 'شئون العاملين', [`<b>${db.employees.length}</b> موظف`, `رواتب مرحّلة: <b>${money(sum(db.payroll, p => p.basic + p.allowances - p.deductions))}</b>`])}
+        ${tile('workers', 'hardhat', 'شئون العمالة', [`<b>${db.workers.filter(w => w.status === 'نشط').length}</b> عامل نشط`, `أجور: <b>${money(sum(db.dailyLabor, d => d.days * d.wage))}</b>`])}
+        ${tile('machines', 'truck', 'الميكنة', [`<b>${db.machines.length}</b> معدة · <b>${db.machines.filter(m => machineState(m) === 'تعمل').length}</b> تعمل`, `<b>${num(sum(db.machineOps, o => o.hours))}</b> ساعة تشغيل`])}
+        ${tile('maintenanceOrders', 'wrench', 'الصيانة', [`<b>${openMOs.length}</b> أمر صيانة مفتوح`, `<b>${latePlan.length}</b> صيانة دورية متأخرة`])}
       </div>
 
       <div class="grid-2">
@@ -804,7 +745,6 @@
           <ul class="alerts">${alerts.slice(0, 8).map(a => `<li><span class="a-ico kpi-icon ${a.c}">${icons[a.i]}</span><div>${a.t}<small>${a.s}</small></div><a href="#${a.h}" data-go="${a.h}" data-q="${esc(a.q)}">عرض</a></li>`).join('') || '<li class="empty">لا توجد تنبيهات</li>'}</ul>
         </div>
       </div>`;
-    $$('[data-tile]', content).forEach(t => t.addEventListener('click', () => { state.group = +t.dataset.tile; }));
     $$('[data-go]', content).forEach(a => a.addEventListener('click', e => { e.preventDefault(); goTo(a.dataset.go, a.dataset.q); }));
   }
   const kpi = (label, value, trend, dir, color, icon) => `
@@ -821,6 +761,9 @@
     const cols = tableCols(m);
     const q = state.q.trim().toLowerCase();
     let rows = db[name].filter(r => !q || m.cols.some(c => String(val(r, c) ?? '').toLowerCase().includes(q)));
+    const dk = ['date', 'month', 'from'].find(k => m.cols.some(c => c.key === k));
+    rows.sort(dk ? (a, b) => String(b[dk] ?? '').localeCompare(String(a[dk] ?? '')) || String(b.no ?? '').localeCompare(String(a.no ?? ''))
+      : (a, b) => String(a.code ?? a.name ?? '').localeCompare(String(b.code ?? b.name ?? ''), 'ar'));
     const fcol = m.filter && m.cols.find(c => c.key === m.filter);
     if (fcol && state.filter) rows = rows.filter(r => val(r, fcol) === state.filter);
     const fopts = fcol ? (fcol.options ? fcol.options() : [...new Set(db[name].map(r => val(r, fcol)))]) : [];
@@ -844,7 +787,7 @@
             ${rows.length ? rows.map(r => `<tr>
               ${cols.map(c => `<td class="${c.cls ?? ''}">${cell(r, c)}</td>`).join('')}
               <td><div class="row-actions">
-                ${(m.actions || []).map((a, i) => !a.show || a.show(r) ? `<button data-act="${i}" data-id="${r.id}" title="${a.title}">${icons[a.icon]}</button>` : '').join('')}
+                ${(m.actions || []).map((a, i) => !a.show || a.show(r) ? `<button data-act="${i}" data-id="${r.id}" class="${a.write ? 'w' : ''}" title="${a.title}">${icons[a.icon]}</button>` : '').join('')}
                 <button data-edit="${r.id}" title="تعديل">${icons.edit}</button>
                 <button class="del" data-del="${r.id}" title="حذف">${icons.del}</button>
               </div></td></tr>`).join('')
@@ -861,7 +804,7 @@
     $('#tblFilter')?.addEventListener('change', e => { state.filter = e.target.value; renderModule(name); });
     $('#addBtn').onclick = () => openRecordForm(name);
     $('#exportBtn').onclick = () => downloadCSV(name, cols.map(c => c.label), rows.map(r => cols.map(c => val(r, c))));
-    const find = id => db[name].find(r => r.id === +id);
+    const find = id => db[name].find(r => r.id === id);
     $$('[data-act]', content).forEach(b => b.onclick = () => m.actions[+b.dataset.act].fn(find(b.dataset.id)));
     $$('[data-edit]', content).forEach(b => b.onclick = () => openRecordForm(name, find(b.dataset.edit)));
     $$('[data-del]', content).forEach(b => b.onclick = () => deleteRecord(name, find(b.dataset.del)));
@@ -873,7 +816,7 @@
     if (used.length) return toast(`لا يمكن الحذف: مستخدم في ${used.map(([t, n]) => `${pageInfo(t).title} (${n})`).join('، ')}`, 4000);
     const posted = glEntries().some(e => e.module === name && e.id === r.id);
     if (!confirm(`هل تريد حذف هذا السجل (${m.single})؟${posted ? '\nسيتم إلغاء القيد المحاسبي المرتبط به.' : ''}`)) return;
-    db[name] = db[name].filter(x => x !== r);
+    db[name] = db[name].filter(x => x.id !== r.id);
     save(); renderPage(); renderNav(); toast('تم الحذف');
   }
 
@@ -881,6 +824,7 @@
   const modal = $('#modal'), form = $('#modalForm');
   let onSubmit = null;
   const field = (c, v) => {
+    if (c.input === 'checks') return `<div class="field full"><label>${c.label}</label><div class="checks">${c.options().map(o => `<label class="check"><input type="checkbox" name="${c.key}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div></div>`;
     const input = c.input === 'select'
       ? `<select class="input" name="${c.key}" ${c.optional ? '' : 'required'}>${c.allowEmpty ? `<option value="">${c.allowEmpty}</option>` : ''}${c.options().map(o => { const [ov, ol] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`; }).join('')}</select>`
       : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.optional ? '' : 'required'}>`;
@@ -907,8 +851,18 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
   form.addEventListener('submit', e => {
     e.preventDefault();
-    if (onSubmit && onSubmit(Object.fromEntries(new FormData(form))) !== false) closeModal();
+    const fd = new FormData(form);
+    if (onSubmit && onSubmit(Object.fromEntries(fd), fd) !== false) closeModal();
   });
+
+  // آخر تعديل: من وإمتى
+  async function showAudit(r) {
+    const el = document.createElement('div'); el.className = 'audit';
+    const when = new Date(r._at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+    el.textContent = `آخر تعديل: ${when}`;
+    $('#modalBody').appendChild(el);
+    if (r._by && store.user) { const ps = await store.user.profiles([r._by]); const n = ps[r._by]?.name; if (n) el.textContent = `آخر تعديل: ${n} — ${when}`; }
+  }
 
   // رقم المستند التالي (INV-3105 → INV-3106)
   const nextNo = (list, key) => {
@@ -924,25 +878,30 @@
     const t = today();
     const defaults = Object.fromEntries(fields.map(c => [c.key, c.input === 'date' ? t : c.input === 'month' ? t.slice(0, 7) : '']));
     ['no', 'code'].forEach(k => { if (k in defaults) defaults[k] = nextNo(db[name], k); });
+    const recId = record?.id;
     openModal(`${record ? 'تعديل' : 'إضافة'} ${m.single}`, fields, record || { ...defaults, ...(m.defaults?.() || {}), ...prefill }, data => {
+      // السجل الحالي من قاعدة البيانات (قد يكون مستخدم آخر عدّله أو حذفه)
+      const cur = recId ? db[name].find(r => r.id === recId) : null;
+      if (recId && !cur) { toast('هذا السجل حذفه مستخدم آخر'); return; }
       fields.forEach(c => { if (c.input === 'number') data[c.key] = +data[c.key] || 0; });
-      if (m.key && db[name].some(r => r !== record && r[m.key] === data[m.key])) { toast(`"${data[m.key]}" مسجل من قبل`); return false; }
-      const err = m.validate?.(data, record);
+      if (m.key && db[name].some(r => r !== cur && r[m.key] === data[m.key])) { toast(`"${data[m.key]}" مسجل من قبل`); return false; }
+      const err = m.validate?.(data, cur);
       if (err) { toast(err, 3500); return false; }
-      let saved = record;
-      if (record) {
-        if (m.key && record[m.key] !== data[m.key]) (refs[name] || []).forEach(([tb, f]) => db[tb].forEach(r => { if (r[f] === record[m.key]) r[f] = data[m.key]; }));
-        Object.assign(record, data);
+      let saved = cur;
+      if (cur) {
+        if (m.key && cur[m.key] !== data[m.key]) (refs[name] || []).forEach(([tb, f]) => db[tb].forEach(r => { if (r[f] === cur[m.key]) r[f] = data[m.key]; }));
+        Object.assign(cur, data);
       } else {
-        saved = { id: nextId(db[name]), ...data };
+        saved = { id: genId(), ...data };
         db[name].unshift(saved);
         afterCreate?.(saved);
       }
       m.afterSave?.(saved);
       save(); renderPage(); renderNav();
       const posted = glEntries().find(e => e.module === name && e.id === saved.id);
-      toast(posted ? `تم الحفظ والترحيل — قيد ${posted.no}` : record ? 'تم حفظ التعديلات' : 'تمت الإضافة بنجاح');
+      toast(posted ? `تم الحفظ والترحيل — قيد ${posted.no}` : cur ? 'تم حفظ التعديلات' : 'تمت الإضافة بنجاح');
     });
+    if (record?._at) showAudit(record);
     // تعبئة تلقائية عند اختيار عنصر مرتبط
     if (m.onSelect) {
       const f = form.elements;
@@ -1042,8 +1001,8 @@
     $('#addBtn').onclick = () => openRecordForm('journal');
     $('#exportBtn').onclick = () => downloadCSV('journal', ['رقم القيد', 'التاريخ', 'البيان', 'المصدر', 'الحساب', 'مدين', 'دائن'],
       entries.flatMap(e => e.lines.map(l => [e.no, e.date, e.desc, e.src, name(l.acc), l.dr, l.cr])));
-    $$('[data-edit]', content).forEach(b => b.onclick = () => openRecordForm('journal', db.journal.find(r => r.id === +b.dataset.edit)));
-    $$('[data-del]', content).forEach(b => b.onclick = () => deleteRecord('journal', db.journal.find(r => r.id === +b.dataset.del)));
+    $$('[data-edit]', content).forEach(b => b.onclick = () => openRecordForm('journal', db.journal.find(r => r.id === b.dataset.edit)));
+    $$('[data-del]', content).forEach(b => b.onclick = () => deleteRecord('journal', db.journal.find(r => r.id === b.dataset.del)));
     $$('[data-src]', content).forEach(b => b.onclick = () => goTo(b.dataset.src, b.dataset.q));
     $$('[data-ledger]', content).forEach(b => b.onclick = () => openLedger(b.dataset.ledger));
   }
@@ -1106,7 +1065,7 @@
       </div>`;
     $('#tblSearch').addEventListener('input', e => { state.q = e.target.value; renderStockBalances(); const el = $('#tblSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); });
     $('#tblFilter').addEventListener('change', e => { state.filter = e.target.value; renderStockBalances(); });
-    $$('[data-card]', content).forEach(b => b.onclick = () => itemCard(db.items.find(i => i.id === +b.dataset.card)));
+    $$('[data-card]', content).forEach(b => b.onclick = () => itemCard(db.items.find(i => i.id === b.dataset.card)));
   }
 
   // ---------- شجرة الحسابات ----------
@@ -1159,7 +1118,7 @@
             <button class="btn ghost" id="expandAll">توسيع الكل</button>
             <button class="btn ghost" id="collapseAll">طي الكل</button>
             <button class="btn ghost" id="exportBtn">${icons.export}تصدير</button>
-            <button class="btn primary" id="addBtn">${icons.plus}حساب جديد</button>
+            <button class="btn primary admin-only" id="addBtn">${icons.plus}حساب جديد</button>
           </div>
         </div>
         <div class="table-wrap"><table class="tree">
@@ -1181,9 +1140,9 @@
     $$('[data-caret]', content).forEach(b => b.onclick = () => { const c = b.dataset.caret; state.collapsed.has(c) ? state.collapsed.delete(c) : state.collapsed.add(c); renderTree(); });
     $$('[data-ledger]', content).forEach(b => b.onclick = () => openLedger(b.dataset.ledger));
     $$('[data-addchild]', content).forEach(b => b.onclick = () => openAccountForm(null, b.dataset.addchild));
-    $$('[data-editacc]', content).forEach(b => b.onclick = () => openAccountForm(db.accounts.find(a => a.id === +b.dataset.editacc)));
+    $$('[data-editacc]', content).forEach(b => b.onclick = () => openAccountForm(db.accounts.find(a => a.id === b.dataset.editacc)));
     $$('[data-delacc]', content).forEach(b => b.onclick = () => {
-      const a = db.accounts.find(x => x.id === +b.dataset.delacc);
+      const a = db.accounts.find(x => x.id === b.dataset.delacc);
       if (hasChildren(a.code)) return toast('لا يمكن حذف حساب له حسابات فرعية');
       if (movements()[a.code]) return toast('لا يمكن حذف حساب عليه حركات مرحّلة');
       if (db.cashboxes.some(x => x.accountNo === a.code)) return toast('الحساب مرتبط بخزينة / بنك');
@@ -1215,6 +1174,7 @@
     openModal(a ? 'تعديل حساب' : 'إضافة حساب', fields,
       a ? { ...a, parent: a.parent ?? '' } : { parent: p ?? '', code: suggestCode(p), name: '', balance: 0 },
       data => {
+        if (a) { a = db.accounts.find(x => x.id === a.id); if (!a) { toast('هذا الحساب حذفه مستخدم آخر'); return; } }
         const code = data.code.trim(), par = data.parent || null;
         if (db.accounts.some(x => x.code === code && x !== a)) { toast('كود الحساب مستخدم من قبل'); return false; }
         if (a && par) { let x = par; while (x) { if (x === a.code) { toast('لا يمكن جعل الحساب تابعاً لأحد فروعه'); return false; } x = acc(x)?.parent; } }
@@ -1229,7 +1189,7 @@
           }
           accRefFields.forEach(([t, f]) => db[t].forEach(r => { if (accCode(r[f]) === old) r[f] = accLabel(a); }));
         } else {
-          db.accounts.push({ id: nextId(db.accounts), code, name: data.name.trim(), parent: par, balance: +data.balance || 0 });
+          db.accounts.push({ id: genId(), code, name: data.name.trim(), parent: par, balance: +data.balance || 0 });
           if (par) state.collapsed.delete(par);
         }
         save(); renderTree(); toast(a ? 'تم حفظ الحساب' : 'تمت إضافة الحساب');
@@ -1285,11 +1245,11 @@
   // ---------- الإعدادات ----------
   function renderSettings() {
     const s = db.settings;
-    const f = (k, l, t = 'text', full = false) => `<div class="field ${full ? 'full' : ''}"><label>${l}</label><input class="input" name="${k}" type="${t}" value="${esc(s[k])}"></div>`;
-    const tables = Object.keys(seed).filter(k => Array.isArray(db[k]));
+    const dis = store.canAdmin ? '' : 'disabled';
+    const f = (k, l, t = 'text', full = false) => `<div class="field ${full ? 'full' : ''}"><label>${l}</label><input class="input" name="${k}" type="${t}" value="${esc(s[k])}" ${dis}></div>`;
     content.innerHTML = `
-      <div class="card" style="max-width:860px;margin-bottom:18px">
-        <div class="card-head"><div><h3>بيانات المنشأة</h3><div class="sub">تظهر في الفواتير والتقارير</div></div></div>
+      <div class="card" style="max-width:860px">
+        <div class="card-head"><div><h3>بيانات المنشأة</h3><div class="sub">${store.canAdmin ? 'تظهر في رأس القائمة والفواتير والتقارير' : 'تعديلها متاح لمدير النظام فقط'}</div></div></div>
         <form class="card-body" id="settingsForm">
           <div class="form-grid">
             ${f('company', 'اسم المنشأة', 'text', true)}
@@ -1300,36 +1260,70 @@
             ${f('fiscalStart', 'بداية السنة المالية', 'date')}
             ${f('address', 'العنوان', 'text')}
           </div>
-          <div style="margin-top:20px"><button class="btn primary" type="submit">حفظ الإعدادات</button></div>
+          ${store.canAdmin ? '<div style="margin-top:20px"><button class="btn primary" type="submit">حفظ الإعدادات</button></div>' : ''}
         </form>
-      </div>
-      <div class="card" style="max-width:860px">
-        <div class="card-head"><div><h3>قاعدة البيانات</h3><div class="sub">${tables.length} جدول · ${sum(tables, k => db[k].length)} سجل · ${glEntries().length} قيد مرحّل — محفوظة في هذا المتصفح</div></div></div>
-        <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn ghost" id="backupBtn">${icons.export}نسخة احتياطية (JSON)</button>
-          <label class="btn ghost" style="cursor:pointer">استعادة نسخة احتياطية<input type="file" id="restoreInput" accept=".json,application/json" hidden></label>
-          <button class="btn ghost" id="resetBtn" style="color:var(--red)">استعادة البيانات التجريبية</button>
-        </div>
       </div>`;
     $('#settingsForm').addEventListener('submit', e => {
       e.preventDefault();
       Object.assign(db.settings, Object.fromEntries(new FormData(e.target)));
       db.settings.vat = +db.settings.vat || 0;
-      save(); toast('تم حفظ الإعدادات');
+      save({ settings: true }); renderBrand(); toast('تم حفظ الإعدادات');
     });
+  }
+
+  // ---------- حالة قاعدة البيانات ----------
+  const TABLE_TITLE = t => pageInfo(t)?.title || t;
+  async function renderDatabase() {
+    const total = sum(TABLES, t => db[t].length);
+    const pct = Math.min(100, total / DB_CAPACITY * 100);
+    const last = t => db[t].reduce((m, r) => (r._at && (!m || r._at > m._at) ? r : m), null);
+    const cloud = store.mode === 'cloud';
+    const rows = TABLES.map(t => ({ t, n: db[t].length, last: last(t) })).sort((a, b) => b.n - a.n);
+    content.innerHTML = `
+      <div class="kpis">
+        ${kpi('نوع قاعدة البيانات', cloud ? 'سحابية مشتركة' : 'محلية', cloud ? 'مزامنة لحظية بين كل المستخدمين والأجهزة' : 'محفوظة في هذا المتصفح فقط', cloud ? 'up' : 'down', cloud ? 'green' : 'amber', icons.db)}
+        ${kpi('عدد السجلات', num(total), `في ${TABLES.length} جدول`, '', '', icons.list)}
+        ${kpi('القيود المرحّلة', num(glEntries().length), `${db.journal.length} يدوي`, '', '', icons.ledger)}
+        ${kpi('السعة المستخدمة', `${pct.toFixed(1)}%`, `من ${num(DB_CAPACITY)} سجل`, '', pct > 80 ? 'red' : 'green', icons.wallet)}
+      </div>
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-head"><div><h3>الجداول</h3><div class="sub">${cloud ? `آخر مزامنة: ${store.lastSync ? store.lastSync.toLocaleTimeString('ar-EG') : '—'}` : 'وضع محلي'}</div></div>
+          <div class="spacer"></div><div class="capacity" title="السعة المستخدمة"><span style="width:${pct}%"></span></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>الجدول</th><th>المسار</th><th>عدد السجلات</th><th>آخر تعديل</th><th>بواسطة</th><th></th></tr></thead>
+          <tbody>${rows.map(r => `<tr><td><b>${esc(TABLE_TITLE(r.t))}</b></td><td class="code">${r.t}</td><td class="num">${num(r.n)}</td>
+            <td>${r.last ? new Date(r.last._at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+            <td data-uid="${esc(r.last?._by || '')}">—</td>
+            <td><a class="link-btn" href="#${r.t}">فتح</a></td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h3>النسخ الاحتياطي والاستعادة</h3><div class="sub">ملف JSON يحتوي على كل الجداول والإعدادات</div></div></div>
+        <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn ghost" id="backupBtn">${icons.export}تنزيل نسخة احتياطية</button>
+          <label class="btn ghost admin-only" style="cursor:pointer">استعادة نسخة احتياطية<input type="file" id="restoreInput" accept=".json,application/json" hidden></label>
+          ${store.mode === 'local' ? '<button class="btn ghost" id="demoBtn">تحميل البيانات التجريبية</button>' : ''}
+        </div>
+      </div>`;
     $('#backupBtn').onclick = () => download(`acc-backup-${today()}.json`, JSON.stringify(db, null, 2), 'application/json');
     $('#restoreInput').onchange = async e => {
       try {
         const data = JSON.parse(await e.target.files[0].text());
-        if (!Array.isArray(data.accounts) || !data.settings) throw 0;
-        db = data; for (const k in seed) if (!(k in db)) db[k] = structuredClone(seed[k]);
-        save(); renderNav(); renderSettings(); toast('تمت استعادة النسخة الاحتياطية');
+        if (!Array.isArray(data.accounts)) throw 0;
+        if (!confirm('ستحل النسخة الاحتياطية محل كل البيانات الحالية لكل المستخدمين. متابعة؟')) return;
+        db = normalize(data); save({ settings: true }); renderBrand(); renderNav(); renderDatabase(); toast('جارٍ رفع النسخة الاحتياطية إلى قاعدة البيانات…', 4000);
       } catch { toast('الملف غير صالح'); }
     };
-    $('#resetBtn').onclick = () => {
-      if (!confirm('سيتم حذف كل التعديلات واستعادة البيانات التجريبية. متابعة؟')) return;
-      db = structuredClone(seed); save(); renderNav(); renderSettings(); toast('تمت الاستعادة');
-    };
+    $('#demoBtn')?.addEventListener('click', async () => {
+      if (!confirm('سيتم استبدال البيانات الحالية بالبيانات التجريبية. متابعة؟')) return;
+      const sd = await loadSeed(); if (!sd) return toast('ملف البيانات التجريبية غير متاح');
+      db = normalize(sd); save(); renderBrand(); renderNav(); renderDatabase(); toast('تم تحميل البيانات التجريبية');
+    });
+    const ids = [...new Set(rows.map(r => r.last?._by).filter(Boolean))];
+    if (ids.length && store.user) {
+      const ps = await store.user.profiles(ids);
+      $$('[data-uid]', content).forEach(td => { const p = ps[td.dataset.uid]; if (p) td.textContent = p.name || 'مستخدم'; });
+    }
   }
 
   // ---------- تصدير ----------
@@ -1347,27 +1341,101 @@
   // ---------- التوجيه ----------
   const content = $('#content');
   const renderPage = () => (pages[state.page] ? pages[state.page].render() : renderModule(state.page));
+  const isMobile = () => matchMedia('(max-width: 900px)').matches;
   function route() {
+    if (!store.ready) return;
     const hash = decodeURIComponent(location.hash.slice(1)) || 'dashboard';
     const page = pageInfo(hash) ? hash : 'dashboard';
     if (page !== state.page || pendingQuery !== null) { state.q = pendingQuery ?? ''; state.filter = ''; pendingQuery = null; }
+    const changed = page !== state.page;
     state.page = page;
-    const g = nav[state.group];
-    if (!(g && (g.page === page || g.items?.includes(page)))) state.group = nav.findIndex(x => x.page === page || x.items?.includes(page));
-    if (page !== state.lastPage) { state.open.clear(); state.lastPage = page; }
-    if (nav[state.group]?.items) state.open.add(state.group);
+    const path = pagePath[page];
+    if (changed && path) path.keys.forEach(k => state.open.add(k));
 
     const info = pageInfo(page);
-    const grp = nav[state.group];
     $('#pageTitle').textContent = info.title;
-    $('#pageSub').textContent = grp?.items ? `${grp.title} › ${info.sub}` : info.sub;
-    document.title = `${info.title} | نظام المحاسب`;
+    $('#pageSub').textContent = path?.titles.length ? `${path.titles.join(' › ')} › ${info.sub}` : info.sub;
+    document.title = `${info.title} | ${db.settings.company || 'نظام المحاسب'}`;
     closeModal();
+    renderBrand();
     renderNav();
     renderPage();
-    document.body.classList.remove('nav-open');
-    window.scrollTo(0, 0);
+    if (!(prefs.pinned && isMobile())) document.body.classList.remove('nav-open');
+    if (changed) window.scrollTo(0, 0);
   }
+
+  // إعادة الرسم عند وصول تحديثات من مستخدمين آخرين (مع الحفاظ على مكان الكتابة)
+  let renderTimer;
+  function scheduleRender() {
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(() => {
+      if (!store.ready || !state.page) return;
+      const a = document.activeElement, id = a?.id, pos = a?.selectionStart;
+      const inContent = a && content.contains(a);
+      renderBrand(); renderNav();
+      if (!(inContent && !id)) renderPage();
+      if (id && inContent) { const el = document.getElementById(id); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } }
+    }, 80);
+  }
+
+  // ---------- رأس القائمة وتذييلها ----------
+  function renderBrand() {
+    const name = db.settings.company || 'نظام المحاسب';
+    $('#brandName').textContent = name;
+    $('#brandLetter').textContent = [...name.trim()][0] || 'م';
+  }
+  function roleText() {
+    if (store.mode === 'local') return 'وضع محلي';
+    if (store.me.isOwner) return 'مالك النظام';
+    if (store.canAdmin) return 'مدير — كل الصلاحيات';
+    return store.canWrite ? 'إدخال وتعديل' : 'مشاهدة فقط';
+  }
+  function applyRole() {
+    document.body.classList.toggle('ro', !store.canWrite);
+    document.body.classList.toggle('no-admin', !store.canAdmin);
+    $('#userName').textContent = store.me.name || (store.mode === 'local' ? 'مستخدم محلي' : 'مستخدم');
+    $('#userRole').textContent = roleText();
+    const av = $('#userAvatar');
+    av.textContent = [...(store.me.name || 'م').trim()][0] || 'م';
+    if (store.me.avatarUrl && store.me.name) av.style.backgroundImage = `url("${store.me.avatarUrl}")`, av.classList.add('img');
+    $('#roBanner').hidden = store.canWrite;
+  }
+  function setSync(s) {
+    store.status = s;
+    const map = { connecting: ['جارٍ الاتصال…', ''], saved: ['متصل — مزامنة لحظية', 'ok'], saving: ['جارٍ الحفظ…', 'busy'], slow: ['الاتصال بطيء — قد تكون البيانات قديمة', 'warn'],
+      error: ['انقطع الاتصال بقاعدة البيانات', 'err'], local: ['قاعدة بيانات محلية', 'local'], offline: ['قاعدة البيانات غير متاحة — حفظ مؤقت في المتصفح', 'warn'] };
+    const [txt, cls] = map[s] || map.connecting;
+    const pill = $('#syncPill'); pill.className = `sync ${cls}`; pill.querySelector('span').textContent = txt;
+    $('#onlineDot').className = `online ${cls}`;
+    $('#onlineDot').title = txt;
+  }
+  function applyPin() {
+    document.body.classList.toggle('unpinned', !prefs.pinned);
+    $('#pinBtn').classList.toggle('on', prefs.pinned);
+    $('#pinBtn').title = prefs.pinned ? 'إلغاء تثبيت القائمة' : 'تثبيت القائمة';
+  }
+
+  // ---------- أدوات المدير ----------
+  $('#clearBoxesBtn').onclick = () => {
+    openModal('تفريغ خزائن محددة', [{ key: 'boxes', label: 'اختر الخزائن / البنوك التي ستُحذف سندات القبض والصرف الخاصة بها', input: 'checks', options: () => db.cashboxes.map(b => b.name) },
+      { key: 'confirm', label: 'للتأكيد اكتب كلمة: تفريغ', input: 'text', full: true }], {}, (data, fd) => {
+      const boxes = fd.getAll('boxes');
+      if (!boxes.length) { toast('اختر خزينة واحدة على الأقل'); return false; }
+      if (data.confirm.trim() !== 'تفريغ') { toast('اكتب كلمة "تفريغ" للتأكيد'); return false; }
+      const n = db.receipts.filter(r => boxes.includes(r.box)).length + db.payments.filter(r => boxes.includes(r.box)).length;
+      db.receipts = db.receipts.filter(r => !boxes.includes(r.box));
+      db.payments = db.payments.filter(r => !boxes.includes(r.box));
+      save(); scheduleRender(); toast(`تم حذف ${n} سند من ${boxes.length} خزينة`, 3500);
+    });
+  };
+  $('#clearMovesBtn').onclick = () => {
+    const n = sum(TX_TABLES, t => db[t].length);
+    openModal('حذف كل الحركات', [{ key: 'confirm', label: `سيتم حذف ${n} حركة (فواتير، سندات، قيود، أذون، رواتب...) مع الإبقاء على البيانات الأساسية وشجرة الحسابات. للتأكيد اكتب: حذف`, input: 'text', full: true }], {}, data => {
+      if (data.confirm.trim() !== 'حذف') { toast('اكتب كلمة "حذف" للتأكيد'); return false; }
+      TX_TABLES.forEach(t => { db[t] = []; });
+      save(); scheduleRender(); toast(`تم حذف ${n} حركة`, 3500);
+    });
+  };
 
   let toastTimer;
   function toast(msg, ms = 2400) {
@@ -1390,6 +1458,15 @@
 
   $('#menuBtn').onclick = () => document.body.classList.toggle('nav-open');
   $('#overlay').onclick = () => document.body.classList.remove('nav-open');
+  $('#pinBtn').onclick = () => { prefs.pinned = !prefs.pinned; savePrefs(); applyPin(); if (!prefs.pinned) document.body.classList.remove('nav-open'); };
+  $('#refreshBtn').onclick = () => location.reload();
+  $('#langBtn').onclick = () => toast('الواجهة الإنجليزية ستُضاف في تحديث قادم');
+  $('#versionText').textContent = `الإصدار ${APP_VERSION}`;
   window.addEventListener('hashchange', route);
-  route();
+
+  (async () => {
+    applyPin(); setSync('connecting');
+    await boot();
+    applyPin(); applyRole();
+  })();
 })();
