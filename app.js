@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '28/11/2026, 10:00';
+  const APP_VERSION = '28/11/2026, 13:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -1250,6 +1250,8 @@
   function renderModule(name) {
     const m = modules[name];
     const T = tbl(name), all = rowsOf(name);
+    const sel = (state.sel ||= {})[name] ||= new Set();
+    [...sel].forEach(id => { if (!all.some(r => r.id === id)) sel.delete(id); });
     const showAppr = APPR_MODULES.includes(T) && (apprOn(T) || all.some(r => r.appr));
     const cols = [...tableCols(m), ...(showAppr ? [C('_appr', 'الاعتماد', { compute: r => apprText(T, r), render: (v, r) => apprPill(T, r) })] : [])];
     const q = state.q.trim().toLowerCase();
@@ -1272,13 +1274,15 @@
             ${fcol ? `<select class="input" id="tblFilter"><option value="">${fcol.label}: الكل</option>${fopts.map(o => `<option ${o === state.filter ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` : ''}
             <button class="btn ghost" id="exportBtn">${icons.export}تصدير</button>
             <button class="btn ghost" id="importBtn">${icons.receive}استيراد</button>
+            <button class="btn ghost danger-ghost" id="clearScreenBtn" title="حذف كل سجلات هذه الشاشة">${icons.del}تفريغ الشاشة</button>
             <button class="btn primary" id="addBtn">${icons.plus}إضافة ${m.single}</button>
           </div>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr>${cols.map(c => `<th>${c.label}</th>`).join('')}<th></th></tr></thead>
+          <thead><tr><th class="sel-col"><input type="checkbox" id="selAll" title="تحديد الكل"></th>${cols.map(c => `<th>${c.label}</th>`).join('')}<th></th></tr></thead>
           <tbody>
-            ${rows.length ? rows.map(r => `<tr>
+            ${rows.length ? rows.map(r => `<tr class="${sel.has(r.id) ? 'picked' : ''}">
+              <td class="sel-col"><input type="checkbox" class="rsel" data-rid="${r.id}" ${sel.has(r.id) ? 'checked' : ''}></td>
               ${cols.map(c => `<td class="${c.cls ?? ''}">${cell(r, c)}</td>`).join('')}
               <td><div class="row-actions">
                 ${canApprove(T, r) ? `<button class="ok" data-apr="${r.id}" title="اعتماد">✓</button><button class="del" data-rej="${r.id}" title="رفض">✕</button>` : ''}
@@ -1287,9 +1291,12 @@
                 <button data-edit="${r.id}" title="تعديل">${icons.edit}</button>
                 <button class="del" data-del="${r.id}" title="حذف">${icons.del}</button>
               </div></td></tr>`).join('')
-            : `<tr><td colspan="${cols.length + 1}" class="empty">لا توجد سجلات مطابقة</td></tr>`}
+            : `<tr><td colspan="${cols.length + 2}" class="empty">لا توجد سجلات مطابقة</td></tr>`}
           </tbody>
         </table></div>
+        <div class="bulk-bar" id="bulkBar" ${sel.size ? '' : 'hidden'}><b id="bulkN">${sel.size}</b> محدد
+          <button type="button" class="btn ghost danger-ghost" id="bulkDel">${icons.del}حذف المحدد</button>
+          <button type="button" class="btn ghost" id="bulkClear">إلغاء التحديد</button></div>
         <div class="table-foot">
           <span>عرض ${rows.length} من ${all.length}</span>
           <span>${totals.map(c => `${c.label}: <b>${(c.render === num || (c.cls === 'num' && !c.render) ? num : money)(sum(rows, r => val(r, c)))}</b>`).join(' &nbsp;·&nbsp; ')}</span>
@@ -1308,6 +1315,55 @@
     $$('[data-rej]', content).forEach(b => b.onclick = () => rejectDoc(T, b.dataset.rej));
     $$('[data-edit]', content).forEach(b => b.onclick = () => openRecordForm(name, find(b.dataset.edit)));
     $$('[data-del]', content).forEach(b => b.onclick = () => deleteRecord(name, find(b.dataset.del)));
+    const upd = () => { $('#bulkN').textContent = sel.size; $('#bulkBar').hidden = !sel.size; $('#selAll').checked = rows.length > 0 && rows.every(r => sel.has(r.id)); };
+    $$('.rsel', content).forEach(c => c.onchange = () => { c.checked ? sel.add(c.dataset.rid) : sel.delete(c.dataset.rid); c.closest('tr').classList.toggle('picked', c.checked); upd(); });
+    $('#selAll').onchange = e => { rows.forEach(r => e.target.checked ? sel.add(r.id) : sel.delete(r.id)); renderModule(name); };
+    $('#bulkClear').onclick = () => { sel.clear(); renderModule(name); };
+    $('#bulkDel').onclick = () => deleteMany(name, [...sel], () => sel.clear());
+    $('#clearScreenBtn').onclick = () => clearScreen(name);
+    upd();
+  }
+
+  // حذف عدة سجلات: البيانات الأساسية المستخدمة في حركات لا تُحذف (تُذكر في النتيجة)
+  function deleteMany(name, ids, after) {
+    if (!can(name, 'd')) return denied();
+    const m = modules[name], T = tbl(name);
+    const recs = db[T].filter(r => ids.includes(r.id));
+    if (!recs.length) return;
+    const blocked = m.key ? recs.filter(r => usages(T, r[m.key]).length) : [];
+    const ok = recs.filter(r => !blocked.includes(r));
+    const posted = ok.filter(r => glEntries().some(e => e.module === T && e.id === r.id)).length;
+    if (!ok.length) return toast(`لا يمكن حذف المحدد: كل السجلات مستخدمة في حركات (${blocked.length})`, 4500);
+    if (!confirm(`حذف ${ok.length} سجل من "${m.title}"؟${posted ? `\nسيتم إلغاء ${posted} قيد محاسبي مرتبط.` : ''}${blocked.length ? `\n${blocked.length} سجل مستخدم في حركات لن يُحذف.` : ''}`)) return;
+    const del = new Set(ok.map(r => r.id));
+    db[T] = db[T].filter(r => !del.has(r.id));
+    after?.(); save(); renderPage(); renderNav();
+    toast(`تم حذف ${ok.length} سجل${blocked.length ? ` — وتُرك ${blocked.length} مستخدم في حركات` : ''}`, 4000);
+  }
+  // تفريغ الشاشة: حذف كل سجلاتها بعد تأكيد بالكتابة، مع نسخة احتياطية اختيارية
+  function clearScreen(name) {
+    const m = modules[name], T = tbl(name), recs = rowsOf(name);
+    if (!can(name, 'd') || !canSp('adminTools')) return denied();
+    if (!recs.length) return toast('الشاشة فارغة بالفعل');
+    const blocked = m.key ? recs.filter(r => usages(T, r[m.key]).length) : [];
+    const posted = recs.filter(r => !blocked.includes(r) && glEntries().some(e => e.module === T && e.id === r.id)).length;
+    const pending = recs.filter(r => r.appr?.status === 'pending').length;
+    openModal(`تفريغ شاشة: ${m.title}`, [], {}, () => {
+      if (normAr($('#clrWord').value) !== normAr('تفريغ')) { toast('اكتب كلمة "تفريغ" للتأكيد'); return false; }
+      const go = () => { const ids = new Set(recs.filter(r => !blocked.includes(r)).map(r => r.id));
+        db[T] = db[T].filter(r => !ids.has(r.id)); (state.sel || {})[name]?.clear?.();
+        save(); renderPage(); renderNav(); toast(`تم تفريغ "${m.title}": حُذف ${ids.size} سجل${blocked.length ? ` — وتُرك ${blocked.length} مستخدم في حركات` : ''}`, 4500); };
+      if ($('#clrBackup').checked) saveFile(`نسخة-${m.title}-${today()}.json`, JSON.stringify(recs, null, 2), 'application/json').finally(go); else go();
+    });
+    $('#modalBody').innerHTML = `<div class="clr-box">
+      <p>سيتم حذف <b>${recs.length - blocked.length}</b> سجل من شاشة <b>${esc(m.title)}</b> نهائياً.</p>
+      <ul>${posted ? `<li>سيُلغى <b>${posted}</b> قيد محاسبي مرتبط بهذه السجلات وتتغير الأرصدة والتقارير.</li>` : ''}
+        ${pending ? `<li>منها <b>${pending}</b> مستند بانتظار الاعتماد.</li>` : ''}
+        ${blocked.length ? `<li><b>${blocked.length}</b> سجل مستخدم في حركات أخرى لن يُحذف (احذف حركاته أولاً).</li>` : ''}</ul>
+      <label class="check"><input type="checkbox" id="clrBackup" checked><span>تنزيل نسخة احتياطية من السجلات قبل الحذف</span></label>
+      <div class="field"><label>للتأكيد اكتب كلمة <b>تفريغ</b></label><input class="input" id="clrWord" autocomplete="off"></div></div>`;
+    $('#saveBtn').textContent = 'تفريغ الشاشة'; $('#saveBtn').classList.add('danger');
+    setTimeout(() => $('#clrWord')?.focus(), 50);
   }
 
   function deleteRecord(name, r) {
@@ -1334,7 +1390,7 @@
     return `<div class="field ${c.full ? 'full' : ''}" data-f="${c.key}"><label>${c.label}</label>${input}</div>`;
   };
   function openModal(title, fields, values, submit) {
-    form.classList.remove('wide', 'info');
+    form.classList.remove('wide', 'info'); $('#saveBtn').classList.remove('danger');
     $('#saveBtn').textContent = 'حفظ'; $('#saveBtn').disabled = false;
     $('#modalTitle').textContent = title;
     $('#modalBody').innerHTML = `<div class="form-grid">${fields.map(c => field(c, values[c.key] ?? '', values)).join('')}</div>`; condUpd = null;
@@ -1718,6 +1774,7 @@
             <input class="input" id="tblSearch" type="search" placeholder="بحث برقم القيد أو الحساب..." value="${esc(state.q)}">
             <select class="input" id="tblFilter"><option value="">المصدر: الكل</option>${srcs.map(s => `<option ${s === state.filter ? 'selected' : ''}>${s}</option>`).join('')}</select>
             <button class="btn ghost" id="exportBtn">${icons.export}تصدير</button>
+            <button class="btn ghost danger-ghost" id="jClear" title="حذف كل القيود اليدوية">${icons.del}تفريغ القيود اليدوية</button>
             <button class="btn primary" id="addBtn">${icons.plus}قيد يدوي</button>
           </div>
         </div>
@@ -1744,6 +1801,7 @@
     $('#tblSearch').addEventListener('input', e => { state.q = e.target.value; renderJournal(); const el = $('#tblSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); });
     $('#tblFilter').addEventListener('change', e => { state.filter = e.target.value; renderJournal(); });
     $('#addBtn').onclick = () => openRecordForm('journal');
+    $('#jClear') && ($('#jClear').onclick = () => clearScreen('journal'));
     $('#exportBtn').onclick = () => downloadCSV('journal', ['رقم القيد', 'التاريخ', 'البيان', 'المصدر', 'الحساب', 'مدين', 'دائن', 'بيان السطر'],
       entries.flatMap(e => e.lines.map(l => [e.no, e.date, e.desc, e.src, name(l.acc), l.dr, l.cr, l.note || ''])));
     $$('[data-edit]', content).forEach(b => b.onclick = () => openRecordForm('journal', db.journal.find(r => r.id === b.dataset.edit)));
@@ -2533,13 +2591,16 @@
     if (!can(p, 'a')) rm('#addBtn, [data-addchild]');
     if (!can(p, 'a') || !canSp('import')) rm('#importBtn');
     if (!can(p, 'e')) rm('[data-edit], [data-editacc]');
-    if (!can(p, 'd')) rm('[data-del], [data-delacc]');
+    if (!can(p, 'd')) rm('[data-del], [data-delacc], #clearScreenBtn, #jClear, .sel-col, #bulkBar');
     if (!canSp('export')) rm('#exportBtn, #bxExport, [onclick="window.print()"]');
     if (!canSp('import') || !['receipts', 'payments', 'boxTransfers'].some(x => can(x, 'a'))) rm('#bxImport');
     if (!can('openingBalances', 'a')) rm('[data-new-open]');
     $$('[data-wnew]', content).forEach(b => { if (!can(b.dataset.wnew, 'a')) b.remove(); });
     $$('[data-new]', content).forEach(b => { if (!can(b.dataset.new, 'a')) b.remove(); });
     $$('[data-bedit], [data-bchq]', content).forEach(b => { if (!can((b.dataset.bedit || b.dataset.bchq).split('|')[0], 'e')) b.remove(); });
+    $$('[data-bdel], [data-wdel]', content).forEach(b => { if (!can((b.dataset.bdel || b.dataset.wdel).split('|')[0], 'd')) b.remove(); });
+    $$('[data-wedit]', content).forEach(b => { if (!can(b.dataset.wedit.split('|')[0], 'e')) b.remove(); });
+    if (!canSp('adminTools')) rm('#clearScreenBtn, #jClear');
     $$('[data-act]', content).forEach(b => { const a = modules[p]?.actions?.[+b.dataset.act]; if (a?.target && !can(a.target, 'a')) b.remove(); });
     $$('[data-go], [data-src], .link-btn[href]', content).forEach(b => { const g = b.dataset.go || b.dataset.src || b.getAttribute('href')?.slice(1); if (g && pageInfo(g) && !can(g)) b.replaceWith(document.createTextNode(b.textContent)); });
   }
@@ -3378,7 +3439,7 @@
         <div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>رقم المستند</th><th>نوع الحركة</th><th>الصنف</th><th>الطرف / الجهة</th><th>وارد</th><th>صادر</th><th></th></tr></thead>
           <tbody>${shown.length ? shown.map(m => `<tr><td>${esc(m.date)}</td><td class="code">${esc(m.no)}</td><td><span class="pill ${m.dir > 0 ? 'green' : 'red'}">${esc(m.kind)}</span></td><td>${esc(m.item)}</td><td>${esc(m.party || '—')}</td>
             <td class="num">${m.dir > 0 ? num(m.q) : ''}</td><td class="num">${m.dir < 0 ? num(m.q) : ''}</td>
-            <td><div class="row-actions"><button data-wprint="${m.t}|${m.r.id}" title="طباعة المستند">${icons.print}</button></div></td></tr>`).join('') : '<tr><td colspan="8" class="empty">لا توجد حركات</td></tr>'}</tbody></table></div>
+            <td><div class="row-actions"><button data-wprint="${m.t}|${m.r.id}" title="طباعة المستند">${icons.print}</button><button data-wedit="${m.t}|${m.r.id}" title="تعديل">${icons.edit}</button><button class="del" data-wdel="${m.t}|${m.r.id}" title="حذف">${icons.del}</button></div></td></tr>`).join('') : '<tr><td colspan="8" class="empty">لا توجد حركات</td></tr>'}</tbody></table></div>
       </div>`;
     $('#whQ').oninput = e => { v.q = e.target.value; renderWarehouse(w); const el = $('#whQ'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
     $$('[data-wnew]', content).forEach(b => b.onclick = () => { const t = b.dataset.wnew;
@@ -3387,6 +3448,8 @@
       else openRecordForm(t, null, lock, null, { lock: ['warehouse'] }); });
     $$('[data-wcard]', content).forEach(b => b.onclick = () => itemCard(db.items.find(i => i.id === b.dataset.wcard)));
     $$('[data-wprint]', content).forEach(b => b.onclick = () => { const [t, id] = b.dataset.wprint.split('|'); printDoc(t, db[t].find(r => r.id === id), true); });
+    $$('[data-wedit]', content).forEach(b => b.onclick = () => { const [t, id] = b.dataset.wedit.split('|'); openRecordForm(t, db[t].find(r => r.id === id)); });
+    $$('[data-wdel]', content).forEach(b => b.onclick = () => { const [t, id] = b.dataset.wdel.split('|'); const r = db[t].find(x => x.id === id); if (r) deleteRecord(t, r); });
   }
 
   // =====================================================================
@@ -3490,7 +3553,7 @@
               ${bank ? `<td class="bx-ben">${r.benAccount || r.benBank ? `<span class="code">${esc(r.benAccount)}</span><small class="bx-sub">${esc(r.benBank)}</small>` : '—'}</td>` : ''}
               <td class="num">${r.in ? money(r.in) : ''}</td><td class="num">${r.out ? money(r.out) : ''}</td>
               <td class="num">${r.bal == null ? '—' : `<b>${money(r.bal)}</b>`}</td>
-              <td><div class="row-actions">${r.chqOpen && (!r.pending || r.wait) ? `<button class="ok" data-bchq="${r.mod}|${r.id}" title="${r.mod === 'payments' ? 'تم صرف الشيك' : 'تم تحصيل الشيك'}">✓</button>` : ''}${r.doc ? `<button data-bprint="${r.mod}|${r.id}" title="طباعة المستند">${icons.print}</button><button data-bedit="${r.mod}|${r.id}" title="تعديل">${icons.edit}</button>` : r.mod ? `<button data-bgo="${r.mod}|${esc(r.no)}" title="فتح المستند">${icons.list}</button>` : ''}</div></td>
+              <td><div class="row-actions">${r.chqOpen && (!r.pending || r.wait) ? `<button class="ok" data-bchq="${r.mod}|${r.id}" title="${r.mod === 'payments' ? 'تم صرف الشيك' : 'تم تحصيل الشيك'}">✓</button>` : ''}${r.doc ? `<button data-bprint="${r.mod}|${r.id}" title="طباعة المستند">${icons.print}</button><button data-bedit="${r.mod}|${r.id}" title="تعديل">${icons.edit}</button><button class="del" data-bdel="${r.mod}|${r.id}" title="حذف">${icons.del}</button>` : r.mod ? `<button data-bgo="${r.mod}|${esc(r.no)}" title="فتح المستند">${icons.list}</button>` : ''}</div></td>
             </tr>`).join('') : `<tr><td colspan="${(box ? 8 : 9) + (bank ? 2 : 0)}" class="empty">لا توجد حركات</td></tr>`}
           </tbody>
         </table></div>
@@ -3515,6 +3578,7 @@
     const parse = s => { const [t, id] = s.split('|'); return [t, db[t]?.find(r => r.id === id)]; };
     $$('[data-bprint]', content).forEach(b => b.onclick = () => { const [t, r] = parse(b.dataset.bprint); printDoc(t, r, true); });
     $$('[data-bedit]', content).forEach(b => b.onclick = () => { const [t, r] = parse(b.dataset.bedit); openRecordForm(t, r); });
+    $$('[data-bdel]', content).forEach(b => b.onclick = () => { const [t, r] = parse(b.dataset.bdel); if (r) deleteRecord(t, r); });
     $$('[data-bchq]', content).forEach(b => b.onclick = () => { const [t, r] = parse(b.dataset.bchq); if (!r || !can(t, 'e')) return denied();
       r.chequeStatus = t === 'payments' ? 'مصروف' : 'محصّل'; r.clearDate = today(); save(); renderPage(); renderNav(); toast(`الشيك ${r.chequeNo} — ${r.chequeStatus}`); });
     $$('[data-bgo]', content).forEach(b => b.onclick = () => { const [t, no] = b.dataset.bgo.split('|'); goTo(t, ['payroll', 'dailyLabor', 'advances'].includes(t) ? '' : no); });

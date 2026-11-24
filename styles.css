@@ -855,3 +855,17 @@ select.sel-hidden { position: absolute !important; opacity: 0 !important; pointe
 .jlines-grid .num-in { min-width: 110px; direction: ltr; text-align: right; }
 .jlines-grid tfoot td { white-space: nowrap; }
 .rep-layout.single { grid-template-columns: 1fr; }
+
+/* ===== التحديد المتعدد وتفريغ الشاشة ===== */
+th.sel-col, td.sel-col { width: 34px; padding-inline: 10px 4px !important; text-align: center; }
+.sel-col input { width: 15px; height: 15px; cursor: pointer; accent-color: #1e4bb3; vertical-align: middle; }
+tr.picked td { background: #eef3ff; }
+.bulk-bar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #fff7e6; border-top: 1px solid #f3dcae; font-size: 13px; }
+.bulk-bar[hidden] { display: none; }
+.btn.danger-ghost { color: var(--red); border-color: #f3c2c8; }
+.btn.danger-ghost:hover { background: var(--red-soft); }
+.btn.primary.danger { background: var(--red); }
+.btn.primary.danger:hover { background: #b92b39; }
+.clr-box p { margin: 0 0 10px; }
+.clr-box ul { margin: 0 0 14px; padding-inline-start: 20px; color: #9a3412; line-height: 1.9; }
+.clr-box .field { margin-top: 12px; max-width: 320px; }
