@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '23/11/2026, 15:00';
+  const APP_VERSION = '24/11/2026, 18:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -207,7 +207,9 @@
   const leafAccounts = () => db.accounts.filter(a => !hasChildren(a.code)).sort((a, b) => a.code.localeCompare(b.code));
   // الحسابات التي يرحّل عليها النظام تلقائياً
   const SYS = { cash: '121', banks: '122', customers: '123', inventory: '124', empAdvances: '1281', otherDebit: '128', drawings: '214', suppliers: '231',
-    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '422', salaries: '321', labor: '322', maint: '332', defPurchase: '1241', wages: '32', accruedSal: '236' };
+    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '1241', expenses: '3', revenue: '4', accruedSal: '236' };
+  // مراكز التكلفة: كل مرتب أو أجر يُحمّل على المصروف التشغيلي أو التسويقي أو الإداري حسب نوع تكلفة الموظف/العامل
+  const COST_TYPES = ['تشغيلية', 'تسويقية', 'إدارية'];
   // طبيعة الحساب: من الحساب نفسه أو أقرب أب محدد له طبيعة (مثل مسحوبات الملاك: مدين)، وإلا حسب الرقم الأول
   const isDebitNature = code => memo('nat:' + code, () => {
     for (let a = acc(code); a; a = acc(a.parent)) if (a.nature) return a.nature === 'مدين';
@@ -220,13 +222,22 @@
   const ownerAcc = name => childrenOf(SYS.drawings).find(a => a.name === name)?.code;
   // فئات المرتبات: كل التزام تحت "أرصدة دائنة أخرى" يقابله مصروف بنفس الاسم بدون "المستحقة" تحت "الأجور والمرتبات"
   const SUFFIX = /\s*(ال)?مستحقة$/;
-  // فئات المرتبات = الالتزامات التي لها مصروف مقابل تحت الأجور والمرتبات فقط (لا تظهر الحراسة أو الدائنون مثلاً)
-  const payGroups = () => childrenOf(SYS.accruedSal).map(a => a.name.replace(SUFFIX, '')).filter(n => childrenOf(SYS.wages).some(e => e.name === n));
-  const payAccs = group => {
+  // مطابقة الأسماء بدون "ال" والهمزات: "مرتبات العاملين" = "مرتبات عاملين"
+  const normName = n => String(n || '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').trim().split(/\s+/).map(w => w.replace(/^ال(?=..)/, '')).join(' ');
+  const leafByName = (root, n) => memo('lbn:' + root + ':' + n, () => { const k = normName(n); return leafAccounts().find(a => a.code.startsWith(root) && normName(a.name) === k)?.code; });
+  // حساب المصروف = الاسم الأساسي + نوع التكلفة (مثال: مرتبات عاملين تشغيلية)، وإلا الإداري
+  const expAcc = (base, ct, def) => leafByName(SYS.expenses, `${base} ${ct || 'إدارية'}`) || leafByName(SYS.expenses, `${base} إدارية`) || leafByName(SYS.expenses, base) || def;
+  // فئات المرتبات = الالتزامات تحت "أرصدة دائنة أخرى" التي لها مصروف مقابل (لا تظهر الحراسة أو الدائنون مثلاً)
+  const payGroups = () => childrenOf(SYS.accruedSal).map(a => a.name.replace(SUFFIX, '')).filter(n => COST_TYPES.some(ct => leafByName(SYS.expenses, `${n} ${ct}`)));
+  const payAccs = (group, ct) => {
     const liab = childrenOf(SYS.accruedSal).find(a => a.name.replace(SUFFIX, '') === group);
-    const exp = childrenOf(SYS.wages).find(a => a.name === group);
-    return { liab: liab?.code || SYS.accrued, exp: exp?.code || SYS.salaries };
+    return { liab: liab?.code || SYS.accrued, exp: expAcc(group, ct, SYS.salaries) };
   };
+  const workerCost = name => db.workers.find(w => w.name === name)?.costType || 'تشغيلية';
+  const laborAcc = ct => expAcc('أجور العمالة', ct, SYS.labor);
+  // حساب المبيعات المقابل لفئة العميل: عملاء السوق المحلي ← مبيعات السوق المحلي، وعملاء آخرون ← إيرادات أخرى
+  const salesAcc = name => { const cat = db.customers.find(c => c.name === name)?.category || '';
+    return leafByName(SYS.revenue, 'مبيعات ' + cat.replace(/^عملاء\s*/, '')) || SYS.otherRev; };
   // أنواع السلف = حسابات "سلف ..." تحت الأرصدة المدينة الأخرى
   const advCats = () => childrenOf(SYS.otherDebit).filter(a => a.name.startsWith('سلف')).map(a => a.name);
   const advAcc = t => childrenOf(SYS.otherDebit).find(a => a.name === t)?.code || SYS.empAdvances;
@@ -256,8 +267,8 @@
       };
       eff('journal').forEach(r => add('journal', 'قيد يدوي', r, r.no, r.date, r.desc, [L(accCode(r.debit), r.amount), L(accCode(r.credit), 0, r.amount)]));
       eff('salesInvoices').forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
-        [L(custAcc(r.customer), invTotal(r)), L(SYS.sales, 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
-      eff('salesReturns').forEach(r => add('salesReturns', 'مرتجع مبيعات', r, r.no, r.date, `مرتجع مبيعات - ${r.customer}`, [L(SYS.sales, r.amount), L(custAcc(r.customer), 0, r.amount)]));
+        [L(custAcc(r.customer), invTotal(r)), L(salesAcc(r.customer), 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
+      eff('salesReturns').forEach(r => add('salesReturns', 'مرتجع مبيعات', r, r.no, r.date, `مرتجع مبيعات - ${r.customer}`, [L(salesAcc(r.customer), r.amount), L(custAcc(r.customer), 0, r.amount)]));
       eff('receipts').forEach(r => add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${r.party}`,
         [L(boxAcc(r.box), r.amount), L(isCustomer(r.party) ? custAcc(r.party) : accCode(r.account) || SYS.otherRev, 0, r.amount)]));
       eff('purchaseInvoices').forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات آجلة - ${r.supplier}`,
@@ -269,17 +280,17 @@
       // الاستحقاق: من حـ/ المصروف إلى حـ/ المرتبات المستحقة (والتأمينات)، ثم الصرف: من حـ/ المستحقة إلى حـ/ الخزينة
       eff('boxTransfers').forEach(r => add('boxTransfers', 'تحويل خزائن وبنوك', r, r.no, r.date, r.desc || `تحويل من ${r.from} إلى ${r.to}`,
         [L(boxAcc(r.to), r.amount), L(boxAcc(r.from), 0, r.amount)]));
-      eff('payroll').forEach(r => { const gross = +r.basic + +r.allowances, ded = +r.deductions, net = gross - ded, g = payAccs(r.group);
+      eff('payroll').forEach(r => { const gross = +r.basic + +r.allowances, ded = +r.deductions, net = gross - ded, g = payAccs(r.group, r.costType || db.employees.find(e => e.name === r.employee)?.costType);
         const no = `PAY-${r.month}-${r.id}`, date = `${r.month}-28`;
         add('payroll', 'استحقاق رواتب', r, no, date, `استحقاق راتب ${r.employee} عن ${r.month}`,
           [L(g.exp, gross), L(SYS.socialIns, 0, ded), L(g.liab, 0, net)]);
         if (r.paid !== 'مستحق') add('payroll', 'صرف رواتب', r, `${no}-ص`, date, `صرف راتب ${r.employee} عن ${r.month}`,
           [L(g.liab, net), L(boxAcc(r.box), 0, net)]); });
       eff('dailyLabor').forEach(r => add('dailyLabor', 'يوميات عمال', r, `LAB-${r.id}`, r.date, `يومية ${r.worker} (${r.days} يوم)`,
-        [L(SYS.labor, r.days * r.wage), L(boxAcc(r.box), 0, r.days * r.wage)]));
+        [L(laborAcc(workerCost(r.worker)), r.days * r.wage), L(boxAcc(r.box), 0, r.days * r.wage)]));
       eff('advances').forEach(r => { if (r.type === 'جزاء') return;
         add('advances', r.type === 'سلفة' ? 'سلفة عامل' : 'مكافأة عامل', r, `ADV-${r.id}`, r.date, `${r.type} - ${r.worker}`,
-          [L(r.type === 'سلفة' ? advAcc(r.advType) : SYS.labor, r.amount), L(boxAcc(r.box), 0, r.amount)]); });
+          [L(r.type === 'سلفة' ? advAcc(r.advType) : laborAcc(workerCost(r.worker)), r.amount), L(boxAcc(r.box), 0, r.amount)]); });
       eff('maintenanceOrders').forEach(r => { if (r.status !== 'مكتمل') return;
         add('maintenanceOrders', 'أمر صيانة', r, r.no, r.date, `صيانة ${r.machine}`, [L(SYS.maint, r.cost), L(boxAcc(r.box), 0, r.cost)]); });
       return E.sort((a, b) => -byDate(a, b) || (a.no < b.no ? 1 : -1));
@@ -469,8 +480,9 @@
       } },
 
     // ===== المبيعات =====
-    salesInvoices: { title: 'فواتير المبيعات', sub: 'تُرحّل تلقائياً: من حـ/ العملاء إلى حـ/ المبيعات و حـ/ الضرائب', single: 'فاتورة بيع', key: 'no', filter: 'status', cols: [
-      C('no', 'رقم الفاتورة', CODE), C('customer', 'العميل', { input: 'select', options: names('customers'), full: true }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
+    salesInvoices: { title: 'فواتير المبيعات', sub: 'تُرحّل تلقائياً: من حـ/ فئة العميل إلى حـ/ مبيعات نفس الفئة و حـ/ الضرائب', single: 'فاتورة بيع', key: 'no', filter: 'status', cols: [
+      C('no', 'رقم الفاتورة', CODE), C('customer', 'العميل', { input: 'select', options: names('customers'), full: true }),
+      C('revAcc', 'حساب الإيراد', { compute: r => accLabel(acc(salesAcc(r.customer)) || { code: '', name: '' }), render: v => `<span class="hint">${esc(v)}</span>` }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
       C('amount', 'الصافي', { ...M, total: true }), C('vatRate', 'نسبة الضريبة %', { ...N, formOnly: true }),
       C('total', 'الإجمالي شامل الضريبة', computed(invTotal, { total: true })),
       C('remaining', 'المتبقي', computed(r => invTotal(r) - salesPaid(r), { total: true })),
@@ -538,9 +550,10 @@
       } },
 
     // ===== شئون العاملين =====
-    employees: { title: 'الموظفون', sub: 'قاعدة بيانات الموظفين', single: 'موظف', key: 'name', filter: 'department', cols: [
+    employees: { title: 'الموظفون', sub: 'نوع التكلفة يحدد حساب المرتب: تشغيلية أو تسويقية أو إدارية', single: 'موظف', key: 'name', filter: 'department', defaults: () => ({ costType: 'إدارية' }), cols: [
       C('code', 'الكود', CODE), C('name', 'اسم الموظف', { full: true }), C('department', 'الإدارة', { input: 'select', options: names('departments') }),
       C('job', 'الوظيفة'), C('payGroup', 'فئة المرتبات', { render: plain, input: 'select', options: payGroups }),
+      C('costType', 'نوع التكلفة', { render: plain, input: 'select', options: () => COST_TYPES }),
       C('hireDate', 'تاريخ التعيين', D), C('salary', 'الراتب الأساسي', { ...M, total: true }),
       C('onLeave', 'الحالة اليوم', { compute: r => db.leaves.some(l => l.employee === r.name && l.status === 'معتمدة' && l.from <= today() && l.to >= today()) ? 'إجازة' : r.status, render: pill }),
       C('status', 'حالة التعاقد', { ...status('نشط', 'موقوف'), formOnly: true })] },
@@ -550,11 +563,13 @@
     payroll: { title: 'الرواتب', sub: 'الاستحقاق: من حـ/ المرتبات إلى حـ/ المرتبات المستحقة · الصرف: من حـ/ المستحقة إلى حـ/ الخزينة', single: 'راتب', filter: 'paid', cols: [
       C('month', 'الشهر', { input: 'month' }), C('employee', 'الموظف', { input: 'select', options: names('employees') }),
       C('group', 'فئة المرتبات', { render: plain, input: 'select', options: payGroups }),
+      C('costType', 'نوع التكلفة', { render: plain, input: 'select', options: () => COST_TYPES }),
+      C('expAcc', 'حساب المصروف', { compute: r => accLabel(acc(payAccs(r.group, r.costType).exp) || { code: '', name: '' }), render: v => `<span class="hint">${esc(v)}</span>` }),
       C('basic', 'الأساسي', { ...M, total: true }), C('allowances', 'البدلات والحوافز', { ...M, total: true }), C('deductions', 'الاستقطاعات', { ...M, total: true }),
       C('net', 'صافي الراتب', computed(r => r.basic + r.allowances - r.deductions, { total: true, render: v => `<b>${money(v)}</b>` })),
       C('paid', 'الحالة', status('مستحق', 'مصروف')), boxField('يُصرف من')],
-      defaults: () => ({ allowances: 0, deductions: 0, paid: 'مستحق', box: db.cashboxes.find(b => b.type === 'بنك')?.name }),
-      onSelect: { employee: (f, v) => { const e = db.employees.find(x => x.name === v); if (e) { f.basic.value = e.salary; if (e.payGroup) f.group.value = e.payGroup; } } },
+      defaults: () => ({ allowances: 0, deductions: 0, paid: 'مستحق', costType: 'إدارية', box: db.cashboxes.find(b => b.type === 'بنك')?.name }),
+      onSelect: { employee: (f, v) => { const e = db.employees.find(x => x.name === v); if (e) { f.basic.value = e.salary; if (e.payGroup) f.group.value = e.payGroup; if (e.costType && f.costType) f.costType.value = e.costType; } } },
       actions: [{ icon: 'pay', title: 'صرف الراتب', write: true, show: r => r.paid === 'مستحق', fn: r => {
         const x = db.payroll.find(p => p.id === r.id); if (!x || !can('payroll', 'e')) return denied();
         x.paid = 'مصروف'; submitForApproval('payroll', x, true); save(); renderPage(); renderNav(); toast(`تم صرف راتب ${x.employee} من ${x.box}`); } }],
@@ -566,13 +581,13 @@
       validate: d => d.to < d.from ? 'تاريخ النهاية قبل تاريخ البداية' : '' },
 
     // ===== شئون العمالة =====
-    workers: { title: 'العمال', sub: 'قاعدة بيانات العمالة اليومية', single: 'عامل', key: 'name', filter: 'status', cols: [
+    workers: { title: 'العمال', sub: 'نوع التكلفة يحدد حساب الأجور: تشغيلية أو تسويقية أو إدارية', single: 'عامل', key: 'name', filter: 'status', defaults: () => ({ costType: 'تشغيلية' }), cols: [
       C('code', 'الكود', CODE), C('name', 'اسم العامل', { full: true }), C('craft', 'الحرفة'), C('site', 'الموقع'),
-      C('wage', 'اليومية', M),
+      C('wage', 'اليومية', M), C('costType', 'نوع التكلفة', { render: plain, input: 'select', options: () => COST_TYPES }),
       C('days', 'أيام العمل', { cls: 'num', compute: r => sum(db.dailyLabor.filter(d => d.worker === r.name), d => d.days) }),
       C('advance', 'السلف', computed(r => sum(db.advances.filter(a => a.worker === r.name && a.type === 'سلفة'), a => a.amount), { total: true })),
       C('status', 'الحالة', status('نشط', 'موقوف'))] },
-    dailyLabor: { title: 'يوميات العمال', sub: 'تُرحّل: من حـ/ أجور العمالة إلى حـ/ الخزينة', single: 'يومية', cols: [
+    dailyLabor: { title: 'يوميات العمال', sub: 'تُرحّل: من حـ/ أجور العمالة (حسب نوع تكلفة العامل) إلى حـ/ الخزينة', single: 'يومية', cols: [
       C('date', 'أسبوع', D), C('worker', 'العامل', { input: 'select', options: () => db.workers.filter(w => w.status === 'نشط').map(w => w.name) }), C('site', 'الموقع'),
       C('days', 'أيام العمل', N), C('wage', 'اليومية', M), C('total', 'المستحق', computed(r => r.days * r.wage, { total: true })), boxField('يُصرف من')],
       defaults: () => ({ days: 6, box: db.cashboxes.find(b => b.type === 'خزينة')?.name }),
