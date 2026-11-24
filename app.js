@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 17:00';
+  const APP_VERSION = '26/11/2026, 19:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -1896,15 +1896,28 @@
   }
 
   // ---------- تصدير ----------
-  function download(filename, text, type) {
+  // حفظ الملفات: داخل claude.ai عبر خدمة الحفظ في المنصة (تطلب تأكيد المستخدم)، وخارجها بالطريقة العادية للمتصفح
+  let dlApi;
+  const dlReady = (async () => { try { dlApi = window.claude?.use ? await window.claude.use('downloads') : null; } catch { dlApi = null; } })();
+  async function saveFile(filename, data, type) {
+    await dlReady;
+    if (dlApi) {
+      try { await dlApi.save({ filename, data: data instanceof Blob ? data : new Blob([data], { type }) }); toast(`تم حفظ الملف: ${filename}`); return; }
+      catch (e) {
+        if (e?.code === 'declined') return toast('تم إلغاء الحفظ');
+        if (e?.code === 'rate_limited') return toast('يوجد طلب حفظ مفتوح — أكمله أولاً ثم حاول مرة أخرى', 4000);
+        if (e?.code === 'rejected_extension') return toast('نوع الملف غير مسموح بحفظه هنا', 4000);
+      }
+    }
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([text], { type }));
-    a.download = filename; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    a.href = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
+    a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
   }
+  function download(filename, text, type) { return saveFile(filename, text, type); }
   function downloadCSV(name, header, rows) {
     const line = arr => arr.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',');
-    download(`${name}.csv`, '﻿' + [line(header), ...rows.map(line)].join('\n'), 'text/csv;charset=utf-8');
+    download(`${pageInfo(name)?.title || name}.csv`, '﻿' + [line(header), ...rows.map(line)].join('\n'), 'text/csv;charset=utf-8');
   }
 
   // =====================================================================
@@ -2527,8 +2540,7 @@
         [def.key ? `للتعديل: اكتب ${fields.find(c => c.key === def.key)?.label} لسجل موجود واختر "إضافة وتحديث"، والأعمدة الفارغة لا تُغيَّر` : 'هذا الجدول يقبل الإضافة فقط']];
       X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(notes), 'تعليمات');
       const blob = new Blob([X.write(wb, { type: 'array', bookType: 'xlsx' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `نموذج-${def.title}.xlsx`; a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      saveFile(`نموذج-${def.title}.xlsx`, blob);
     } else downloadCSV(`نموذج-${def.title}`, head, [ex]);
   }
 
