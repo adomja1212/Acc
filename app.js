@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '24/11/2026, 18:00';
+  const APP_VERSION = '24/11/2026, 20:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -269,13 +269,13 @@
       eff('salesInvoices').forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
         [L(custAcc(r.customer), invTotal(r)), L(salesAcc(r.customer), 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
       eff('salesReturns').forEach(r => add('salesReturns', 'مرتجع مبيعات', r, r.no, r.date, `مرتجع مبيعات - ${r.customer}`, [L(salesAcc(r.customer), r.amount), L(custAcc(r.customer), 0, r.amount)]));
-      eff('receipts').forEach(r => add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${r.party}`,
+      eff('receipts').forEach(r => add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${r.party === 'أخرى' && r.beneficiary ? r.beneficiary : r.party}`,
         [L(boxAcc(r.box), r.amount), L(isCustomer(r.party) ? custAcc(r.party) : accCode(r.account) || SYS.otherRev, 0, r.amount)]));
       eff('purchaseInvoices').forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات آجلة - ${r.supplier}`,
         [L(accCode(r.account) || SYS.defPurchase, r.amount), L(suppAcc(r.supplier), 0, r.amount)]));
       eff('purchaseReturns').forEach(r => add('purchaseReturns', 'مرتجع مشتريات', r, r.no, r.date, `مرتجع مشتريات - ${r.supplier}`,
         [L(suppAcc(r.supplier), r.amount), L(accCode(r.account) || SYS.defPurchase, 0, r.amount)]));
-      eff('payments').forEach(r => add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${r.party}`,
+      eff('payments').forEach(r => add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${r.party === 'أخرى' && r.beneficiary ? r.beneficiary : r.party}`,
         [L(isSupplier(r.party) ? suppAcc(r.party) : ownerAcc(r.party) || accCode(r.account) || SYS.accrued, r.amount), L(boxAcc(r.box), 0, r.amount)]));
       // الاستحقاق: من حـ/ المصروف إلى حـ/ المرتبات المستحقة (والتأمينات)، ثم الصرف: من حـ/ المستحقة إلى حـ/ الخزينة
       eff('boxTransfers').forEach(r => add('boxTransfers', 'تحويل خزائن وبنوك', r, r.no, r.date, r.desc || `تحويل من ${r.from} إلى ${r.to}`,
@@ -351,6 +351,8 @@
     cash: I('<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/><path d="M6 10v.01M18 15v.01"/>'),
     sales: I('<path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/>'),
     cart: I('<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1.5 1.5 0 0 0 1.5 1.1h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/>'),
+    swap: I('<path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/>'),
+    bank: I('<path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>'),
     box: I('<path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/>'),
     users: I('<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/>'),
     hardhat: I('<path d="M2 18h20v2H2z"/><path d="M4 18v-3a8 8 0 0 1 16 0v3"/><path d="M10 7V4h4v3M9 18v-6M15 18v-6"/>'),
@@ -397,6 +399,25 @@
   const computed = (f, o = {}) => ({ cls: 'num', render: money, compute: f, ...o });
   const statusOf = (f, ...o) => ({ render: pill, compute: f, options: opt(...o) });
   const boxField = (label = 'الخزينة / البنك') => C('box', label, { input: 'select', options: names('cashboxes') });
+  // تفاصيل الحركة البنكية: تظهر فقط عند اختيار بنك
+  const PAY_METHODS = ['نقدي', 'شيك', 'تحويل بنكي'];
+  const isBankBox = b => (typeof b === 'string' ? db.cashboxes.find(x => x.name === b) : b)?.type === 'بنك';
+  const bankSide = (...keys) => f => keys.some(k => isBankBox(f[k]));
+  const bankFields = (side, who) => [
+    C('method', 'طريقة الإيداع / الصرف', { input: 'select', options: () => PAY_METHODS, formOnly: true, when: side }),
+    C('chequeNo', 'رقم الشيك', { optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' }),
+    C('chequeDate', 'تاريخ استحقاق الشيك', { input: 'date', optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' }),
+    C('beneficiary', who, { optional: true, formOnly: true, when: side }),
+    C('benAccount', 'رقم حساب المستفيد', { optional: true, formOnly: true, when: f => side(f) && f.method !== 'نقدي' }),
+    C('benBank', 'بنك المستفيد', { optional: true, formOnly: true, when: f => side(f) && f.method !== 'نقدي' })];
+  const bankCheck = (d, side, needBen) => {
+    if (!side(d)) { ['method', 'chequeNo', 'chequeDate', 'beneficiary', 'benAccount', 'benBank'].forEach(k => { d[k] = ''; }); return ''; }
+    if (d.method === 'شيك' && !d.chequeNo) return 'اكتب رقم الشيك';
+    if (d.method !== 'شيك') { d.chequeNo = ''; d.chequeDate = ''; }
+    if (d.method === 'نقدي') { d.benAccount = ''; d.benBank = ''; }
+    if (needBen && d.method === 'تحويل بنكي' && (!d.beneficiary || !d.benAccount || !d.benBank)) return 'التحويل البنكي يحتاج اسم المستفيد ورقم حسابه واسم البنك الخاص به';
+    return '';
+  };
 
   const modules = {
     // ===== البيانات الأساسية =====
@@ -443,25 +464,32 @@
     cashboxes: { title: 'الخزائن والبنوك', sub: 'النقدية (حـ/ 121) والبنوك (حـ/ 122) — الرصيد من شجرة الحسابات', single: 'خزينة / بنك', key: 'name', filter: 'type', cols: [
       C('code', 'الكود', CODE), C('name', 'الاسم', { full: true }), C('type', 'النوع', { render: plain, input: 'select', options: opt('خزينة', 'بنك', 'عهدة') }),
       C('accountNo', 'الحساب المرتبط', { input: 'select', options: () => leafAccounts().filter(a => isTreasury(a.code)).map(a => [a.code, accLabel(a)]), render: v => esc(acc(v) ? accLabel(acc(v)) : v) }),
+      C('bankAccount', 'رقم الحساب بالبنك', { optional: true, cls: 'code' }),
       C('balance', 'الرصيد', computed(r => acc(r.accountNo) ? ownBal(acc(r.accountNo)) : 0, { total: true }))],
-      actions: [{ icon: 'list', title: 'كشف حركة الخزينة', fn: r => openLedger(r.accountNo) }],
+      actions: [{ icon: 'cash', title: 'فتح صفحة الحركات', fn: r => goTo('box/' + r.id) }, { icon: 'list', title: 'كشف حركة الخزينة', fn: r => openLedger(r.accountNo) }],
       validate: (d, rec) => db.cashboxes.some(b => b.accountNo === d.accountNo && b !== rec) ? 'هذا الحساب مرتبط بخزينة أخرى' : '' },
     receipts: { title: 'سندات القبض', sub: 'يُرحّل: من حـ/ الخزينة إلى حـ/ العميل (حسب تصنيفه) أو الحساب المقابل', single: 'سند قبض', key: 'no', cols: [
       C('no', 'رقم السند', CODE), C('date', 'التاريخ', D), boxField(),
       C('party', 'المستلم منه', { input: 'select', options: () => [...db.customers.map(c => c.name), 'أخرى'] }),
       C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]) }),
       C('account', 'الحساب المقابل', { input: 'select', optional: true, allowEmpty: '— (لغير العملاء) —', options: leafOpts('4', '2', '12'), formOnly: true, full: true }),
-      C('amount', 'المبلغ', { ...M, total: true }), C('desc', 'البيان', { full: true, optional: true })],
+      C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), 'اسم المودِع / المحوِّل'), C('desc', 'البيان', { full: true, optional: true })],
+      defaults: () => ({ method: 'نقدي' }),
       validate: d => {
+        const be = bankCheck(d, bankSide('box'), false); if (be) return be;
         if (d.party === 'أخرى' && !d.account) return 'اختر الحساب المقابل للمقبوضات من غير العملاء';
         const inv = db.salesInvoices.find(i => i.no === d.invoice);
         if (inv && inv.customer !== d.party) return `الفاتورة ${inv.no} تخص ${inv.customer}`;
       } },
     boxTransfers: { title: 'التحويلات بين الخزائن والبنوك', sub: 'يُرحّل: من حـ/ الخزينة أو البنك المحوَّل إليه إلى حـ/ المحوَّل منه', single: 'تحويل', key: 'no', prefix: 'BT-', cols: [
       C('no', 'رقم التحويل', CODE), C('date', 'التاريخ', D), C('from', 'من خزينة / بنك', { input: 'select', options: names('cashboxes') }),
-      C('to', 'إلى خزينة / بنك', { input: 'select', options: names('cashboxes') }), C('amount', 'المبلغ', { ...M, total: true }), C('desc', 'البيان', { full: true, optional: true })],
+      C('to', 'إلى خزينة / بنك', { input: 'select', options: names('cashboxes') }), C('amount', 'المبلغ', { ...M, total: true }),
+      ...bankFields(bankSide('from', 'to'), 'اسم المستفيد'), C('desc', 'البيان', { full: true, optional: true })],
+      defaults: () => ({ method: 'نقدي' }),
+      onSelect: { from: f => { f.method.value = isBankBox(f.from.value) && isBankBox(f.to.value) ? 'تحويل بنكي' : 'نقدي'; }, to: f => { f.method.value = isBankBox(f.from.value) && isBankBox(f.to.value) ? 'تحويل بنكي' : 'نقدي'; } },
       validate: (d, rec) => {
         if (d.from === d.to) return 'لا يمكن التحويل لنفس الخزينة';
+        const be = bankCheck(d, bankSide('from', 'to'), false); if (be) return be;
         const a = acc(boxAcc(d.from)); const avail = a ? ownBal(a) + (rec && rec.from === d.from ? +rec.amount : 0) : 0;
         if (+d.amount > avail && !ask(`رصيد ${d.from} (${nf.format(avail)}) لا يكفي. متابعة؟`)) return 'تم الإلغاء';
       } },
@@ -470,8 +498,10 @@
       C('party', 'المصروف إليه', { input: 'select', options: () => [...db.suppliers.map(c => [c.name, `مورد: ${c.name}`]), ...childrenOf(SYS.drawings).map(a => [a.name, `مسحوبات: ${a.name}`]), ['أخرى', 'أخرى (حدد الحساب)']] }),
       C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.purchaseInvoices.map(i => [i.no, `${i.no} — ${i.supplier}`]) }),
       C('account', 'الحساب المقابل', { input: 'select', optional: true, allowEmpty: '— (لغير الموردين) —', options: leafOpts('3', '1', '2'), formOnly: true, full: true }),
-      C('amount', 'المبلغ', { ...M, total: true }), C('desc', 'البيان', { full: true, optional: true })],
+      C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), 'اسم المستفيد'), C('desc', 'البيان', { full: true, optional: true })],
+      defaults: () => ({ method: 'نقدي' }),
       validate: (d, rec) => {
+        const be = bankCheck(d, bankSide('box'), true); if (be) return be;
         if (d.party === 'أخرى' && !d.account) return 'اختر الحساب المقابل (نوع المصروف)';
         const inv = db.purchaseInvoices.find(i => i.no === d.invoice);
         if (inv && inv.supplier !== d.party) return `الفاتورة ${inv.no} تخص ${inv.supplier}`;
@@ -657,13 +687,14 @@
     database: { title: 'قاعدة البيانات', sub: 'الجداول والسعة والنسخ الاحتياطي', render: renderDatabase },
     settings: { title: 'الإعدادات', sub: 'بيانات المنشأة', render: renderSettings },
   };
-  const pageInfo = id => pages[id] || modules[id];
+  const pageInfo = id => pages[id] || modules[id] || boxPageInfo(id);
 
   // ---------- القائمة الجانبية ----------
   const nav = [
     { title: 'دليل الحسابات', icon: 'list', items: ['accounts', 'journal', 'ledger', 'reports'] },
     { title: 'الإدارات', icon: 'box', items: [
-      { title: 'الخزينة', icon: 'cash', items: ['cashboxes', 'receipts', 'payments', 'boxTransfers'] },
+      { title: 'الخزينة', icon: 'cash', items: () => [...db.cashboxes.filter(b => !isBankBox(b)).sort((a, b) => String(a.code).localeCompare(String(b.code))).map(b => 'box/' + b.id), 'receipts', 'payments', 'boxTransfers'] },
+      { title: 'البنوك', icon: 'bank', items: () => [...db.cashboxes.filter(isBankBox).sort((a, b) => String(a.code).localeCompare(String(b.code))).map(b => 'box/' + b.id), 'bankMoves', 'cashboxes'] },
       { title: 'المبيعات', icon: 'sales', items: ['salesInvoices', 'salesQuotes', 'salesReturns'] },
       { title: 'المشتريات', icon: 'cart', items: ['purchaseOrders', 'purchaseInvoices', 'purchaseReturns'] },
       { title: 'المخازن', icon: 'box', items: ['stockBalances', 'stockIn', 'stockOut', 'transfers'] },
@@ -678,20 +709,22 @@
   ];
   const EMO = {
     dashboard: '📊', reportCenter: '🗂️', approvals: '✅', users: '👥', database: '🗄️', settings: '⚙️', accounts: '🌳', journal: '📒', ledger: '📄', reports: '📈',
-    cashboxes: '🏦', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
+    cashboxes: '🗃️', bankMoves: '🧾', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
     purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
     attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
     customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', workers: '🦺', departments: '🏢', machines: '🚜',
   };
   // مسار كل صفحة داخل القائمة (لفتح المجموعات التي تحتويها)
-  const pagePath = {};
+  let pagePath = {};
+  const itemsOf = g => typeof g.items === 'function' ? g.items() : g.items;
   const walkNav = (items, keys, titles) => items.forEach((it, i) => {
     const k = keys.length ? `${keys[keys.length - 1]}.${i}` : String(i);
     if (typeof it === 'string') pagePath[it] ??= { keys, titles };
-    else walkNav(it.items, [...keys, k], [...titles, it.title]);
+    else walkNav(itemsOf(it), [...keys, k], [...titles, it.title]);
   });
-  walkNav(nav, [], []);
-  const leavesOf = g => g.items.flatMap(it => typeof it === 'string' ? [it] : leavesOf(it));
+  const buildPaths = () => { pagePath = {}; walkNav(nav, [], []); };
+  buildPaths();
+  const leavesOf = g => itemsOf(g).flatMap(it => typeof it === 'string' ? [it] : leavesOf(it));
 
   const badges = {
     approvals: () => myApprovals().length,
@@ -710,7 +743,7 @@
     if (!can(p)) return '';
     const fav = prefs.fav.includes(p), info = pageInfo(p);
     return `<div class="nav-leaf ${state.page === p ? 'active' : ''}">
-      <a href="#${p}" data-page="${p}"><span class="emo">${EMO[p] || '•'}</span><span class="nav-title">${info.title}${withPath ? `<small>${pagePath[p].titles.join(' › ')}</small>` : ''}</span>${badge(badges[p]?.() || 0)}</a>
+      <a href="#${p}" data-page="${p}"><span class="emo">${EMO[p] || (p.startsWith('box/') ? (isBankBox(db.cashboxes.find(b => 'box/' + b.id === p)) ? '🏦' : '💵') : '•')}</span><span class="nav-title">${info.title}${withPath ? `<small>${pagePath[p].titles.join(' › ')}</small>` : ''}</span>${badge(badges[p]?.() || 0)}</a>
       <button class="star ${fav ? 'on' : ''}" data-fav="${p}" title="${fav ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}" aria-pressed="${fav}">${fav ? '★' : '☆'}</button></div>`;
   }
   function groupHTML(g, key, lvl) {
@@ -720,10 +753,11 @@
     const total = sum(leaves, p => badges[p]?.() || 0);
     return `<div class="nav-group lvl${lvl} ${open ? 'open' : ''} ${leaves.includes(state.page) ? 'current' : ''}">
       <button class="nav-head" data-toggle="${key}" aria-expanded="${open}"><span class="nav-ico">${icons[g.icon]}</span><span class="nav-title">${g.title}</span>${open ? '' : badge(total)}${icons.chevDown}</button>
-      <div class="nav-sub">${g.items.map((it, j) => typeof it === 'string' ? leafHTML(it) : groupHTML(it, `${key}.${j}`, lvl + 1)).join('')}</div>
+      <div class="nav-sub">${itemsOf(g).map((it, j) => typeof it === 'string' ? leafHTML(it) : groupHTML(it, `${key}.${j}`, lvl + 1)).join('')}</div>
     </div>`;
   }
   function renderNav() {
+    buildPaths();
     const q = state.navQ.trim().toLowerCase();
     let html;
     if (q) {
@@ -922,19 +956,19 @@
 
   // ---------- النافذة المنبثقة ----------
   const modal = $('#modal'), form = $('#modalForm');
-  let onSubmit = null;
+  let onSubmit = null, condUpd = null;
   const field = (c, v) => {
     if (c.input === 'checks') return `<div class="field full"><label>${c.label}</label><div class="checks">${c.options().map(o => `<label class="check"><input type="checkbox" name="${c.key}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div></div>`;
     const input = c.input === 'select'
       ? `<select class="input" name="${c.key}" ${c.optional ? '' : 'required'}>${c.allowEmpty ? `<option value="">${c.allowEmpty}</option>` : ''}${c.options().map(o => { const [ov, ol] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`; }).join('')}</select>`
       : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.optional ? '' : 'required'}>`;
-    return `<div class="field ${c.full ? 'full' : ''}"><label>${c.label}</label>${input}</div>`;
+    return `<div class="field ${c.full ? 'full' : ''}" data-f="${c.key}"><label>${c.label}</label>${input}</div>`;
   };
   function openModal(title, fields, values, submit) {
     form.classList.remove('wide', 'info');
     $('#saveBtn').textContent = 'حفظ'; $('#saveBtn').disabled = false;
     $('#modalTitle').textContent = title;
-    $('#modalBody').innerHTML = `<div class="form-grid">${fields.map(c => field(c, values[c.key] ?? '')).join('')}</div>`;
+    $('#modalBody').innerHTML = `<div class="form-grid">${fields.map(c => field(c, values[c.key] ?? '')).join('')}</div>`; condUpd = null;
     onSubmit = submit;
     modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false');
     $('#modalBody .input')?.focus();
@@ -950,6 +984,7 @@
   $$('[data-close]', modal).forEach(b => b.onclick = closeModal);
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  form.addEventListener('change', () => condUpd?.());
   form.addEventListener('submit', e => {
     e.preventDefault();
     const fd = new FormData(form);
@@ -1008,6 +1043,12 @@
       toast(posted ? `تم الحفظ والترحيل — قيد ${posted.no}` : cur ? 'تم حفظ التعديلات' : 'تمت الإضافة بنجاح');
     });
     if (record?._at) showAudit(record);
+    // حقول تظهر حسب الاختيار (مثل بيانات الشيك والتحويل البنكي عند اختيار بنك)
+    const conds = fields.filter(c => c.when);
+    if (conds.length) {
+      const upd = () => { const v = Object.fromEntries(new FormData(form)); conds.forEach(c => { const el = $(`#modalBody [data-f="${c.key}"]`); if (el) el.hidden = !c.when(v); }); };
+      condUpd = upd; upd();
+    }
     // تعبئة تلقائية عند اختيار عنصر مرتبط
     if (m.onSelect) {
       const f = form.elements;
@@ -1480,6 +1521,7 @@
     const u = curUser(); if (!u) return false;
     if (isAdminUser(u)) return true;
     if (page === 'reportCenter') return true;
+    if (page === 'bankMoves' || String(page).startsWith('box/')) return act === 'v' && ['receipts', 'payments', 'boxTransfers', 'cashboxes'].some(x => String(u.perms?.[x] || '').includes('v'));
     if (page === 'approvals') return isApprover(u) || (u.special || []).includes('approvalsSetup');
     if (SPECIAL_PAGES[page]) return (u.special || []).includes(SPECIAL_PAGES[page]);
     return String(u.perms?.[page] || '').includes(act);
@@ -1874,7 +1916,9 @@
     if (!can(p, 'a') || !canSp('import')) rm('#importBtn');
     if (!can(p, 'e')) rm('[data-edit], [data-editacc]');
     if (!can(p, 'd')) rm('[data-del], [data-delacc]');
-    if (!canSp('export')) rm('#exportBtn, [onclick="window.print()"]');
+    if (!canSp('export')) rm('#exportBtn, #bxExport, [onclick="window.print()"]');
+    $$('[data-new]', content).forEach(b => { if (!can(b.dataset.new, 'a')) b.remove(); });
+    $$('[data-bedit]', content).forEach(b => { if (!can(b.dataset.bedit.split('|')[0], 'e')) b.remove(); });
     $$('[data-act]', content).forEach(b => { const a = modules[p]?.actions?.[+b.dataset.act]; if (a?.target && !can(a.target, 'a')) b.remove(); });
     $$('[data-go], [data-src], .link-btn[href]', content).forEach(b => { const g = b.dataset.go || b.dataset.src || b.getAttribute('href')?.slice(1); if (g && pageInfo(g) && !can(g)) b.replaceWith(document.createTextNode(b.textContent)); });
   }
@@ -2585,16 +2629,139 @@
     };
   }
 
+  // =====================================================================
+  // صفحات الخزائن والبنوك: صفحة مستقلة لكل خزينة وكل بنك
+  // =====================================================================
+  const TREAS_MODS = ['receipts', 'payments', 'boxTransfers'];
+  const boxPageInfo = id => {
+    if (id === 'bankMoves') return { title: 'حركات كل البنوك', sub: 'الإيداعات والمصروفات والتحويلات البنكية', render: () => renderBox(null) };
+    const b = id.startsWith('box/') && db.cashboxes.find(x => x.id === id.slice(4));
+    if (!b) return null;
+    return { title: b.name, sub: isBankBox(b) ? `حساب بنكي${b.bankAccount ? ` رقم ${b.bankAccount}` : ''} — الحركات والرصيد` : 'حركات الخزينة والرصيد', render: () => renderBox(b) };
+  };
+  const methodOf = (t, r) => r.method || 'نقدي';
+  function boxRows(boxes) {
+    const codes = new Set(boxes.map(b => b.accountNo)), names = new Set(boxes.map(b => b.name));
+    const rows = [];
+    glEntries().forEach(e => e.lines.forEach(l => {
+      if (!codes.has(l.acc)) return;
+      const mod = e.manual ? 'journal' : e.module, doc = TREAS_MODS.includes(mod) ? db[mod].find(r => r.id === e.id) : null;
+      const box = boxes.find(b => b.accountNo === l.acc);
+      rows.push(boxRow(mod, doc, box, e, l.dr, l.cr));
+    }));
+    // المستندات المعلّقة على الاعتماد تظهر ولا تدخل في الرصيد
+    TREAS_MODS.forEach(t => db[t].forEach(r => {
+      if (isEff(r)) return;
+      [t === 'boxTransfers' ? [r.from, 'out'] : null, t === 'boxTransfers' ? [r.to, 'in'] : [r.box, t === 'receipts' ? 'in' : 'out']].filter(Boolean).forEach(([bn, dir]) => {
+        if (!names.has(bn)) return;
+        const box = boxes.find(b => b.name === bn);
+        rows.push({ ...boxRow(t, r, box, { date: r.date, no: r.no, desc: r.desc || '' }, dir === 'in' ? +r.amount : 0, dir === 'out' ? +r.amount : 0), pending: true });
+      });
+    }));
+    return rows.sort((a, b) => byDate(a, b) || String(a.no).localeCompare(String(b.no)));
+  }
+  function boxRow(mod, doc, box, e, dr, cr) {
+    const bank = isBankBox(box);
+    let kind = e.src || pageInfo(mod)?.single || '', party = '';
+    if (mod === 'receipts') { kind = bank ? 'إيداع' : 'قبض'; party = doc?.party === 'أخرى' ? (doc.beneficiary || 'أخرى') : doc?.party; }
+    else if (mod === 'payments') { kind = bank ? 'صرف' : 'صرف'; party = doc?.beneficiary || (doc?.party === 'أخرى' ? accCode(doc.account) && (acc(accCode(doc.account))?.name || '') : doc?.party); }
+    else if (mod === 'boxTransfers') { const incoming = dr > 0; kind = incoming ? 'تحويل وارد' : 'تحويل صادر'; party = doc?.beneficiary || (incoming ? doc?.from : doc?.to); }
+    return { mod, doc, id: doc?.id || e.id, box: box?.name, date: e.date, no: e.no, kind, party: party || '',
+      method: doc ? methodOf(mod, doc) : '', cheque: doc?.chequeNo ? `${doc.chequeNo}${doc.chequeDate ? ` · ${doc.chequeDate}` : ''}` : '',
+      benAccount: doc?.benAccount || '', benBank: doc?.benBank || '', desc: e.desc || doc?.desc || '', in: dr, out: cr };
+  }
+  function renderBox(box) {
+    const boxes = box ? [box] : db.cashboxes.filter(isBankBox);
+    const bank = box ? isBankBox(box) : true, pageId = state.page;
+    const bs = state.boxView ||= {};
+    const v = bs[pageId] ||= { q: '', kind: '', method: '', from: '', to: '' };
+    const all = boxRows(boxes);
+    const opening = sum(boxes, b => +(acc(b.accountNo)?.balance || 0));
+    let bal = opening; all.forEach(r => { if (!r.pending) bal += r.in - r.out; r.bal = r.pending ? null : bal; });
+    const before = v.from ? all.filter(r => !r.pending && r.date < v.from) : [];
+    const openFor = v.from ? (before.length ? before[before.length - 1].bal : opening) : opening;
+    const q = v.q.trim().toLowerCase();
+    const rows = all.filter(r => (!v.from || r.date >= v.from) && (!v.to || r.date <= v.to) && (!v.kind || r.kind === v.kind) && (!v.method || r.method === v.method)
+      && (!q || [r.no, r.party, r.desc, r.benAccount, r.benBank, r.cheque, r.box].some(x => String(x || '').toLowerCase().includes(q))));
+    const cur = sum(boxes, b => acc(b.accountNo) ? ownBal(acc(b.accountNo)) : 0);
+    const eff = rows.filter(r => !r.pending), pend = all.filter(r => r.pending).length;
+    const kinds = [...new Set(all.map(r => r.kind))];
+    const opt = (list, sel, lbl) => `<option value="">${lbl}: الكل</option>${list.map(o => `<option ${o === sel ? 'selected' : ''}>${esc(o)}</option>`).join('')}`;
+    const lbl = bank ? { in: 'إيداع', out: 'صرف / سحب', tr: 'تحويل' } : { in: 'قبض', out: 'صرف', tr: 'تحويل' };
+    content.innerHTML = `
+      <div class="kpis">
+        ${kpi('الرصيد الحالي', money(cur), box ? esc(acc(box.accountNo) ? accLabel(acc(box.accountNo)) : '') : `${boxes.length} بنك`, cur >= 0 ? 'up' : 'down', 'blue', icons.cash)}
+        ${kpi(bank ? 'إجمالي الإيداعات' : 'إجمالي المقبوضات', money(sum(eff, r => r.in)), `${eff.filter(r => r.in).length} حركة`, 'up', 'green', icons.receive)}
+        ${kpi(bank ? 'إجمالي المسحوبات' : 'إجمالي المدفوعات', money(sum(eff, r => r.out)), `${eff.filter(r => r.out).length} حركة`, 'down', 'red', icons.pay)}
+        ${kpi('بانتظار الاعتماد', num(pend), 'لا تدخل في الرصيد', '', 'amber', icons.shield)}
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div><h3>${box ? esc(box.name) : 'حركات كل البنوك'}</h3><div class="sub">${bank ? 'كل حركة بنكية: نوعها (إيداع / صرف / تحويل) وطريقتها (نقدي / شيك / تحويل بنكي) وبيانات المستفيد' : 'حركات القبض والصرف والتحويل والرصيد المتحرك'}</div></div>
+          <div class="spacer"></div>
+          <div class="toolbar">
+            <button class="btn primary" data-new="receipts">${icons.receive}${lbl.in}</button>
+            <button class="btn primary" data-new="payments">${icons.pay}${lbl.out}</button>
+            <button class="btn ghost" data-new="boxTransfers">${icons.swap}${lbl.tr}</button>
+            ${box ? `<button class="btn ghost" id="boxLedger">${icons.ledger}كشف الحساب</button>` : ''}
+            <button class="btn ghost" id="bxExport">${icons.export}تصدير</button>
+          </div>
+        </div>
+        <div class="card-head box-filters">
+          <input class="input" id="bxQ" type="search" placeholder="بحث: رقم، مستفيد، رقم حساب، شيك…" value="${esc(v.q)}">
+          <select class="input" id="bxKind">${opt(kinds, v.kind, 'نوع الحركة')}</select>
+          ${bank ? `<select class="input" id="bxMethod">${opt(PAY_METHODS, v.method, 'الطريقة')}</select>` : ''}
+          <label class="bx-date">من <input class="input" type="date" id="bxFrom" value="${v.from}"></label>
+          <label class="bx-date">إلى <input class="input" type="date" id="bxTo" value="${v.to}"></label>
+        </div>
+        <div class="table-wrap"><table class="box-table">
+          <thead><tr><th>التاريخ</th><th>رقم المستند</th>${box ? '' : '<th>البنك</th>'}<th>نوع الحركة</th>${bank ? '<th>الطريقة / الشيك</th>' : ''}<th>${bank ? 'المستفيد / الطرف' : 'الطرف'}</th>${bank ? '<th>حساب وبنك المستفيد</th>' : ''}<th>وارد</th><th>صادر</th><th>الرصيد</th><th></th></tr></thead>
+          <tbody>
+            <tr class="open-row"><td colspan="${(box ? 5 : 6) + (bank ? 2 : 0)}">رصيد ${v.from ? `أول الفترة (${v.from})` : 'افتتاحي'}</td><td class="num"><b>${money(openFor)}</b></td><td></td></tr>
+            ${rows.length ? rows.map(r => `<tr class="${r.pending ? 'pending' : ''}">
+              <td>${esc(r.date)}</td><td class="code">${esc(r.no)}</td>${box ? '' : `<td>${esc(r.box)}</td>`}
+              <td><span class="pill ${r.in ? 'green' : 'red'}">${esc(r.kind)}</span>${r.pending ? ' <span class="pill amber">بانتظار الاعتماد</span>' : ''}</td>
+              ${bank ? `<td class="bx-meth">${r.method ? `<span class="pill ${r.method === 'شيك' ? 'amber' : r.method === 'تحويل بنكي' ? 'blue' : 'gray'}">${esc(r.method)}</span>${r.cheque ? `<small class="bx-sub">شيك ${esc(r.cheque)}</small>` : ''}` : '—'}</td>` : ''}
+              <td class="bx-party">${esc(r.party || r.desc) || '—'}${r.party && r.desc ? `<small class="bx-sub">${esc(r.desc)}</small>` : ''}</td>
+              ${bank ? `<td class="bx-ben">${r.benAccount || r.benBank ? `<span class="code">${esc(r.benAccount)}</span><small class="bx-sub">${esc(r.benBank)}</small>` : '—'}</td>` : ''}
+              <td class="num">${r.in ? money(r.in) : ''}</td><td class="num">${r.out ? money(r.out) : ''}</td>
+              <td class="num">${r.bal == null ? '—' : `<b>${money(r.bal)}</b>`}</td>
+              <td><div class="row-actions">${r.doc ? `<button data-bprint="${r.mod}|${r.id}" title="طباعة المستند">${icons.print}</button><button data-bedit="${r.mod}|${r.id}" title="تعديل">${icons.edit}</button>` : r.mod ? `<button data-bgo="${r.mod}|${esc(r.no)}" title="فتح المستند">${icons.list}</button>` : ''}</div></td>
+            </tr>`).join('') : `<tr><td colspan="${(box ? 8 : 9) + (bank ? 2 : 0)}" class="empty">لا توجد حركات</td></tr>`}
+          </tbody>
+        </table></div>
+        <div class="table-foot"><span>عرض ${rows.length} حركة</span><span>الوارد: <b>${money(sum(eff, r => r.in))}</b> &nbsp;·&nbsp; الصادر: <b>${money(sum(eff, r => r.out))}</b> &nbsp;·&nbsp; الرصيد الحالي: <b>${money(cur)}</b></span></div>
+      </div>`;
+    const keep = id => { const el = $('#' + id); el?.focus(); if (el?.type === 'search') el.setSelectionRange(el.value.length, el.value.length); };
+    $('#bxQ').oninput = e => { v.q = e.target.value; renderBox(box); keep('bxQ'); };
+    $('#bxKind').onchange = e => { v.kind = e.target.value; renderBox(box); };
+    $('#bxMethod') && ($('#bxMethod').onchange = e => { v.method = e.target.value; renderBox(box); });
+    $('#bxFrom').onchange = e => { v.from = e.target.value; renderBox(box); };
+    $('#bxTo').onchange = e => { v.to = e.target.value; renderBox(box); };
+    $('#boxLedger') && ($('#boxLedger').onclick = () => openLedger(box.accountNo));
+    $('#bxExport').onclick = () => downloadCSV(box ? box.name : 'حركات البنوك', ['التاريخ', 'رقم المستند', 'البنك / الخزينة', 'نوع الحركة', 'الطريقة', 'رقم الشيك', 'المستفيد / الطرف', 'رقم حساب المستفيد', 'بنك المستفيد', 'البيان', 'وارد', 'صادر', 'الرصيد'],
+      rows.map(r => [r.date, r.no, r.box, r.kind, r.method, r.cheque, r.party, r.benAccount, r.benBank, r.desc, r.in, r.out, r.bal ?? 'معلّق']));
+    $$('[data-new]', content).forEach(b => b.onclick = () => {
+      const t = b.dataset.new, name = box?.name;
+      openRecordForm(t, null, name ? (t === 'boxTransfers' ? { from: name } : { box: name }) : {});
+    });
+    const parse = s => { const [t, id] = s.split('|'); return [t, db[t]?.find(r => r.id === id)]; };
+    $$('[data-bprint]', content).forEach(b => b.onclick = () => { const [t, r] = parse(b.dataset.bprint); printDoc(t, r, true); });
+    $$('[data-bedit]', content).forEach(b => b.onclick = () => { const [t, r] = parse(b.dataset.bedit); openRecordForm(t, r); });
+    $$('[data-bgo]', content).forEach(b => b.onclick = () => { const [t, no] = b.dataset.bgo.split('|'); goTo(t, ['payroll', 'dailyLabor', 'advances'].includes(t) ? '' : no); });
+  }
+
   // ---------- التوجيه ----------
   const content = $('#content');
   const renderPage = () => {
     if (!can(state.page)) { content.innerHTML = '<div class="boot"><p>لا توجد شاشات متاحة لحسابك — راجع مدير النظام لتحديد صلاحياتك.</p></div>'; return; }
-    const r = pages[state.page] ? pages[state.page].render() : renderModule(state.page);
+    const pi = pageInfo(state.page), r = pi?.render ? pi.render() : renderModule(state.page);
     enforce(); if (r?.then) r.then(enforce);
   };
   const isMobile = () => matchMedia('(max-width: 900px)').matches;
   function route() {
     if (!store.ready || !curUser()) return;
+    buildPaths();
     const hash = decodeURIComponent(location.hash.slice(1)) || 'dashboard';
     let page = pageInfo(hash) ? hash : 'dashboard';
     if (!can(page)) page = ['dashboard', ...Object.keys(pagePath)].find(x => can(x)) || page;
