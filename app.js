@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 18:00';
+  const APP_VERSION = '25/11/2026, 21:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -239,6 +239,9 @@
   const workerCost = name => db.workers.find(w => w.name === name)?.costType || 'تشغيلية';
   const laborAcc = ct => expAcc('أجور العمالة', ct, SYS.labor);
   // حساب المبيعات المقابل لفئة العميل: عملاء السوق المحلي ← مبيعات السوق المحلي، وعملاء آخرون ← إيرادات أخرى
+  const SALE_TYPES = [['local', 'السوق المحلي'], ['seedlings', 'الشتلات'], ['scrap', 'الخردة'], ['livestock', 'الثروة الحيوانية']];
+  const saleType = r => r.stype || (db.customers.find(c => c.name === r.customer)?.category || '').replace(/^عملاء\s*/, '');
+  const salesAccR = r => leafByName(SYS.revenue, 'مبيعات ' + saleType(r)) || SYS.otherRev;
   const salesAcc = name => { const cat = db.customers.find(c => c.name === name)?.category || '';
     return leafByName(SYS.revenue, 'مبيعات ' + cat.replace(/^عملاء\s*/, '')) || SYS.otherRev; };
   // أنواع السلف = حسابات "سلف ..." تحت الأرصدة المدينة الأخرى
@@ -276,8 +279,8 @@
       };
       eff('journal').forEach(r => add('journal', 'قيد يدوي', r, r.no, r.date, r.desc, [L(accCode(r.debit), r.amount), L(accCode(r.credit), 0, r.amount)]));
       eff('salesInvoices').forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
-        [L(custAcc(r.customer), invTotal(r)), L(salesAcc(r.customer), 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
-      eff('salesReturns').forEach(r => add('salesReturns', 'مرتجع مبيعات', r, r.no, r.date, `مرتجع مبيعات - ${r.customer}`, [L(salesAcc(r.customer), r.amount), L(custAcc(r.customer), 0, r.amount)]));
+        [L(custAcc(r.customer), invTotal(r)), L(salesAccR(r), 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
+      eff('salesReturns').forEach(r => add('salesReturns', 'مردودات مبيعات', r, r.no, r.date, `مردودات مبيعات ${saleType(r)} - ${r.customer}`, [L(salesAccR(r), r.amount), L(custAcc(r.customer), 0, r.amount)]));
       eff('receipts').forEach(r => { const chq = isChq(r, SYS.chqIn);
         add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${partyName(r)}${chq ? ` — شيك ${r.chequeNo}` : ''}`,
           [L(chq ? SYS.chqIn : boxAcc(r.box), r.amount), L(accCode(r.account) || (isCustomer(r.party) ? custAcc(r.party) : SYS.otherRev), 0, r.amount)]);
@@ -646,9 +649,9 @@
       } },
 
     // ===== المبيعات =====
-    salesInvoices: { title: 'فواتير المبيعات', sub: 'تُرحّل تلقائياً: من حـ/ فئة العميل إلى حـ/ مبيعات نفس الفئة و حـ/ الضرائب', single: 'فاتورة بيع', key: 'no', filter: 'status', cols: [
+    salesInvoices: { title: 'كل فواتير المبيعات', sub: 'تُرحّل تلقائياً: من حـ/ فئة العميل إلى حـ/ مبيعات نفس الفئة و حـ/ الضرائب', single: 'فاتورة بيع', key: 'no', filter: 'status', cols: [
       C('no', 'رقم الفاتورة', CODE), C('customer', 'العميل', { input: 'select', options: names('customers'), full: true }),
-      C('revAcc', 'حساب الإيراد', { compute: r => accLabel(acc(salesAcc(r.customer)) || { code: '', name: '' }), render: v => `<span class="hint">${esc(v)}</span>` }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
+      C('revAcc', 'حساب الإيراد', { compute: r => accLabel(acc(salesAccR(r)) || { code: '', name: '' }), render: v => `<span class="hint">${esc(v)}</span>` }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
       C('amount', 'الصافي', { ...M, total: true }), C('vatRate', 'نسبة الضريبة %', { ...N, formOnly: true }),
       C('total', 'الإجمالي شامل الضريبة', computed(invTotal, { total: true })),
       C('remaining', 'المتبقي', computed(r => invTotal(r) - salesPaid(r), { total: true })),
@@ -666,8 +669,8 @@
       C('amount', 'القيمة', { ...M, total: true }), C('status', 'الحالة', status('مرسل', 'مقبول', 'مرفوض'))],
       actions: [{ icon: 'sales', title: 'تحويل إلى فاتورة', target: 'salesInvoices', show: r => r.status !== 'مرفوض',
         fn: r => openRecordForm('salesInvoices', null, { customer: r.customer, amount: r.amount }, () => { const x = db.salesQuotes.find(q => q.id === r.id); if (x) x.status = 'مقبول'; }), write: true }] },
-    salesReturns: { title: 'مرتجعات المبيعات', sub: 'تُرحّل: من حـ/ المبيعات إلى حـ/ العملاء', single: 'مرتجع', key: 'no', cols: [
-      C('no', 'رقم المرتجع', CODE), C('customer', 'العميل', { input: 'select', options: names('customers') }),
+    salesReturns: { title: 'كل فواتير المردودات', sub: 'تُرحّل: من حـ/ مبيعات النوع إلى حـ/ العميل', single: 'فاتورة مردودات', key: 'no', cols: [
+      C('no', 'رقم فاتورة المردودات', CODE), C('customer', 'العميل', { input: 'select', options: names('customers') }),
       C('invoice', 'الفاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]) }),
       C('date', 'التاريخ', D), C('amount', 'القيمة', { ...M, total: true }), C('reason', 'السبب', { full: true })],
       validate: d => { const inv = db.salesInvoices.find(i => i.no === d.invoice); if (inv && inv.customer !== d.customer) return `الفاتورة ${inv.no} تخص ${inv.customer}`; } },
@@ -843,6 +846,18 @@
     database: { title: 'قاعدة البيانات', sub: 'الجداول والسعة والنسخ الاحتياطي', render: renderDatabase },
     settings: { title: 'الإعدادات', sub: 'بيانات المنشأة', render: renderSettings },
   };
+  // فواتير ومردودات كل نوع مبيعات: صفحات على نفس الجدول، العملاء من فئة النوع فقط
+  const custOfType = ty => db.customers.filter(c => c.category === 'عملاء ' + ty).map(c => c.name);
+  SALE_TYPES.forEach(([k, ty]) => {
+    const view = r => saleType(r) === ty;
+    const custCol = c => c.key === 'customer' ? { ...c, options: () => custOfType(ty), allowEmpty: undefined } : c.key === 'invoice' ? { ...c, options: () => db.salesInvoices.filter(view).map(i => [i.no, `${i.no} — ${i.customer}`]) } : c;
+    modules['si_' + k] = { ...modules.salesInvoices, table: 'salesInvoices', view, fixed: { stype: ty }, title: `فواتير مبيعات ${ty}`, single: `فاتورة مبيعات ${ty}`,
+      sub: `من حـ/ عملاء ${ty} إلى حـ/ مبيعات ${ty} و حـ/ الضرائب — بعد الاعتماد`, cols: modules.salesInvoices.cols.map(custCol) };
+    modules['sr_' + k] = { ...modules.salesReturns, table: 'salesReturns', view, fixed: { stype: ty }, title: `مردودات مبيعات ${ty}`, single: `فاتورة مردودات ${ty}`,
+      sub: `من حـ/ مبيعات ${ty} إلى حـ/ عملاء ${ty} — بعد الاعتماد`, cols: modules.salesReturns.cols.map(custCol) };
+  });
+  const tbl = n => modules[n]?.table || n;
+  const rowsOf = n => { const m = modules[n]; return m?.view ? db[m.table].filter(m.view) : db[n]; };
   const pageInfo = id => pages[id] || modules[id] || boxPageInfo(id);
 
   // ---------- القائمة الجانبية ----------
@@ -851,7 +866,7 @@
     { title: 'الإدارات', icon: 'box', items: [
       { title: 'الخزينة', icon: 'cash', items: () => [...db.cashboxes.filter(b => !isBankBox(b)).sort((a, b) => String(a.code).localeCompare(String(b.code))).map(b => 'box/' + b.id), 'receipts', 'payments', 'boxTransfers'] },
       { title: 'البنوك', icon: 'bank', items: () => [...db.cashboxes.filter(isBankBox).sort((a, b) => String(a.code).localeCompare(String(b.code))).map(b => 'box/' + b.id), 'bankMoves', 'cashboxes'] },
-      { title: 'المبيعات', icon: 'sales', items: ['salesInvoices', 'salesQuotes', 'salesReturns'] },
+      { title: 'المبيعات', icon: 'sales', items: [...SALE_TYPES.map(([k]) => 'si_' + k), ...SALE_TYPES.map(([k]) => 'sr_' + k), 'salesInvoices', 'salesReturns', 'salesQuotes'] },
       { title: 'المشتريات', icon: 'cart', items: ['purchaseOrders', 'purchaseInvoices', 'purchaseReturns'] },
       { title: 'المخازن', icon: 'box', items: ['stockBalances', 'stockIn', 'stockOut', 'transfers'] },
       { title: 'شئون العاملين', icon: 'users', items: ['attendance', 'payroll', 'leaves'] },
@@ -870,7 +885,7 @@
   ];
   const EMO = {
     dashboard: '📊', reportCenter: '🗂️', approvals: '✅', users: '👥', database: '🗄️', settings: '⚙️', accounts: '🌳', journal: '📒', ledger: '📄', reports: '📈',
-    cashboxes: '🗃️', bankMoves: '🧾', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
+    cashboxes: '🗃️', bankMoves: '🧾', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️', si_local: '🏪', si_seedlings: '🌱', si_scrap: '♻️', si_livestock: '🐄', sr_local: '↩️', sr_seedlings: '↩️', sr_scrap: '↩️', sr_livestock: '↩️',
     purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
     attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
     customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', units: '⚖️', branches: '📍', costCenters: '🎯', crops: '🌱', girlsFixed: '👩‍🌾', girlsTemp: '👩', bangladesh: '🧑‍🔧', workers: '🦺', departments: '🏢', machines: '🚜',
@@ -890,6 +905,7 @@
   const badges = {
     approvals: () => myApprovals().length,
     salesInvoices: () => db.salesInvoices.filter(r => salesStatus(r) === 'متأخرة').length,
+    ...Object.fromEntries(SALE_TYPES.map(([k, ty]) => ['si_' + k, () => db.salesInvoices.filter(r => saleType(r) === ty && salesStatus(r) === 'متأخرة').length])),
     purchaseInvoices: () => db.purchaseInvoices.filter(r => purchStatus(r) === 'متأخرة').length,
     items: () => db.items.filter(r => itemQty(r.name) < +r.min).length,
     maintenanceOrders: () => db.maintenanceOrders.filter(r => r.status !== 'مكتمل').length,
@@ -1044,22 +1060,23 @@
 
   function renderModule(name) {
     const m = modules[name];
-    const showAppr = APPR_MODULES.includes(name) && (apprOn(name) || db[name].some(r => r.appr));
-    const cols = [...tableCols(m), ...(showAppr ? [C('_appr', 'الاعتماد', { compute: r => apprText(name, r), render: (v, r) => apprPill(name, r) })] : [])];
+    const T = tbl(name), all = rowsOf(name);
+    const showAppr = APPR_MODULES.includes(T) && (apprOn(T) || all.some(r => r.appr));
+    const cols = [...tableCols(m), ...(showAppr ? [C('_appr', 'الاعتماد', { compute: r => apprText(T, r), render: (v, r) => apprPill(T, r) })] : [])];
     const q = state.q.trim().toLowerCase();
-    let rows = db[name].filter(r => !q || m.cols.some(c => String(val(r, c) ?? '').toLowerCase().includes(q)));
+    let rows = all.filter(r => !q || m.cols.some(c => String(val(r, c) ?? '').toLowerCase().includes(q)));
     const dk = ['date', 'month', 'from'].find(k => m.cols.some(c => c.key === k));
     rows.sort(dk ? (a, b) => String(b[dk] ?? '').localeCompare(String(a[dk] ?? '')) || String(b.no ?? '').localeCompare(String(a.no ?? ''))
       : (a, b) => String(a.code ?? a.name ?? '').localeCompare(String(b.code ?? b.name ?? ''), 'ar'));
     const fcol = m.filter && m.cols.find(c => c.key === m.filter);
     if (fcol && state.filter) rows = rows.filter(r => val(r, fcol) === state.filter);
-    const fopts = fcol ? (fcol.options ? fcol.options() : [...new Set(db[name].map(r => val(r, fcol)))]) : [];
+    const fopts = fcol ? (fcol.options ? fcol.options() : [...new Set(all.map(r => val(r, fcol)))]) : [];
     const totals = cols.filter(c => c.total);
 
     content.innerHTML = `
       <div class="card">
         <div class="card-head">
-          <div><h3>${m.title}</h3><div class="sub">${db[name].length} سجل</div></div>
+          <div><h3>${m.title}</h3><div class="sub">${all.length} سجل</div></div>
           <div class="spacer"></div>
           <div class="toolbar">
             <input class="input" id="tblSearch" type="search" placeholder="بحث..." value="${esc(state.q)}">
@@ -1075,9 +1092,9 @@
             ${rows.length ? rows.map(r => `<tr>
               ${cols.map(c => `<td class="${c.cls ?? ''}">${cell(r, c)}</td>`).join('')}
               <td><div class="row-actions">
-                ${canApprove(name, r) ? `<button class="ok" data-apr="${r.id}" title="اعتماد">✓</button><button class="del" data-rej="${r.id}" title="رفض">✕</button>` : ''}
+                ${canApprove(T, r) ? `<button class="ok" data-apr="${r.id}" title="اعتماد">✓</button><button class="del" data-rej="${r.id}" title="رفض">✕</button>` : ''}
                 ${(m.actions || []).map((a, i) => !a.show || a.show(r) ? `<button data-act="${i}" data-id="${r.id}" class="${a.write ? 'w' : ''}" title="${a.title}">${icons[a.icon]}</button>` : '').join('')}
-                ${APPR_MODULES.includes(name) || m.key === 'no' ? `<button data-print="${r.id}" title="طباعة المستند">${icons.print}</button>` : ''}
+                ${APPR_MODULES.includes(T) || m.key === 'no' ? `<button data-print="${r.id}" title="طباعة المستند">${icons.print}</button>` : ''}
                 <button data-edit="${r.id}" title="تعديل">${icons.edit}</button>
                 <button class="del" data-del="${r.id}" title="حذف">${icons.del}</button>
               </div></td></tr>`).join('')
@@ -1085,7 +1102,7 @@
           </tbody>
         </table></div>
         <div class="table-foot">
-          <span>عرض ${rows.length} من ${db[name].length}</span>
+          <span>عرض ${rows.length} من ${all.length}</span>
           <span>${totals.map(c => `${c.label}: <b>${(c.render === num || (c.cls === 'num' && !c.render) ? num : money)(sum(rows, r => val(r, c)))}</b>`).join(' &nbsp;·&nbsp; ')}</span>
         </div>
       </div>`;
@@ -1093,25 +1110,25 @@
     $('#tblSearch').addEventListener('input', e => { state.q = e.target.value; renderModule(name); const el = $('#tblSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); });
     $('#tblFilter')?.addEventListener('change', e => { state.filter = e.target.value; renderModule(name); });
     $('#addBtn').onclick = () => openRecordForm(name);
-    $('#importBtn').onclick = () => openImport(name);
+    $('#importBtn').onclick = () => openImport(T);
     $('#exportBtn').onclick = () => downloadCSV(name, cols.map(c => c.label), rows.map(r => cols.map(c => val(r, c))));
-    const find = id => db[name].find(r => r.id === id);
+    const find = id => db[T].find(r => r.id === id);
     $$('[data-act]', content).forEach(b => b.onclick = () => m.actions[+b.dataset.act].fn(find(b.dataset.id)));
-    $$('[data-print]', content).forEach(b => b.onclick = () => printDoc(name, find(b.dataset.print), true));
-    $$('[data-apr]', content).forEach(b => b.onclick = () => { if (decide(name, b.dataset.apr, true)) { save(); renderNav(); renderModule(name); toast(afterDecideMsg(name, b.dataset.apr)); } });
-    $$('[data-rej]', content).forEach(b => b.onclick = () => rejectDoc(name, b.dataset.rej));
+    $$('[data-print]', content).forEach(b => b.onclick = () => printDoc(T, find(b.dataset.print), true));
+    $$('[data-apr]', content).forEach(b => b.onclick = () => { if (decide(T, b.dataset.apr, true)) { save(); renderNav(); renderModule(name); toast(afterDecideMsg(T, b.dataset.apr)); } });
+    $$('[data-rej]', content).forEach(b => b.onclick = () => rejectDoc(T, b.dataset.rej));
     $$('[data-edit]', content).forEach(b => b.onclick = () => openRecordForm(name, find(b.dataset.edit)));
     $$('[data-del]', content).forEach(b => b.onclick = () => deleteRecord(name, find(b.dataset.del)));
   }
 
   function deleteRecord(name, r) {
     if (!can(name, 'd')) return denied();
-    const m = modules[name];
-    const used = m.key ? usages(name, r[m.key]) : [];
+    const m = modules[name], T = tbl(name);
+    const used = m.key ? usages(T, r[m.key]) : [];
     if (used.length) return toast(`لا يمكن الحذف: مستخدم في ${used.map(([t, n]) => `${pageInfo(t).title} (${n})`).join('، ')}`, 4000);
-    const posted = glEntries().some(e => e.module === name && e.id === r.id);
+    const posted = glEntries().some(e => e.module === T && e.id === r.id);
     if (!confirm(`هل تريد حذف هذا السجل (${m.single})؟${posted ? '\nسيتم إلغاء القيد المحاسبي المرتبط به.' : ''}`)) return;
-    db[name] = db[name].filter(x => x.id !== r.id);
+    db[T] = db[T].filter(x => x.id !== r.id);
     save(); renderPage(); renderNav(); toast('تم الحذف');
   }
 
@@ -1173,36 +1190,36 @@
 
   function openRecordForm(name, record, prefill = {}, afterCreate) {
     if (!can(name, record ? 'e' : 'a')) return denied();
-    const m = modules[name];
+    const m = modules[name], T = tbl(name);
     const fields = m.cols.filter(c => !c.compute);
     const t = today();
     const defaults = Object.fromEntries(fields.map(c => [c.key, c.input === 'date' ? t : c.input === 'month' ? t.slice(0, 7) : '']));
-    ['no', 'code'].forEach(k => { if (k in defaults) defaults[k] = nextNo(db[name], k) || (k === 'no' && m.prefix ? m.prefix + '0001' : ''); });
+    ['no', 'code'].forEach(k => { if (k in defaults) defaults[k] = nextNo(db[T], k) || (k === 'no' && m.prefix ? m.prefix + '0001' : ''); });
     const recId = record?.id;
     openModal(`${record ? 'تعديل' : 'إضافة'} ${m.single}`, fields, record || { ...defaults, ...(m.defaults?.() || {}), ...prefill }, data => {
       // السجل الحالي من قاعدة البيانات (قد يكون مستخدم آخر عدّله أو حذفه)
-      const cur = recId ? db[name].find(r => r.id === recId) : null;
+      const cur = recId ? db[T].find(r => r.id === recId) : null;
       if (recId && !cur) { toast('هذا السجل حذفه مستخدم آخر'); return; }
       fields.forEach(c => { if (c.input === 'number') data[c.key] = +data[c.key] || 0; if (c.input === 'lines') { try { data[c.key] = JSON.parse(data[c.key] || '[]'); } catch { data[c.key] = []; } } });
-      if (m.key && db[name].some(r => r !== cur && r[m.key] === data[m.key])) { toast(`"${data[m.key]}" مسجل من قبل`); return false; }
+      if (m.key && db[T].some(r => r !== cur && r[m.key] === data[m.key])) { toast(`"${data[m.key]}" مسجل من قبل`); return false; }
       const err = m.validate?.(data, cur);
       if (err) { toast(err, 3500); return false; }
       const sv = v => v && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '');
       const changed = !cur || fields.some(c => sv(cur[c.key]) !== sv(data[c.key]));
       let saved = cur;
       if (cur) {
-        if (m.key && cur[m.key] !== data[m.key]) (refs[name] || []).forEach(([tb, f]) => db[tb].forEach(r => { if (r[f] === cur[m.key]) r[f] = data[m.key]; (Array.isArray(r.lines) ? r.lines : []).forEach(l => { if (l[f] === cur[m.key]) l[f] = data[m.key]; }); }));
+        if (m.key && cur[m.key] !== data[m.key]) (refs[T] || []).forEach(([tb, f]) => db[tb].forEach(r => { if (r[f] === cur[m.key]) r[f] = data[m.key]; (Array.isArray(r.lines) ? r.lines : []).forEach(l => { if (l[f] === cur[m.key]) l[f] = data[m.key]; }); }));
         Object.assign(cur, data);
       } else {
-        saved = { id: genId(), ...data };
-        db[name].unshift(saved);
+        saved = { id: genId(), ...data, ...(m.fixed || {}) };
+        db[T].unshift(saved);
         afterCreate?.(saved);
       }
       m.afterSave?.(saved);
-      submitForApproval(name, saved, changed);
+      submitForApproval(T, saved, changed);
       save(); renderPage(); renderNav();
-      if (saved.appr?.status === 'pending') return toast(`تم الحفظ — ${apprText(name, saved)} · لن يُرحّل قبل الاعتماد`, 4000);
-      const posted = glEntries().find(e => e.module === name && e.id === saved.id);
+      if (saved.appr?.status === 'pending') return toast(`تم الحفظ — ${apprText(T, saved)} · لن يُرحّل قبل الاعتماد`, 4000);
+      const posted = glEntries().find(e => e.module === T && e.id === saved.id);
       toast(posted ? `تم الحفظ والترحيل — قيد ${posted.no}` : cur ? 'تم حفظ التعديلات' : 'تمت الإضافة بنجاح');
     });
     if (record?._at) showAudit(record);
@@ -1772,6 +1789,7 @@
     if (page === 'bankMoves' || String(page).startsWith('box/')) return act === 'v' && ['receipts', 'payments', 'boxTransfers', 'cashboxes'].some(x => String(u.perms?.[x] || '').includes('v'));
     if (page === 'approvals') return isApprover(u) || (u.special || []).includes('approvalsSetup');
     if (SPECIAL_PAGES[page]) return (u.special || []).includes(SPECIAL_PAGES[page]);
+    if (modules[page]?.table && u.perms?.[page] == null) return String(u.perms?.[modules[page].table] || '').includes(act);
     return String(u.perms?.[page] || '').includes(act);
   }
   const canSp = sp => { const u = curUser(); return !!u && (isAdminUser(u) || (u.special || []).includes(sp)); };
@@ -2196,7 +2214,7 @@
   const importDef = t => t === 'accounts' ? ACC_IMPORT : modules[t]?.cols.some(c => c.input === 'lines')
     ? { ...modules[t], lineImport: true, cols: [...modules[t].cols.filter(c => c.input !== 'lines'), ...lineImportCols(modules[t].cols.some(c => c.tax))] } : modules[t];
   const importFields = t => importDef(t).cols.filter(c => !c.compute && c.input !== 'lines');
-  const importTables = () => ['accounts', ...Object.keys(modules)].filter(t => t === 'accounts' ? store.canAdmin && can('accounts', 'a') : can(t, 'a'));
+  const importTables = () => ['accounts', ...Object.keys(modules).filter(t => !modules[t].table)].filter(t => t === 'accounts' ? store.canAdmin && can('accounts', 'a') : can(t, 'a'));
 
   // ----- قراءة الملف -----
   const AR_DIGITS = s => String(s).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g, '.').replace(/٬/g, ',');
@@ -2627,7 +2645,7 @@
     const html = `
       <div class="doc">
         <div class="doc-head"><div><h1>${esc(s.company || '')}</h1><p>${esc(s.address || '')}${s.taxNo ? ` · رقم التسجيل الضريبي: ${esc(s.taxNo)}` : ''}${s.commercialReg ? ` · س.ت: ${esc(s.commercialReg)}` : ''}</p></div>
-          <div class="doc-title"><h2>${esc(m.single)}</h2><b>${esc(docNo(t, r))}</b><span>${esc(r.date || r.month || '')}</span></div></div>
+          <div class="doc-title"><h2>${esc(t === 'salesInvoices' && saleType(r) ? `فاتورة مبيعات ${saleType(r)}` : t === 'salesReturns' && saleType(r) ? `فاتورة مردودات ${saleType(r)}` : m.single)}</h2><b>${esc(docNo(t, r))}</b><span>${esc(r.date || r.month || '')}</span></div></div>
         <div class="doc-status">${r.appr ? `حالة الاعتماد: <b>${esc(apprText(t, r))}</b>` : 'مستند مرحّل'}</div>
         <table class="doc-fields">${fieldRows.map(([l, v]) => `<tr><th>${esc(l)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
         ${Array.isArray(r.lines) && r.lines.length ? (() => { const tx = m.cols.some(c => c.tax), tt = docTotals(r); return `<h3>الأصناف</h3><table class="doc-lines"><thead><tr><th>#</th><th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>السعر</th>${tx ? '<th>ض.ق.م</th><th>خصم وإضافة</th>' : ''}<th>القيمة</th></tr></thead><tbody>
