@@ -654,6 +654,13 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
+   "id": "acc238",
+   "code": "238",
+   "name": "ضرائب الخصم والإضافة",
+   "parent": "23",
+   "balance": 0
+  },
+  {
    "id": "acc3",
    "code": "3",
    "name": "المصروفات",
@@ -2136,7 +2143,7 @@ window.ACC_SEED = {
    "box": "بنك مصر",
    "party": "شركة النيل للمقاولات",
    "invoice": "INV-3104",
-   "account": "",
+   "account": "1231 - عملاء السوق المحلي",
    "amount": 45000,
    "desc": "دفعة من فاتورة INV-3104"
   },
@@ -2147,7 +2154,7 @@ window.ACC_SEED = {
    "box": "خزينة السادات الرئيسية",
    "party": "مؤسسة الدلتا للتجارة",
    "invoice": "",
-   "account": "",
+   "account": "1232 - عملاء الشتلات",
    "amount": 18500,
    "desc": "سداد الرصيد السابق"
   },
@@ -2158,7 +2165,7 @@ window.ACC_SEED = {
    "box": "بنك مصر",
    "party": "مكتب المستقبل الهندسي",
    "invoice": "INV-3101",
-   "account": "",
+   "account": "1235 - عملاء آخرون",
    "amount": 25080,
    "desc": "سداد فاتورة INV-3101"
   },
@@ -2167,7 +2174,7 @@ window.ACC_SEED = {
    "no": "RV-0228",
    "date": "2026-11-01",
    "box": "خزينة السادات الرئيسية",
-   "party": "أخرى",
+   "party": "",
    "invoice": "",
    "account": "421 - إيرادات تأجير المعدات",
    "amount": 9600,
@@ -2180,7 +2187,7 @@ window.ACC_SEED = {
    "no": "PV-0419",
    "date": "2026-11-16",
    "box": "خزينة السادات الرئيسية",
-   "party": "أخرى",
+   "party": "",
    "invoice": "",
    "account": "32206 - إيجارات أخرى تشغيلية",
    "amount": 4000,
@@ -2193,7 +2200,7 @@ window.ACC_SEED = {
    "box": "بنك مصر",
    "party": "شركة السويس للأسمنت",
    "invoice": "PI-2206",
-   "account": "",
+   "account": "2312 - مورد بضاعة",
    "amount": 60000,
    "desc": "دفعة من فاتورة PI-2206"
   },
@@ -2204,7 +2211,7 @@ window.ACC_SEED = {
    "box": "خزينة السادات الرئيسية",
    "party": "شركة مصر للبترول",
    "invoice": "",
-   "account": "",
+   "account": "2319 - مورد نقدي",
    "amount": 9800,
    "desc": "سداد من الرصيد السابق"
   },
@@ -2215,7 +2222,7 @@ window.ACC_SEED = {
    "box": "خزينة السادات الرئيسية",
    "party": "محسن السيد توفيق البلتاجي",
    "invoice": "",
-   "account": "",
+   "account": "2141 - محسن السيد توفيق البلتاجي",
    "amount": 15000,
    "desc": "مسحوبات شخصية"
   }
@@ -3027,6 +3034,32 @@ window.ACC_SEED = {
    "salary": 6000,
    "costType": "تشغيلية",
    "status": "نشط"
+  }
+ ],
+ "branches": [
+  {
+   "id": "branches-001",
+   "code": "BR-01",
+   "name": "فرع السادات",
+   "address": "مدينة السادات",
+   "manager": "",
+   "phone": ""
+  },
+  {
+   "id": "branches-002",
+   "code": "BR-02",
+   "name": "فرع النوبارية",
+   "address": "النوبارية",
+   "manager": "",
+   "phone": ""
+  },
+  {
+   "id": "branches-003",
+   "code": "BR-03",
+   "name": "المكتب العام",
+   "address": "القاهرة",
+   "manager": "",
+   "phone": ""
   }
  ]
 };

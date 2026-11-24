@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 13:00';
+  const APP_VERSION = '25/11/2026, 18:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -33,7 +33,7 @@
   const TABLES = ['appUsers', 'accounts', 'customers', 'suppliers', 'items', 'warehouses', 'departments', 'employees', 'attendance', 'payroll', 'leaves',
     'workers', 'dailyLabor', 'advances', 'cashboxes', 'receipts', 'payments', 'boxTransfers', 'journal', 'salesInvoices', 'salesQuotes', 'salesReturns',
     'purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'stockIn', 'stockOut', 'transfers', 'machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan',
-    'units', 'costCenters', 'crops', 'girlsFixed', 'girlsTemp', 'bangladesh'];
+    'units', 'costCenters', 'crops', 'girlsFixed', 'girlsTemp', 'bangladesh', 'branches'];
   const TX_TABLES = ['journal', 'receipts', 'payments', 'boxTransfers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
     'stockIn', 'stockOut', 'transfers', 'attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders'];
   const DEFAULT_SETTINGS = { company: 'نظام المحاسب', taxNo: '', commercialReg: '', currency: 'ج.م', vat: 14, fiscalStart: `${new Date().getFullYear()}-01-01`, address: '' };
@@ -210,7 +210,7 @@
   const leafAccounts = () => db.accounts.filter(a => !hasChildren(a.code)).sort((a, b) => a.code.localeCompare(b.code));
   // الحسابات التي يرحّل عليها النظام تلقائياً
   const SYS = { cash: '121', banks: '122', customers: '123', inventory: '124', empAdvances: '1281', otherDebit: '128', drawings: '214', suppliers: '231',
-    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '124106', expenses: '3', revenue: '4', accruedSal: '236', chqIn: '129', chqOut: '237' };
+    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '124106', expenses: '3', revenue: '4', accruedSal: '236', chqIn: '129', chqOut: '237', wht: '238' };
   // مراكز التكلفة: كل مرتب أو أجر يُحمّل على المصروف التشغيلي أو التسويقي أو الإداري حسب نوع تكلفة الموظف/العامل
   const COST_TYPES = ['تشغيلية', 'تسويقية', 'إدارية'];
   // طبيعة الحساب: من الحساب نفسه أو أقرب أب محدد له طبيعة (مثل مسحوبات الملاك: مدين)، وإلا حسب الرقم الأول
@@ -253,6 +253,11 @@
 
   const boxAcc = name => db.cashboxes.find(b => b.name === name)?.accountNo;
   const isCustomer = n => db.customers.some(c => c.name === n);
+  // نوع الطرف حسب اسم الحساب: عملاء / موردون / مسحوبات مالك / عاملون / غيرها
+  const partyKind = code => !code ? '' : code.startsWith(SYS.customers) ? 'c' : code.startsWith(SYS.suppliers) ? 's' : code.startsWith(SYS.drawings) ? 'o'
+    : code.startsWith(SYS.otherDebit) || code.startsWith(SYS.accruedSal) || code.startsWith(SYS.expenses) ? 'e' : '';
+  // قبض/صرف يخص عميلاً أو مورداً: السندات القديمة بدون حساب، أو التي حسابها من نفس النوع
+  const isPartyDoc = (r, kind) => !r.account || partyKind(accCode(r.account)) === kind;
   const isSupplier = n => db.suppliers.some(s => s.name === n);
   const vatOf = r => +r.amount * (+(r.vatRate ?? db.settings.vat) || 0) / 100;
   const invTotal = r => +r.amount + vatOf(r);
@@ -274,19 +279,29 @@
         [L(custAcc(r.customer), invTotal(r)), L(salesAcc(r.customer), 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
       eff('salesReturns').forEach(r => add('salesReturns', 'مرتجع مبيعات', r, r.no, r.date, `مرتجع مبيعات - ${r.customer}`, [L(salesAcc(r.customer), r.amount), L(custAcc(r.customer), 0, r.amount)]));
       eff('receipts').forEach(r => { const chq = isChq(r, SYS.chqIn);
-        add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${r.party === 'أخرى' && r.beneficiary ? r.beneficiary : r.party}${chq ? ` — شيك ${r.chequeNo}` : ''}`,
-          [L(chq ? SYS.chqIn : boxAcc(r.box), r.amount), L(isCustomer(r.party) ? custAcc(r.party) : accCode(r.account) || SYS.otherRev, 0, r.amount)]);
-        if (chq && r.chequeStatus === 'محصّل') add('receipts', 'تحصيل شيك', r, `${r.no}-ت`, r.clearDate || r.chequeDate || r.date, `تحصيل الشيك ${r.chequeNo} — ${r.party === 'أخرى' ? r.beneficiary || '' : r.party}`,
+        add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${partyName(r)}${chq ? ` — شيك ${r.chequeNo}` : ''}`,
+          [L(chq ? SYS.chqIn : boxAcc(r.box), r.amount), L(accCode(r.account) || (isCustomer(r.party) ? custAcc(r.party) : SYS.otherRev), 0, r.amount)]);
+        if (chq && r.chequeStatus === 'محصّل') add('receipts', 'تحصيل شيك', r, `${r.no}-ت`, r.clearDate || r.chequeDate || r.date, `تحصيل الشيك ${r.chequeNo} — ${partyName(r)}`,
           [L(boxAcc(r.box), r.amount), L(SYS.chqIn, 0, r.amount)]); });
       eff('purchaseInvoices').forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات آجلة - ${r.supplier}`,
         [L(accCode(r.account) || SYS.defPurchase, r.amount), L(suppAcc(r.supplier), 0, r.amount)]));
       eff('purchaseReturns').forEach(r => add('purchaseReturns', 'مرتجع مشتريات', r, r.no, r.date, `مرتجع مشتريات - ${r.supplier}`,
         [L(suppAcc(r.supplier), r.amount), L(accCode(r.account) || SYS.defPurchase, 0, r.amount)]));
       eff('payments').forEach(r => { const chq = isChq(r, SYS.chqOut);
-        add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${r.party === 'أخرى' && r.beneficiary ? r.beneficiary : r.party}${chq ? ` — شيك ${r.chequeNo}` : ''}`,
-          [L(isSupplier(r.party) ? suppAcc(r.party) : ownerAcc(r.party) || accCode(r.account) || SYS.accrued, r.amount), L(chq ? SYS.chqOut : boxAcc(r.box), 0, r.amount)]);
-        if (chq && r.chequeStatus === 'مصروف') add('payments', 'صرف شيك', r, `${r.no}-ص`, r.clearDate || r.chequeDate || r.date, `صرف الشيك ${r.chequeNo} — ${r.beneficiary || r.party}`,
+        add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${partyName(r)}${chq ? ` — شيك ${r.chequeNo}` : ''}`,
+          [L(accCode(r.account) || (isSupplier(r.party) ? suppAcc(r.party) : ownerAcc(r.party) || SYS.accrued), r.amount), L(chq ? SYS.chqOut : boxAcc(r.box), 0, r.amount)]);
+        if (chq && r.chequeStatus === 'مصروف') add('payments', 'صرف شيك', r, `${r.no}-ص`, r.clearDate || r.chequeDate || r.date, `صرف الشيك ${r.chequeNo} — ${partyName(r)}`,
           [L(SYS.chqOut, r.amount), L(boxAcc(r.box), 0, r.amount)]); });
+      // إذن الإضافة: من حـ/ المخزون (حساب الإذن أو مخزون كل صنف) و حـ/ ض.ق.م إلى حـ/ المورد (الصافي) و حـ/ ضريبة الخصم والإضافة
+      eff('stockIn').forEach(r => { const t = docTotals(r); if (t.sub <= 0) return;
+        const inv = {}; linesOf(r).forEach(l => { const a = accCode(r.account) || itemStore(l.item) || SYS.defPurchase; inv[a] = (inv[a] || 0) + lineVal(l); });
+        add('stockIn', 'إذن إضافة', r, r.no, r.date, r.notes || `استلام أصناف من ${r.supplier || r.source || ''} — ${linesSummary(r)}`,
+          [...Object.entries(inv).map(([a, v]) => L(a, v)), L(SYS.vat, t.vat), L(r.supplier ? suppAcc(r.supplier) : SYS.accrued, 0, t.net), L(SYS.wht, 0, t.wht)]); });
+      // إذن الصرف: من حـ/ الحساب المختار (مصروف / مركز تكلفة) إلى حـ/ مخزون كل صنف — بسعر التكلفة
+      eff('stockOut').forEach(r => { const tot = docTotals(r).sub; if (tot <= 0 || !accCode(r.account)) return;
+        const inv = {}; linesOf(r).forEach(l => { const a = itemStore(l.item) || SYS.defPurchase; inv[a] = (inv[a] || 0) + lineVal(l); });
+        add('stockOut', 'إذن صرف', r, r.no, r.date, r.notes || `صرف أصناف إلى ${r.costCenter || r.to || ''} — ${linesSummary(r)}`,
+          [L(accCode(r.account), tot), ...Object.entries(inv).map(([a, v]) => L(a, 0, v))]); });
       // الاستحقاق: من حـ/ المصروف إلى حـ/ المرتبات المستحقة (والتأمينات)، ثم الصرف: من حـ/ المستحقة إلى حـ/ الخزينة
       eff('boxTransfers').forEach(r => add('boxTransfers', 'تحويل خزائن وبنوك', r, r.no, r.date, r.desc || `تحويل من ${r.from} إلى ${r.to}`,
         [L(boxAcc(r.to), r.amount), L(boxAcc(r.from), 0, r.amount)]));
@@ -321,12 +336,12 @@
   const custBal = name => memo('cb:' + name, () => {
     const c = db.customers.find(x => x.name === name);
     return +(c?.opening || 0) + sum(eff('salesInvoices').filter(i => i.customer === name), invTotal)
-      - sum(eff('salesReturns').filter(r => r.customer === name), r => r.amount) - sum(eff('receipts').filter(r => r.party === name), r => r.amount);
+      - sum(eff('salesReturns').filter(r => r.customer === name), r => r.amount) - sum(eff('receipts').filter(r => r.party === name && isPartyDoc(r, 'c')), r => r.amount);
   });
   const suppBal = name => memo('sb:' + name, () => {
     const s = db.suppliers.find(x => x.name === name);
-    return +(s?.opening || 0) + sum(eff('purchaseInvoices').filter(i => i.supplier === name), i => i.amount)
-      - sum(eff('purchaseReturns').filter(r => r.supplier === name), r => r.amount) - sum(eff('payments').filter(r => r.party === name), r => r.amount);
+    return +(s?.opening || 0) + sum(eff('purchaseInvoices').filter(i => i.supplier === name), i => i.amount) + sum(eff('stockIn').filter(r => r.supplier === name), r => docTotals(r).net)
+      - sum(eff('purchaseReturns').filter(r => r.supplier === name), r => r.amount) - sum(eff('payments').filter(r => r.party === name && isPartyDoc(r, 's')), r => r.amount);
   });
   const salesPaid = inv => sum(eff('receipts').filter(r => r.invoice === inv.no), r => r.amount) + sum(eff('salesReturns').filter(r => r.invoice === inv.no), r => r.amount);
   const purchPaid = inv => sum(eff('payments').filter(r => r.invoice === inv.no), r => r.amount) + sum(eff('purchaseReturns').filter(r => r.invoice === inv.no), r => r.amount);
@@ -335,12 +350,20 @@
   const purchStatus = r => invStatus(+r.amount, purchPaid(r), r.due);
 
   // ----- المخزون -----
+  // الإذن الواحد يحمل عدة أصناف (lines)؛ الأذون القديمة صنف واحد
+  const linesOf = r => Array.isArray(r.lines) && r.lines.length ? r.lines : r.item ? [{ item: r.item, unit: r.unit, qty: r.qty, price: r.price || 0, vatRate: 0, whtRate: 0 }] : [];
+  const lineVal = l => (+l.qty || 0) * (+l.price || 0);
+  const lineVat = l => lineVal(l) * (+l.vatRate || 0) / 100, lineWht = l => lineVal(l) * (+l.whtRate || 0) / 100;
+  const docTotals = r => { const ls = linesOf(r), sub = sum(ls, lineVal), vat = sum(ls, lineVat), wht = sum(ls, lineWht); return { sub, vat, wht, net: sub + vat - wht, n: ls.length, qty: sum(ls, l => +l.qty || 0) }; };
+  const linesSummary = r => { const ls = linesOf(r); return ls.length ? ls.slice(0, 2).map(l => l.item).join('، ') + (ls.length > 2 ? ` و${ls.length - 2} أخرى` : '') : ''; };
+  const stockRows = t => memo('sr:' + t, () => eff(t).flatMap(r => linesOf(r).map(l => ({ ...l, date: r.date, no: r.no, warehouse: r.warehouse, doc: r }))));
+  const itemStore = n => { const s = db.items.find(i => i.name === n)?.store; return s && acc(s) && !hasChildren(s) ? s : ''; };
   const stockMap = () => memo('stock', () => {
     const m = {}; const k = (i, w) => `${i}|${w}`;
     const addQ = (i, w, q) => { m[k(i, w)] = (m[k(i, w)] || 0) + (+q || 0); };
     db.items.forEach(i => addQ(i.name, i.warehouse, i.opening));
-    eff('stockIn').forEach(r => addQ(r.item, r.warehouse, baseQty(r)));
-    eff('stockOut').forEach(r => addQ(r.item, r.warehouse, -baseQty(r)));
+    stockRows('stockIn').forEach(l => addQ(l.item, l.warehouse, baseQty(l)));
+    stockRows('stockOut').forEach(l => addQ(l.item, l.warehouse, -baseQty(l)));
     eff('transfers').forEach(r => { addQ(r.item, r.from, -baseQty(r)); addQ(r.item, r.to, baseQty(r)); });
     return m;
   });
@@ -432,13 +455,28 @@
   // حالات الشيك: الوارد (سند قبض) والصادر (سند صرف)
   const CHQ_IN = ['تحت التحصيل', 'محصّل', 'مرتد'], CHQ_OUT = ['لم يُصرف', 'مصروف', 'مرتد'];
   const chqOpen = r => r.method === 'شيك' && (r.chequeStatus || CHQ_IN[0]) !== 'مرتد' && !['محصّل', 'مصروف'].includes(r.chequeStatus);
-  const bankFields = (side, who, statuses = CHQ_IN) => [
+  // قائمة "اسم المستفيد" تتغير حسب "اسم الحساب" المختار
+  const treasAccOpts = () => leafAccounts().filter(a => !isTreasury(a.code) && a.code !== SYS.chqIn && a.code !== SYS.chqOut).map(accLabel);
+  const partyOpts = v => { const code = accCode(v), k = partyKind(code);
+    if (k === 'c') return db.customers.filter(c => code === SYS.customers || custAcc(c.name) === code).map(c => c.name);
+    if (k === 's') return db.suppliers.filter(s => code === SYS.suppliers || suppAcc(s.name) === code).map(s => s.name);
+    if (k === 'o') return [acc(code)?.name].filter(Boolean);
+    const hist = [...db.receipts, ...db.payments].filter(r => code && accCode(r.account) === code && r.party && r.party !== 'أخرى').map(r => r.party);
+    return [...new Set(k === 'e' ? [...staffNames(), ...db.workers.map(w => w.name), ...hist] : hist)]; };
+  const partyCheck = d => { const code = accCode(d.account), k = partyKind(code), ok = partyOpts(d.account);
+    if (!code) return 'اختر اسم الحساب';
+    if (k === 'c' && !ok.includes(d.party)) return `اختر العميل من عملاء "${acc(code)?.name}"`;
+    if (k === 's' && !ok.includes(d.party)) return `اختر المورد من موردي "${acc(code)?.name}"`;
+    if (k === 'o') d.party = ok[0];
+    return ''; };
+  const partyName = r => r.party && r.party !== 'أخرى' ? r.party : r.beneficiary || acc(accCode(r.account))?.name || r.party || '';
+  const bankFields = (side, who, statuses = CHQ_IN, withBen = true) => [
     C('method', 'طريقة الإيداع / الصرف', { input: 'select', options: () => PAY_METHODS, formOnly: true, when: side }),
     C('chequeNo', 'رقم الشيك', { optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' }),
     C('chequeDate', 'تاريخ استحقاق الشيك', { input: 'date', optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' }),
     C('chequeStatus', 'حالة الشيك', { input: 'select', options: () => statuses, optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' }),
     C('clearDate', 'تاريخ التحصيل / الصرف', { input: 'date', optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' && ['محصّل', 'مصروف'].includes(f.chequeStatus) }),
-    C('beneficiary', who, { optional: true, formOnly: true, when: side }),
+    ...(withBen ? [C('beneficiary', who, { optional: true, formOnly: true, when: side })] : []),
     C('benAccount', 'رقم حساب المستفيد', { optional: true, formOnly: true, when: f => side(f) && f.method !== 'نقدي' }),
     C('benBank', 'بنك المستفيد', { optional: true, formOnly: true, when: f => side(f) && f.method !== 'نقدي' })];
   const bankCheck = (d, side, needBen, statuses = CHQ_IN) => {
@@ -449,11 +487,34 @@
     if (['محصّل', 'مصروف'].includes(d.chequeStatus)) d.clearDate ||= today(); else d.clearDate = '';
     if (d.method !== 'شيك') { d.chequeNo = ''; d.chequeDate = ''; d.chequeStatus = ''; d.clearDate = ''; }
     if (d.method === 'نقدي') { d.benAccount = ''; d.benBank = ''; }
-    if (needBen && d.method === 'تحويل بنكي' && (!d.beneficiary || !d.benAccount || !d.benBank)) return 'التحويل البنكي يحتاج اسم المستفيد ورقم حسابه واسم البنك الخاص به';
+    if (needBen && d.method === 'تحويل بنكي' && (!(d.beneficiary || d.party) || !d.benAccount || !d.benBank)) return 'التحويل البنكي يحتاج اسم المستفيد ورقم حسابه واسم البنك الخاص به';
     return '';
   };
 
   const itemUnit = n => db.items.find(i => i.name === n)?.unit || '';
+  // التحقق من إذن متعدد الأصناف: الأصناف موجودة، الكميات، الوحدات، والرصيد عند الصرف
+  function stockDocCheck(d, rec, dir) {
+    const ls = (Array.isArray(d.lines) ? d.lines : []).filter(l => l.item);
+    if (!ls.length) return 'أضف صنفاً واحداً على الأقل';
+    for (const l of ls) {
+      if (!db.items.some(i => i.name === l.item)) return `الصنف "${l.item}" غير موجود في قاعدة بيانات الأصناف`;
+      if (!(+l.qty > 0)) return `اكتب كمية "${l.item}"`;
+      const ue = unitErr(l); if (ue) return ue;
+      ['qty', 'price', 'vatRate', 'whtRate'].forEach(k => { l[k] = +l[k] || 0; });
+    }
+    d.lines = ls; ['item', 'qty', 'unit'].forEach(k => { d[k] = ''; });
+    if (dir === 'in' && sum(ls, lineVal) > 0 && !d.supplier) return 'اختر المورد — الأصناف لها سعر وستُرحّل على حسابه';
+    if (dir === 'out') {
+      if (sum(ls, lineVal) > 0 && !d.account) return 'اختر اسم الحساب (المصروف أو الجهة المدينة)';
+      const need = {}; ls.forEach(l => { need[l.item] = (need[l.item] || 0) + baseQty(l); });
+      for (const [it, q] of Object.entries(need)) {
+        const mine = rec && rec.warehouse === d.warehouse ? sum(linesOf(rec).filter(l => l.item === it), baseQty) : 0;
+        const avail = stockAt(it, d.warehouse) + mine;
+        if (q > avail + 1e-9) return `الرصيد المتاح من "${it}" في ${d.warehouse} هو ${num(avail)} ${itemUnit(it)} فقط`;
+      }
+    }
+    return '';
+  }
   const unitErr = d => d.unit && d.item && isNaN(convertQty(1, d.unit, itemUnit(d.item))) ? `لا يمكن تحويل "${d.unit}" إلى وحدة الصنف "${itemUnit(d.item)}" — عرّف معامل التحويل في قاعدة بيانات الوحدات` : '';
   const unitPick = (f, v) => { const u = itemUnit(v); if (f.unit && u && !f.unit.value) [...f.unit.options].forEach(o => { o.hidden = o.value && !sameFamily(o.value, u); }); };
   const qtyNote = r => r.unit && r.unit !== itemUnit(r.item) ? ` (${num(r.qty)} ${r.unit})` : '';
@@ -504,8 +565,12 @@
       defaults: () => ({ factor: 1 }),
       validate: d => { if (d.base && d.base !== d.name && !(+d.factor > 0)) return 'اكتب معامل التحويل (أكبر من صفر)'; if (!d.base || d.base === d.name) { d.base = ''; d.factor = 1; }
         let u = d.base, seen = new Set([d.name]); while (u) { if (seen.has(u)) return 'التحويل يرجع لنفس الوحدة — راجع الوحدة الأساسية'; seen.add(u); u = unitOf(u)?.base; } } },
+    branches: { title: 'الفروع', sub: 'الفروع ومراكز التكلفة التابعة لكل فرع', single: 'فرع', key: 'name', cols: [
+      C('code', 'الكود', CODE), C('name', 'اسم الفرع'), C('address', 'العنوان', { optional: true }), C('manager', 'المسئول', { optional: true }), C('phone', 'الهاتف', { optional: true }),
+      C('ccCount', 'مراكز التكلفة', { cls: 'num', compute: r => db.costCenters.filter(c => c.branch === r.name).length }),
+      C('area', 'المساحة', { cls: 'num', compute: r => sum(db.costCenters.filter(c => c.branch === r.name), c => +c.area || 0), render: num, total: true })] },
     costCenters: { title: 'مراكز التكلفة', sub: 'الفرع › القطاع › مركز التكلفة والمساحة', single: 'مركز تكلفة', key: 'name', filter: 'branch', cols: [
-      C('code', 'الكود', CODE), C('branch', 'الفرع', { render: plain, suggest: () => [...new Set(db.costCenters.map(c => c.branch).filter(Boolean))] }),
+      C('code', 'الكود', CODE), C('branch', 'الفرع', { render: plain, input: 'select', options: () => { const l = db.branches.map(b => b.name); return l.length ? l : [...new Set(db.costCenters.map(c => c.branch).filter(Boolean))]; } }),
       C('sector', 'القطاع', { suggest: () => [...new Set(db.costCenters.map(c => c.sector).filter(Boolean))] }), C('name', 'مركز التكلفة'),
       C('area', 'المساحة', { ...N, total: true }), C('areaUnit', 'وحدة المساحة', { input: 'select', options: opt('فدان', 'قيراط', 'م²', 'هكتار') }),
       C('staff', 'العاملون', { cls: 'num', compute: r => allStaff().filter(x => x.costCenter === r.name).length }),
@@ -539,16 +604,16 @@
       C('balance', 'الرصيد', computed(r => acc(r.accountNo) ? ownBal(acc(r.accountNo)) : 0, { total: true }))],
       actions: [{ icon: 'cash', title: 'فتح صفحة الحركات', fn: r => goTo('box/' + r.id) }, { icon: 'list', title: 'كشف حركة الخزينة', fn: r => openLedger(r.accountNo) }],
       validate: (d, rec) => db.cashboxes.some(b => b.accountNo === d.accountNo && b !== rec) ? 'هذا الحساب مرتبط بخزينة أخرى' : '' },
-    receipts: { title: 'سندات القبض', sub: 'يُرحّل: من حـ/ الخزينة إلى حـ/ العميل (حسب تصنيفه) أو الحساب المقابل', single: 'سند قبض', key: 'no', cols: [
-      C('no', 'رقم السند', CODE), C('date', 'التاريخ', D), boxField(),
-      C('party', 'المستلم منه', { input: 'select', options: () => [...db.customers.map(c => c.name), 'أخرى'] }),
-      C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]) }),
-      C('account', 'الحساب المقابل', { input: 'select', optional: true, allowEmpty: '— (لغير العملاء) —', options: leafOpts('4', '2', '12'), formOnly: true, full: true }),
-      C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), 'اسم المودِع / المحوِّل'), C('desc', 'البيان', { full: true, optional: true })],
+    receipts: { title: 'سندات القبض', sub: 'اختر اسم الحساب ثم المستفيد من قائمته — يُرحّل بعد الاعتماد: من حـ/ الخزينة أو البنك إلى حـ/ الحساب المختار', single: 'سند قبض', key: 'no', cols: [
+      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), boxField(),
+      C('account', 'اسم الحساب', { input: 'select', allowEmpty: '— اختر الحساب —', options: treasAccOpts, full: true, render: (v, r) => `<span class="hint">${esc(v || (isCustomer(r.party) ? accLabel(acc(custAcc(r.party)) || { code: '', name: '' }) : '—'))}</span>` }),
+      C('party', 'اسم المستفيد / الطرف', { optional: true, full: true, dyn: true, suggest: v => partyOpts(v?.account), render: (v, r) => esc(partyName(r)) }),
+      C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', formOnly: true, options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]), when: f => partyKind(accCode(f.account)) === 'c' }),
+      C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), '', CHQ_IN, false), C('desc', 'البيان', { full: true, optional: true })],
       defaults: () => ({ method: 'نقدي' }),
       validate: d => {
         const be = bankCheck(d, bankSide('box'), false); if (be) return be;
-        if (d.party === 'أخرى' && !d.account) return 'اختر الحساب المقابل للمقبوضات من غير العملاء';
+        const pe = partyCheck(d); if (pe) return pe;
         const inv = db.salesInvoices.find(i => i.no === d.invoice);
         if (inv && inv.customer !== d.party) return `الفاتورة ${inv.no} تخص ${inv.customer}`;
       } },
@@ -564,16 +629,16 @@
         const a = acc(boxAcc(d.from)); const avail = a ? ownBal(a) + (rec && rec.from === d.from ? +rec.amount : 0) : 0;
         if (+d.amount > avail && !ask(`رصيد ${d.from} (${nf.format(avail)}) لا يكفي. متابعة؟`)) return 'تم الإلغاء';
       } },
-    payments: { title: 'سندات الصرف', sub: 'يُرحّل: من حـ/ المورد (حسب تصنيفه) أو مسحوبات المالك أو المصروف إلى حـ/ الخزينة', single: 'سند صرف', key: 'no', cols: [
-      C('no', 'رقم السند', CODE), C('date', 'التاريخ', D), boxField(),
-      C('party', 'المصروف إليه', { input: 'select', options: () => [...db.suppliers.map(c => [c.name, `مورد: ${c.name}`]), ...childrenOf(SYS.drawings).map(a => [a.name, `مسحوبات: ${a.name}`]), ['أخرى', 'أخرى (حدد الحساب)']] }),
-      C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.purchaseInvoices.map(i => [i.no, `${i.no} — ${i.supplier}`]) }),
-      C('account', 'الحساب المقابل', { input: 'select', optional: true, allowEmpty: '— (لغير الموردين) —', options: leafOpts('3', '1', '2'), formOnly: true, full: true }),
-      C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), 'اسم المستفيد', CHQ_OUT), C('desc', 'البيان', { full: true, optional: true })],
+    payments: { title: 'سندات الصرف', sub: 'اختر اسم الحساب ثم المستفيد من قائمته — يُرحّل بعد الاعتماد: من حـ/ الحساب المختار إلى حـ/ الخزينة أو البنك', single: 'سند صرف', key: 'no', cols: [
+      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), boxField(),
+      C('account', 'اسم الحساب', { input: 'select', allowEmpty: '— اختر الحساب —', options: treasAccOpts, full: true, render: (v, r) => `<span class="hint">${esc(v || (isSupplier(r.party) ? accLabel(acc(suppAcc(r.party)) || { code: '', name: '' }) : '—'))}</span>` }),
+      C('party', 'اسم المستفيد', { optional: true, full: true, dyn: true, suggest: v => partyOpts(v?.account), render: (v, r) => esc(partyName(r)) }),
+      C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', formOnly: true, options: () => db.purchaseInvoices.map(i => [i.no, `${i.no} — ${i.supplier}`]), when: f => partyKind(accCode(f.account)) === 's' }),
+      C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), '', CHQ_OUT, false), C('desc', 'البيان', { full: true, optional: true })],
       defaults: () => ({ method: 'نقدي' }),
       validate: (d, rec) => {
         const be = bankCheck(d, bankSide('box'), true, CHQ_OUT); if (be) return be;
-        if (d.party === 'أخرى' && !d.account) return 'اختر الحساب المقابل (نوع المصروف)';
+        const pe = partyCheck(d); if (pe) return pe;
         const inv = db.purchaseInvoices.find(i => i.no === d.invoice);
         if (inv && inv.supplier !== d.party) return `الفاتورة ${inv.no} تخص ${inv.supplier}`;
         const a = acc(boxAcc(d.box)); const avail = a ? ownBal(a) + (rec && rec.box === d.box ? +rec.amount : 0) : 0;
@@ -631,19 +696,28 @@
       validate: d => { const inv = db.purchaseInvoices.find(i => i.no === d.invoice); if (inv && inv.supplier !== d.supplier) return `الفاتورة ${inv.no} تخص ${inv.supplier}`; } },
 
     // ===== المخازن =====
-    stockIn: { title: 'أذون الإضافة', sub: 'تزيد رصيد الصنف في المخزن', single: 'إذن إضافة', key: 'no', cols: [
-      C('no', 'رقم الإذن', CODE), C('date', 'التاريخ', D), C('warehouse', 'المخزن', { input: 'select', options: names('warehouses') }),
-      C('item', 'الصنف', { input: 'select', options: names('items') }), C('qty', 'الكمية', N), C('unit', 'الوحدة', { input: 'select', optional: true, allowEmpty: '— وحدة الصنف —', options: () => db.units.map(u => u.name) }), C('baseQty', 'بوحدة الصنف', { cls: 'num', compute: r => r.unit && r.unit !== itemUnit(r.item) ? baseQty(r) : '', render: (v, r) => v === '' ? '' : `${num(v)} ${esc(itemUnit(r.item))}` }), C('source', 'الوارد من', { full: true })],
-      validate: d => unitErr(d), onSelect: { item: unitPick } },
-    stockOut: { title: 'أذون الصرف', sub: 'تنقص رصيد الصنف — لا يُسمح بالصرف بأكثر من الرصيد', single: 'إذن صرف', key: 'no', cols: [
-      C('no', 'رقم الإذن', CODE), C('date', 'التاريخ', D), C('warehouse', 'المخزن', { input: 'select', options: names('warehouses') }),
-      C('item', 'الصنف', { input: 'select', options: names('items') }), C('qty', 'الكمية', N), C('unit', 'الوحدة', { input: 'select', optional: true, allowEmpty: '— وحدة الصنف —', options: () => db.units.map(u => u.name) }), C('baseQty', 'بوحدة الصنف', { cls: 'num', compute: r => r.unit && r.unit !== itemUnit(r.item) ? baseQty(r) : '', render: (v, r) => v === '' ? '' : `${num(v)} ${esc(itemUnit(r.item))}` }), C('to', 'المنصرف إلى', { full: true })],
-      onSelect: { item: unitPick },
-      validate: (d, rec) => {
-        const ue = unitErr(d); if (ue) return ue;
-        const avail = stockAt(d.item, d.warehouse) + (rec && rec.item === d.item && rec.warehouse === d.warehouse ? baseQty(rec) : 0);
-        if (baseQty(d) > avail) return `الرصيد المتاح من "${d.item}" في ${d.warehouse} هو ${num(avail)} ${itemUnit(d.item)} فقط`;
-      } },
+    stockIn: { title: 'أذون الإضافة (الاستلام)', sub: 'استلام أصناف — عدة أصناف في الإذن · بعد الاعتماد يُرحّل: من حـ/ المخزون و ض.ق.م إلى حـ/ المورد و ض. الخصم والإضافة', single: 'إذن إضافة', key: 'no', wide: true, filter: 'warehouse', cols: [
+      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), C('warehouse', 'اسم المخزن', { input: 'select', options: names('warehouses') }),
+      C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— حساب مخزون كل صنف —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.inventory)).map(accLabel), render: v => `<span class="hint">${v ? esc(v) : 'حسب الصنف'}</span>` }),
+      C('supplier', 'المورد', { input: 'select', optional: true, allowEmpty: '— بدون مورد —', options: names('suppliers'), render: (v, r) => esc(v || r.source || '—') }),
+      C('branch', 'الفرع', { input: 'select', optional: true, allowEmpty: '—', options: names('branches') }),
+      C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true, tax: true }),
+      C('itemsSum', 'الأصناف', { compute: linesSummary, render: (v, r) => `${esc(v)} <span class="hint">(${docTotals(r).n})</span>` }),
+      C('sub', 'القيمة', computed(r => docTotals(r).sub, { total: true })), C('vat', 'ض.ق.م', computed(r => docTotals(r).vat, { total: true })),
+      C('wht', 'ض. خصم وإضافة', computed(r => docTotals(r).wht, { total: true })), C('net', 'صافي الفاتورة', computed(r => docTotals(r).net, { total: true, render: v => `<b>${money(v)}</b>` })),
+      C('notes', 'البيان', { optional: true, full: true, formOnly: true })],
+      validate: (d, rec) => stockDocCheck(d, rec, 'in') },
+    stockOut: { title: 'أذون الصرف', sub: 'صرف أصناف لمركز تكلفة — عدة أصناف في الإذن · بعد الاعتماد يُرحّل بالتكلفة: من حـ/ الحساب المختار إلى حـ/ المخزون', single: 'إذن صرف', key: 'no', wide: true, filter: 'warehouse', cols: [
+      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), C('warehouse', 'اسم المخزن', { input: 'select', options: names('warehouses') }),
+      C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— اختر الحساب المدين —', options: () => leafAccounts().filter(a => !isTreasury(a.code) && !a.code.startsWith(SYS.inventory) && /^[123]/.test(a.code)).map(accLabel), render: v => `<span class="hint">${esc(v || '—')}</span>` }),
+      C('costCenter', 'جهة الصرف (مركز التكلفة)', { input: 'select', optional: true, allowEmpty: '— اختر مركز التكلفة —', options: () => db.costCenters.map(c => [c.name, `${c.name}${c.sector ? ' — ' + c.sector : ''}`]), render: (v, r) => esc(v || r.to || '—') }),
+      C('branch', 'الفرع التابع له', { input: 'select', optional: true, allowEmpty: '—', options: names('branches') }),
+      C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true }),
+      C('itemsSum', 'الأصناف', { compute: linesSummary, render: (v, r) => `${esc(v)} <span class="hint">(${docTotals(r).n})</span>` }),
+      C('net', 'القيمة بالتكلفة', computed(r => docTotals(r).sub, { total: true, render: v => `<b>${money(v)}</b>` })),
+      C('notes', 'البيان', { optional: true, full: true, formOnly: true })],
+      onSelect: { costCenter: (f, v) => { const c = db.costCenters.find(x => x.name === v), b = f.namedItem('branch'); if (c && b) b.value = c.branch || ''; } },
+      validate: (d, rec) => stockDocCheck(d, rec, 'out') },
     transfers: { title: 'التحويلات المخزنية', sub: 'نقل رصيد بين المخازن', single: 'تحويل', key: 'no', cols: [
       C('no', 'رقم التحويل', CODE), C('date', 'التاريخ', D), C('from', 'من مخزن', { input: 'select', options: names('warehouses') }),
       C('to', 'إلى مخزن', { input: 'select', options: names('warehouses') }), C('item', 'الصنف', { input: 'select', options: names('items') }), C('qty', 'الكمية', N), C('unit', 'الوحدة', { input: 'select', optional: true, allowEmpty: '— وحدة الصنف —', options: () => db.units.map(u => u.name) }), C('baseQty', 'بوحدة الصنف', { cls: 'num', compute: r => r.unit && r.unit !== itemUnit(r.item) ? baseQty(r) : '', render: (v, r) => v === '' ? '' : `${num(v)} ${esc(itemUnit(r.item))}` })],
@@ -735,7 +809,7 @@
   // الروابط بين الجداول: عند تغيير الاسم يتحدث في كل مكان، ولا يُحذف سجل مستخدم
   const refs = {
     customers: [['salesInvoices', 'customer'], ['salesQuotes', 'customer'], ['salesReturns', 'customer'], ['receipts', 'party']],
-    suppliers: [['purchaseOrders', 'supplier'], ['purchaseInvoices', 'supplier'], ['purchaseReturns', 'supplier'], ['payments', 'party']],
+    suppliers: [['purchaseOrders', 'supplier'], ['purchaseInvoices', 'supplier'], ['purchaseReturns', 'supplier'], ['payments', 'party'], ['stockIn', 'supplier']],
     items: [['stockIn', 'item'], ['stockOut', 'item'], ['transfers', 'item']],
     warehouses: [['items', 'warehouse'], ['stockIn', 'warehouse'], ['stockOut', 'warehouse'], ['transfers', 'from'], ['transfers', 'to']],
     departments: [['employees', 'department']],
@@ -744,14 +818,15 @@
     girlsTemp: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee']],
     bangladesh: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee']],
     units: [['items', 'unit'], ['units', 'base'], ['stockIn', 'unit'], ['stockOut', 'unit'], ['transfers', 'unit']],
-    costCenters: [['employees', 'costCenter'], ['girlsFixed', 'costCenter'], ['girlsTemp', 'costCenter'], ['bangladesh', 'costCenter']],
+    costCenters: [['employees', 'costCenter'], ['girlsFixed', 'costCenter'], ['girlsTemp', 'costCenter'], ['bangladesh', 'costCenter'], ['stockOut', 'costCenter']],
+    branches: [['costCenters', 'branch'], ['stockIn', 'branch'], ['stockOut', 'branch']],
     workers: [['dailyLabor', 'worker'], ['advances', 'worker'], ['machineOps', 'operator'], ['maintenanceOrders', 'technician']],
     machines: [['machineOps', 'machine'], ['maintenanceOrders', 'machine'], ['maintenancePlan', 'machine']],
     cashboxes: [['receipts', 'box'], ['payments', 'box'], ['boxTransfers', 'from'], ['boxTransfers', 'to'], ['payroll', 'box'], ['dailyLabor', 'box'], ['advances', 'box'], ['maintenanceOrders', 'box']],
     salesInvoices: [['receipts', 'invoice'], ['salesReturns', 'invoice']],
     purchaseInvoices: [['payments', 'invoice'], ['purchaseReturns', 'invoice']],
   };
-  const usages = (name, value) => (refs[name] || []).map(([t, f]) => [t, db[t].filter(r => r[f] === value).length]).filter(([, n]) => n);
+  const usages = (name, value) => (refs[name] || []).map(([t, f]) => [t, db[t].filter(r => r[f] === value || (Array.isArray(r.lines) && r.lines.some(l => l[f] === value))).length]).filter(([, n]) => n);
 
   // ---------- الصفحات الخاصة ----------
   const pages = {
@@ -789,7 +864,7 @@
       { title: 'العملاء والموردون', icon: 'users', items: ['customers', 'suppliers'] },
       { title: 'الأصناف والمخازن', icon: 'box', items: ['items', 'units', 'warehouses'] },
       { title: 'العاملون', icon: 'users', items: ['employees', 'girlsFixed', 'girlsTemp', 'bangladesh', 'workers', 'departments'] },
-      { title: 'مراكز التكلفة والمحاصيل', icon: 'list', items: ['costCenters', 'crops'] },
+      { title: 'الفروع ومراكز التكلفة', icon: 'list', items: ['branches', 'costCenters', 'crops'] },
       'machines'] },
     { title: 'الإدارة والإعدادات', icon: 'shield', items: ['dashboard', 'approvals', 'users', 'import', 'database', 'settings'] },
   ];
@@ -798,7 +873,7 @@
     cashboxes: '🗃️', bankMoves: '🧾', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
     purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
     attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
-    customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', units: '⚖️', costCenters: '🎯', crops: '🌱', girlsFixed: '👩‍🌾', girlsTemp: '👩', bangladesh: '🧑‍🔧', workers: '🦺', departments: '🏢', machines: '🚜',
+    customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', units: '⚖️', branches: '📍', costCenters: '🎯', crops: '🌱', girlsFixed: '👩‍🌾', girlsTemp: '👩', bangladesh: '🧑‍🔧', workers: '🦺', departments: '🏢', machines: '🚜',
   };
   // مسار كل صفحة داخل القائمة (لفتح المجموعات التي تحتويها)
   let pagePath = {};
@@ -1043,18 +1118,19 @@
   // ---------- النافذة المنبثقة ----------
   const modal = $('#modal'), form = $('#modalForm');
   let onSubmit = null, condUpd = null;
-  const field = (c, v) => {
+  const field = (c, v, vals = {}) => {
+    if (c.input === 'lines') return `<div class="field full" data-f="${c.key}"><label>${c.label}</label><div class="lines-box" data-lines="${c.key}" data-tax="${c.tax ? 1 : ''}"></div><input type="hidden" name="${c.key}" value="${esc(JSON.stringify(Array.isArray(v) ? v : []))}"></div>`;
     if (c.input === 'checks') return `<div class="field full"><label>${c.label}</label><div class="checks">${c.options().map(o => `<label class="check"><input type="checkbox" name="${c.key}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div></div>`;
     const input = c.input === 'select'
       ? `<select class="input" name="${c.key}" ${c.optional ? '' : 'required'}>${c.allowEmpty ? `<option value="">${c.allowEmpty}</option>` : ''}${c.options().map(o => { const [ov, ol] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`; }).join('')}</select>`
-      : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.optional ? '' : 'required'} ${c.suggest ? `list="dl-${c.key}" autocomplete="off"` : ''}>${c.suggest ? `<datalist id="dl-${c.key}">${c.suggest().map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : ''}`;
+      : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.optional ? '' : 'required'} ${c.suggest ? `list="dl-${c.key}" autocomplete="off"` : ''}>${c.suggest ? `<datalist id="dl-${c.key}">${c.suggest(vals).map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : ''}`;
     return `<div class="field ${c.full ? 'full' : ''}" data-f="${c.key}"><label>${c.label}</label>${input}</div>`;
   };
   function openModal(title, fields, values, submit) {
     form.classList.remove('wide', 'info');
     $('#saveBtn').textContent = 'حفظ'; $('#saveBtn').disabled = false;
     $('#modalTitle').textContent = title;
-    $('#modalBody').innerHTML = `<div class="form-grid">${fields.map(c => field(c, values[c.key] ?? '')).join('')}</div>`; condUpd = null;
+    $('#modalBody').innerHTML = `<div class="form-grid">${fields.map(c => field(c, values[c.key] ?? '', values)).join('')}</div>`; condUpd = null;
     onSubmit = submit;
     modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false');
     $('#modalBody .input')?.focus();
@@ -1066,7 +1142,7 @@
     onSubmit = null;
     modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false');
   }
-  function closeModal() { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); onSubmit = null; }
+  function closeModal() { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); onSubmit = null; condUpd = null; $('#modalBody').innerHTML = ''; }
   $$('[data-close]', modal).forEach(b => b.onclick = closeModal);
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
@@ -1107,14 +1183,15 @@
       // السجل الحالي من قاعدة البيانات (قد يكون مستخدم آخر عدّله أو حذفه)
       const cur = recId ? db[name].find(r => r.id === recId) : null;
       if (recId && !cur) { toast('هذا السجل حذفه مستخدم آخر'); return; }
-      fields.forEach(c => { if (c.input === 'number') data[c.key] = +data[c.key] || 0; });
+      fields.forEach(c => { if (c.input === 'number') data[c.key] = +data[c.key] || 0; if (c.input === 'lines') { try { data[c.key] = JSON.parse(data[c.key] || '[]'); } catch { data[c.key] = []; } } });
       if (m.key && db[name].some(r => r !== cur && r[m.key] === data[m.key])) { toast(`"${data[m.key]}" مسجل من قبل`); return false; }
       const err = m.validate?.(data, cur);
       if (err) { toast(err, 3500); return false; }
-      const changed = !cur || fields.some(c => String(cur[c.key] ?? '') !== String(data[c.key] ?? ''));
+      const sv = v => v && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '');
+      const changed = !cur || fields.some(c => sv(cur[c.key]) !== sv(data[c.key]));
       let saved = cur;
       if (cur) {
-        if (m.key && cur[m.key] !== data[m.key]) (refs[name] || []).forEach(([tb, f]) => db[tb].forEach(r => { if (r[f] === cur[m.key]) r[f] = data[m.key]; }));
+        if (m.key && cur[m.key] !== data[m.key]) (refs[name] || []).forEach(([tb, f]) => db[tb].forEach(r => { if (r[f] === cur[m.key]) r[f] = data[m.key]; (Array.isArray(r.lines) ? r.lines : []).forEach(l => { if (l[f] === cur[m.key]) l[f] = data[m.key]; }); }));
         Object.assign(cur, data);
       } else {
         saved = { id: genId(), ...data };
@@ -1129,10 +1206,20 @@
       toast(posted ? `تم الحفظ والترحيل — قيد ${posted.no}` : cur ? 'تم حفظ التعديلات' : 'تمت الإضافة بنجاح');
     });
     if (record?._at) showAudit(record);
+    if (m.wide) form.classList.add('wide');
+    $$('#modalBody .lines-box').forEach(box => initLines(box, form.elements.namedItem(box.dataset.lines), { tax: !!box.dataset.tax, priceOf: it => +it.cost || 0 }));
+    // قوائم اقتراحات تتغير حسب حقل آخر (اسم المستفيد حسب اسم الحساب)
+    const dyns = fields.filter(c => c.dyn);
     // حقول تظهر حسب الاختيار (مثل بيانات الشيك والتحويل البنكي عند اختيار بنك)
     const conds = fields.filter(c => c.when);
-    if (conds.length) {
-      const upd = () => { const v = Object.fromEntries(new FormData(form)); conds.forEach(c => { const el = $(`#modalBody [data-f="${c.key}"]`); if (el) el.hidden = !c.when(v); }); };
+    if (conds.length || dyns.length) {
+      let lastDyn = null;
+      const upd = () => { const v = Object.fromEntries(new FormData(form)); conds.forEach(c => { const el = $(`#modalBody [data-f="${c.key}"]`); if (el) el.hidden = !c.when(v); });
+        const sig = JSON.stringify(v.account ?? ''); if (sig === lastDyn) return; const first = lastDyn === null; lastDyn = sig;
+        dyns.forEach(c => { const list = c.suggest(v), dl = $(`#dl-${c.key}`), inp = form.elements.namedItem(c.key); if (dl) dl.innerHTML = list.map(o => `<option value="${esc(o)}">`).join('');
+          if (!inp) return; inp.placeholder = list.length ? `اختر من ${list.length} — أو اكتب` : 'اكتب اسم المستفيد';
+          if (!first && inp.value && list.length && !list.includes(inp.value) && ['c', 's', 'o'].includes(partyKind(accCode(v.account)))) inp.value = '';
+          if (list.length === 1 && !inp.value) inp.value = list[0]; }); };
       condUpd = upd; upd();
     }
     // تعبئة تلقائية عند اختيار عنصر مرتبط
@@ -1140,6 +1227,80 @@
       const f = form.elements;
       Object.entries(m.onSelect).forEach(([k, fn]) => { const el = f.namedItem(k); el?.addEventListener('change', e => fn(f, e.target.value)); if (!record && el && !(k in prefill)) fn(f, el.value); });
     }
+  }
+
+  // ---------- محرر الأصناف (مثل Excel): صف لكل صنف، يجلب بيانات الصنف تلقائياً ----------
+  function initLines(box, hidden, { tax, priceOf }) {
+    let rows = []; try { rows = JSON.parse(hidden.value || '[]'); } catch {}
+    rows = rows.map(l => ({ ...l }));
+    const blank = () => ({ item: '', unit: '', qty: '', price: '', vatRate: tax ? db.settings.vat ?? 14 : 0, whtRate: tax ? 1 : 0 });
+    rows.push(blank());
+    const wh = () => form.elements.namedItem('warehouse')?.value || '';
+    const itemOf = n => db.items.find(i => i.name === n);
+    const unitOpts = l => { const it = itemOf(l.item); const list = it ? unitsFor(l.item) : db.units.map(u => u.name);
+      return list.map(u => `<option ${u === (l.unit || it?.unit) ? 'selected' : ''}>${esc(u)}</option>`).join(''); };
+    const cell = (k, v, cls = '', type = 'number') => `<td><input class="lg-in ${cls}" data-k="${k}" type="${type}" ${type === 'number' ? 'step="any" min="0"' : ''} value="${esc(v ?? '')}"></td>`;
+    const rowHTML = (l, i) => { const it = itemOf(l.item);
+      return `<tr data-i="${i}"><td class="lg-n">${i + 1}</td>
+        <td class="lg-item"><input class="lg-in" data-k="item" list="dl-lg-items" autocomplete="off" placeholder="اكتب اسم أو كود الصنف" value="${esc(l.item)}"></td>
+        <td class="lg-ro code" data-c="code">${esc(it?.code || '')}</td>
+        <td><select class="lg-in" data-k="unit">${unitOpts(l)}</select></td>
+        <td class="lg-ro num" data-c="bal">${it ? num(stockAt(l.item, wh())) : ''}</td>
+        ${cell('qty', l.qty)}${cell('price', l.price)}
+        ${tax ? cell('vatRate', l.vatRate, 'pct') + cell('whtRate', l.whtRate, 'pct') : ''}
+        <td class="lg-ro num" data-c="val"></td>${tax ? '<td class="lg-ro num" data-c="net"></td>' : ''}
+        <td><button type="button" class="lg-del" data-del title="حذف الصف">✕</button></td></tr>`; };
+    const sync = () => {
+      const clean = rows.filter(l => l.item).map(l => ({ item: l.item, unit: l.unit || itemOf(l.item)?.unit || '', qty: +l.qty || 0, price: +l.price || 0, vatRate: tax ? +l.vatRate || 0 : 0, whtRate: tax ? +l.whtRate || 0 : 0 }));
+      hidden.value = JSON.stringify(clean);
+      $$('tbody tr', box).forEach(tr => { const l = rows[+tr.dataset.i]; if (!l) return;
+        tr.querySelector('[data-c="val"]').textContent = l.item ? money(lineVal(l)) : '';
+        const n = tr.querySelector('[data-c="net"]'); if (n) n.textContent = l.item ? money(lineVal(l) + lineVat(l) - lineWht(l)) : ''; });
+      const t = docTotals({ lines: clean });
+      box.querySelector('tfoot').innerHTML = `<tr><td colspan="5">${clean.length} صنف · إجمالي الكميات ${num(t.qty)}</td><td colspan="2"></td>${tax ? '<td colspan="2"></td>' : ''}<td class="num"><b>${money(t.sub)}</b></td>${tax ? `<td class="num"><b>${money(t.net)}</b></td>` : ''}<td></td></tr>`;
+      const sm = box.querySelector('.lg-sum');
+      if (sm) sm.innerHTML = tax ? `<span>القيمة <b>${money(t.sub)}</b></span><span>+ ضريبة القيمة المضافة <b>${money(t.vat)}</b></span><span>− ضريبة الخصم والإضافة <b>${money(t.wht)}</b></span><span class="net">صافي الفاتورة <b>${money(t.net)}</b></span>`
+        : `<span class="net">إجمالي الإذن بالتكلفة <b>${money(t.sub)}</b></span>`;
+    };
+    const draw = () => {
+      box.innerHTML = `<datalist id="dl-lg-items">${db.items.map(i => `<option value="${esc(i.name)}">${esc([i.code, i.category, i.unit].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
+        <div class="lg-wrap"><table class="lines-grid"><thead><tr><th>#</th><th>الصنف</th><th>الكود</th><th>الوحدة</th><th>الرصيد</th><th>الكمية</th><th>السعر</th>${tax ? '<th>ض.ق.م %</th><th>خصم وإضافة %</th>' : ''}<th>القيمة</th>${tax ? '<th>الصافي</th>' : ''}<th></th></tr></thead>
+        <tbody>${rows.map(rowHTML).join('')}</tbody><tfoot></tfoot></table></div>
+        <div class="lg-bar"><button type="button" class="btn ghost" data-addline>＋ صنف جديد</button><span class="hint">Enter للانتقال للخانة التالية — الصف الجديد يُضاف تلقائياً</span><div class="lg-sum"></div></div>`;
+      sync();
+    };
+    const addRow = () => { rows.push(blank()); const tb = box.querySelector('tbody'); tb.insertAdjacentHTML('beforeend', rowHTML(rows.at(-1), rows.length - 1)); };
+    const findItem = v => { const q = String(v || '').trim(); return db.items.find(i => i.name === q) || db.items.find(i => i.code && i.code.toLowerCase() === q.toLowerCase()); };
+    box.addEventListener('input', e => {
+      const inp = e.target.closest('[data-k]'), tr = e.target.closest('tr[data-i]'); if (!inp || !tr) return;
+      const i = +tr.dataset.i, k = inp.dataset.k, l = rows[i];
+      l[k] = inp.value;
+      if (k === 'item') {
+        const it = findItem(inp.value);
+        if (it) { if (inp.value !== it.name) inp.value = it.name; l.item = it.name; l.unit = it.unit || ''; if (!+l.price) l.price = priceOf(it);
+          tr.querySelector('[data-k="unit"]').innerHTML = unitOpts(l); tr.querySelector('[data-k="price"]').value = l.price;
+          tr.querySelector('[data-c="code"]').textContent = it.code || ''; tr.querySelector('[data-c="bal"]').textContent = num(stockAt(it.name, wh())); }
+        else { tr.querySelector('[data-c="code"]').textContent = ''; tr.querySelector('[data-c="bal"]').textContent = ''; }
+        if (i === rows.length - 1 && inp.value) addRow();
+      }
+      sync();
+    });
+    box.addEventListener('change', e => { const inp = e.target.closest('[data-k="unit"]'), tr = e.target.closest('tr[data-i]'); if (inp && tr) { rows[+tr.dataset.i].unit = inp.value; sync(); } });
+    box.addEventListener('click', e => {
+      if (e.target.closest('[data-addline]')) { addRow(); box.querySelector('tbody tr:last-child [data-k="item"]').focus(); return; }
+      const del = e.target.closest('[data-del]'); if (!del) return;
+      rows.splice(+del.closest('tr').dataset.i, 1); if (!rows.length || rows.at(-1).item) rows.push(blank()); draw();
+    });
+    // Enter ينقل للخانة التالية بدل حفظ النموذج
+    box.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || !e.target.matches('.lg-in')) return;
+      e.preventDefault();
+      const all = $$('.lg-in', box), idx = all.indexOf(e.target);
+      (all[idx + 1] || all[0]).focus(); all[idx + 1]?.select?.();
+    });
+    // تحديث عمود الرصيد عند تغيير المخزن
+    form.elements.namedItem('warehouse')?.addEventListener('change', () => $$('tbody tr', box).forEach(tr => { const l = rows[+tr.dataset.i]; if (l?.item) tr.querySelector('[data-c="bal"]').textContent = num(stockAt(l.item, wh())); }));
+    draw();
   }
 
   // ---------- الكشوف (عميل، مورد، صنف) ----------
@@ -1162,7 +1323,7 @@
     const rows = [
       ...eff('salesInvoices').filter(i => i.customer === c.name).map(i => ({ date: i.date, ref: i.no, desc: 'فاتورة مبيعات', a: invTotal(i), go: 'salesInvoices' })),
       ...eff('salesReturns').filter(i => i.customer === c.name).map(i => ({ date: i.date, ref: i.no, desc: `مرتجع — ${i.reason}`, b: +i.amount, go: 'salesReturns' })),
-      ...eff('receipts').filter(i => i.party === c.name).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند قبض', b: +i.amount, go: 'receipts' })),
+      ...eff('receipts').filter(i => i.party === c.name && isPartyDoc(i, 'c')).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند قبض', b: +i.amount, go: 'receipts' })),
     ];
     openInfo(`كشف حساب العميل: ${c.name}`, statementHTML(+c.opening || 0, rows, { summary: [['التصنيف', esc(c.category || '—')], ['حد الائتمان', money(c.limit)], ['الرصيد الحالي', money(custBal(c.name))], ['المتاح', money(Math.max(0, c.limit - custBal(c.name)))]] }));
     bindStatementLinks();
@@ -1171,15 +1332,16 @@
     const rows = [
       ...eff('purchaseInvoices').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: 'فاتورة مشتريات', a: +i.amount, go: 'purchaseInvoices' })),
       ...eff('purchaseReturns').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: `مرتجع — ${i.reason}`, b: +i.amount, go: 'purchaseReturns' })),
-      ...eff('payments').filter(i => i.party === s.name).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند صرف', b: +i.amount, go: 'payments' })),
+      ...eff('stockIn').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: `إذن إضافة — ${linesSummary(i)}`, a: docTotals(i).net, go: 'stockIn' })),
+      ...eff('payments').filter(i => i.party === s.name && isPartyDoc(i, 's')).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند صرف', b: +i.amount, go: 'payments' })),
     ];
     openInfo(`كشف حساب المورد: ${s.name}`, statementHTML(+s.opening || 0, rows, { inc: 'دائن (له)', dec: 'مدين (منه)', summary: [['التصنيف', esc(s.category || '—')], ['المستحق له', money(suppBal(s.name))], ['عدد الفواتير', rows.filter(r => r.a).length], ['المسدد', money(sum(rows, r => r.b))]] }));
     bindStatementLinks();
   }
   function itemCard(it) {
     const rows = [
-      ...eff('stockIn').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `إضافة إلى ${r.warehouse} — من ${r.source}${qtyNote(r)}`, a: baseQty(r), go: 'stockIn' })),
-      ...eff('stockOut').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `صرف من ${r.warehouse} — إلى ${r.to}${qtyNote(r)}`, b: baseQty(r), go: 'stockOut' })),
+      ...stockRows('stockIn').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `إضافة إلى ${r.warehouse} — من ${r.doc.supplier || r.doc.source || ''}${qtyNote(r)}`, a: baseQty(r), go: 'stockIn' })),
+      ...stockRows('stockOut').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `صرف من ${r.warehouse} — إلى ${r.doc.costCenter || r.doc.to || ''}${qtyNote(r)}`, b: baseQty(r), go: 'stockOut' })),
       ...eff('transfers').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `تحويل من ${r.from} إلى ${r.to} (${num(r.qty)} ${r.unit || it.unit || ''})`, go: 'transfers' })),
     ];
     const whs = db.warehouses.map(w => [w.name, stockAt(it.name, w.name)]).filter(([, q]) => q);
@@ -1589,7 +1751,7 @@
   const ROLES = {
     admin: { title: 'مدير النظام', build: () => ({ perms: grant(permPages(), 'vaed'), special: SPECIALS.map(s => s[0]) }) },
     accountant: { title: 'محاسب', build: () => ({ perms: { ...grant(permPages(), 'v'), ...grant(['accounts', 'journal', 'cashboxes', 'receipts', 'payments', 'salesInvoices', 'salesReturns', 'purchaseInvoices', 'purchaseReturns', 'payroll', 'customers', 'suppliers'], 'vae') }, special: ['export'] }) },
-    storekeeper: { title: 'أمين مخزن', build: () => ({ perms: { ...grant(['dashboard', 'suppliers', 'purchaseOrders'], 'v'), ...grant(['items', 'units', 'warehouses', 'stockBalances', 'stockIn', 'stockOut', 'transfers'], 'vae') }, special: ['export'] }) },
+    storekeeper: { title: 'أمين مخزن', build: () => ({ perms: { ...grant(['dashboard', 'suppliers', 'purchaseOrders'], 'v'), ...grant(['items', 'units', 'warehouses', 'stockBalances', 'stockIn', 'stockOut', 'transfers'], 'vae'), ...grant(['branches', 'costCenters'], 'v') }, special: ['export'] }) },
     sales: { title: 'مندوب مبيعات', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['customers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'receipts'], 'vae') }, special: [] }) },
     hr: { title: 'شئون العاملين', build: () => ({ perms: { ...grant(['dashboard'], 'v'), ...grant(['employees', 'girlsFixed', 'girlsTemp', 'bangladesh', 'costCenters', 'attendance', 'payroll', 'leaves', 'departments', 'workers', 'dailyLabor', 'advances'], 'vae') }, special: ['export'] }) },
     maint: { title: 'الميكنة والصيانة', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan', 'stockOut'], 'vae') }, special: [] }) },
@@ -2028,8 +2190,12 @@
     C('nature', 'الطبيعة', { optional: true, input: 'select', options: opt('مدين', 'دائن') }),
     C('balance', 'الرصيد الافتتاحي', { input: 'number', optional: true })],
     validate: d => { if (d.parent && !acc(d.parent)) return `الحساب الأب ${d.parent} غير موجود`; if (d.parent === d.code) return 'الحساب لا يكون أباً لنفسه'; } };
-  const importDef = t => t === 'accounts' ? ACC_IMPORT : modules[t];
-  const importFields = t => importDef(t).cols.filter(c => !c.compute);
+  const LINE_KEYS = ['item', 'unit', 'qty', 'price', 'vatRate', 'whtRate'];
+  const lineImportCols = tax => [C('item', 'الصنف'), C('unit', 'الوحدة', { optional: true }), C('qty', 'الكمية', N), C('price', 'السعر', { ...M, optional: true }),
+    ...(tax ? [C('vatRate', 'ض.ق.م %', { ...N, optional: true }), C('whtRate', 'خصم وإضافة %', { ...N, optional: true })] : [])];
+  const importDef = t => t === 'accounts' ? ACC_IMPORT : modules[t]?.cols.some(c => c.input === 'lines')
+    ? { ...modules[t], lineImport: true, cols: [...modules[t].cols.filter(c => c.input !== 'lines'), ...lineImportCols(modules[t].cols.some(c => c.tax))] } : modules[t];
+  const importFields = t => importDef(t).cols.filter(c => !c.compute && c.input !== 'lines');
   const importTables = () => ['accounts', ...Object.keys(modules)].filter(t => t === 'accounts' ? store.canAdmin && can('accounts', 'a') : can(t, 'a'));
 
   // ----- قراءة الملف -----
@@ -2104,7 +2270,8 @@
         for (const c of fields) if (colIdx[c.key] >= 0) out.data[c.key] = convert(c, r[colIdx[c.key]]);
         const keyVal = keyIdx >= 0 ? out.data[def.key] : '';
         const existing = keyVal !== '' && keyVal != null ? db[t].find(x => String(x[def.key]) === String(keyVal)) : null;
-        if (keyVal && seen.has(keyVal)) throw new Error(`"${keyVal}" مكرر في الملف`);
+        if (keyVal && seen.has(keyVal) && !def.lineImport) throw new Error(`"${keyVal}" مكرر في الملف`);
+        if (def.lineImport && existing) throw new Error(`"${keyVal}" موجود من قبل`);
         if (keyVal) seen.add(keyVal);
         if (existing) {
           if (mode !== 'upsert') throw new Error(`"${keyVal}" موجود من قبل — اختر "إضافة وتحديث" لتعديله`);
@@ -2128,6 +2295,20 @@
     let added = 0, updated = 0; const fails = [];
     importing = true;
     try {
+      if (def.lineImport) {
+        const groups = new Map();
+        rows.forEach(r => { if (r.status === 'error') { fails.push(r); return; } const k = r.data.no || '#' + r.line; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
+        for (const g of groups.values()) {
+          const head = Object.fromEntries(Object.entries(g[0].data).filter(([k]) => !LINE_KEYS.includes(k)));
+          const data = { ...(def.defaults?.() || {}), ...head, lines: g.map(r => Object.fromEntries(LINE_KEYS.map(k => [k, r.data[k] ?? '']))) };
+          if (!data.no) data.no = nextNo(db[t], 'no');
+          const err = def.validate?.(data, null);
+          if (err) { g.forEach(r => fails.push({ ...r, status: 'error', msg: err })); continue; }
+          const rec = { id: genId(), ...data }; db[t].push(rec); added++;
+          submitForApproval(t, rec, true); cache = {};
+        }
+        rows = [];
+      }
       for (const r of rows) {
         if (r.status === 'error') { fails.push(r); continue; }
         const cur = r.id ? db[t].find(x => x.id === r.id) : null;
@@ -2267,7 +2448,7 @@
     'stockIn', 'stockOut', 'transfers', 'payroll', 'dailyLabor', 'advances', 'maintenanceOrders'];
   const QTY_MODULES = ['stockIn', 'stockOut', 'transfers'];
   const amountOf = (t, r) => t === 'payroll' ? (+r.basic + +r.allowances - +r.deductions) : t === 'dailyLabor' ? r.days * r.wage
-    : t === 'maintenanceOrders' ? +r.cost || 0 : QTY_MODULES.includes(t) ? +r.qty || 0 : +r.amount || 0;
+    : t === 'maintenanceOrders' ? +r.cost || 0 : t === 'stockIn' || t === 'stockOut' ? (docTotals(r).sub ? docTotals(r).net : docTotals(r).qty) : QTY_MODULES.includes(t) ? +r.qty || 0 : +r.amount || 0;
   const apprGlobal = () => db.approvalCfg || {};
   const apprCfg = t => apprGlobal().modules?.[t];
   const apprOn = t => { const c = apprCfg(t); return !!(c?.enabled && c.levels?.length); };
@@ -2310,7 +2491,7 @@
   const apprPill = (t, r) => !r.appr ? '<span class="hint">—</span>'
     : `<span class="pill ${r.appr.status === 'approved' ? 'green' : r.appr.status === 'rejected' ? 'red' : 'amber'}">${esc(apprText(t, r))}</span>`;
   const docNo = (t, r) => r.no || (t === 'payroll' ? `PAY-${r.month}` : t === 'dailyLabor' ? `LAB-${r.date}` : t === 'advances' ? `ADV-${r.date}` : '—');
-  const docParty = r => r.customer || r.supplier || r.party || r.employee || r.worker || r.machine || (r.from && r.to ? `${r.from} ← ${r.to}` : '') || r.desc || '';
+  const docParty = r => r.customer || r.supplier || r.costCenter || (r.account && (r.party || r.desc) ? partyName(r) : r.party) || r.employee || r.worker || r.machine || (r.from && r.to ? `${r.from} ← ${r.to}` : '') || r.desc || '';
   const myApprovals = () => APPR_MODULES.flatMap(t => db[t].filter(r => canApprove(t, r)).map(r => ({ t, r })));
   const ACTION_TXT = { submit: 'أنشأ المستند', resubmit: 'عدّل وأعاد الإرسال', approve: 'اعتمد', reject: 'رفض' };
 
@@ -2438,7 +2619,7 @@
   function printDoc(t, r, previewOnly) {
     if (!r) return;
     const m = modules[t], s = db.settings;
-    const fieldRows = m.cols.map(c => { const v = val(r, c); if (v === '' || v == null) return null;
+    const fieldRows = m.cols.filter(c => c.input !== 'lines' && c.key !== 'itemsSum').map(c => { const v = val(r, c); if (v === '' || v == null || Array.isArray(v)) return null;
       const txt = c.input === 'number' || c.compute && c.render === money ? (c.render === num ? num(v) : money(v)) : c.render ? plainText(c.render(v, r)) : String(v);
       return [c.label, txt]; }).filter(Boolean);
     const entries = glEntries().filter(e => e.module === t && e.id === r.id);
@@ -2449,6 +2630,9 @@
           <div class="doc-title"><h2>${esc(m.single)}</h2><b>${esc(docNo(t, r))}</b><span>${esc(r.date || r.month || '')}</span></div></div>
         <div class="doc-status">${r.appr ? `حالة الاعتماد: <b>${esc(apprText(t, r))}</b>` : 'مستند مرحّل'}</div>
         <table class="doc-fields">${fieldRows.map(([l, v]) => `<tr><th>${esc(l)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
+        ${Array.isArray(r.lines) && r.lines.length ? (() => { const tx = m.cols.some(c => c.tax), tt = docTotals(r); return `<h3>الأصناف</h3><table class="doc-lines"><thead><tr><th>#</th><th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>السعر</th>${tx ? '<th>ض.ق.م</th><th>خصم وإضافة</th>' : ''}<th>القيمة</th></tr></thead><tbody>
+          ${r.lines.map((l, i) => `<tr><td>${i + 1}</td><td>${esc(l.item)}</td><td>${esc(l.unit || itemUnit(l.item))}</td><td>${num(l.qty)}</td><td>${money(l.price)}</td>${tx ? `<td>${money(lineVat(l))}</td><td>${money(lineWht(l))}</td>` : ''}<td>${money(lineVal(l) + (tx ? lineVat(l) - lineWht(l) : 0))}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td colspan="${tx ? 7 : 5}">${tx ? `القيمة ${money(tt.sub)} + ض.ق.م ${money(tt.vat)} − ض. خصم وإضافة ${money(tt.wht)} = صافي الفاتورة` : 'الإجمالي بالتكلفة'}</td><td><b>${money(tx ? tt.net : tt.sub)}</b></td></tr></tfoot></table>`; })() : ''}
         ${entries.length ? `<h3>القيد المحاسبي</h3><table class="doc-lines"><thead><tr><th>رقم القيد</th><th>الحساب</th><th>مدين</th><th>دائن</th></tr></thead><tbody>
           ${entries.flatMap(e => e.lines.map(l => `<tr><td>${esc(e.no)}</td><td>${esc(nm(l.acc))}</td><td>${l.dr ? money(l.dr) : ''}</td><td>${l.cr ? money(l.cr) : ''}</td></tr>`)).join('')}</tbody></table>`
           : r.appr && r.appr.status !== 'approved' ? '<p class="doc-note">لم يُرحّل القيد بعد — بانتظار اكتمال الاعتمادات</p>' : ''}
@@ -2622,8 +2806,8 @@
       const q = (list, it, sign, fieldWh) => sum(list.filter(r => r.item === it), r => baseQty(r) * sign);
       const rows = db.items.map(it => {
         const before = r => f && r.date < f, within = r => inRange(r.date, f, t);
-        const open = +it.opening + q(eff('stockIn').filter(before), it.name, 1) - q(eff('stockOut').filter(before), it.name, 1);
-        const inn = q(eff('stockIn').filter(within), it.name, 1), out = q(eff('stockOut').filter(within), it.name, 1);
+        const open = +it.opening + q(stockRows('stockIn').filter(before), it.name, 1) - q(stockRows('stockOut').filter(before), it.name, 1);
+        const inn = q(stockRows('stockIn').filter(within), it.name, 1), out = q(stockRows('stockOut').filter(within), it.name, 1);
         const close = open + inn - out;
         return [it.code, it.name, it.unit, open, inn, out, close, close * it.cost];
       });
@@ -2770,8 +2954,8 @@
   function boxRow(mod, doc, box, e, dr, cr) {
     const bank = isBankBox(box);
     let kind = e.src || pageInfo(mod)?.single || '', party = '';
-    if (mod === 'receipts') { kind = bank ? 'إيداع' : 'قبض'; party = doc?.party === 'أخرى' ? (doc.beneficiary || 'أخرى') : doc?.party; }
-    else if (mod === 'payments') { kind = bank ? 'صرف' : 'صرف'; party = doc?.beneficiary || (doc?.party === 'أخرى' ? accCode(doc.account) && (acc(accCode(doc.account))?.name || '') : doc?.party); }
+    if (mod === 'receipts') { kind = bank ? 'إيداع' : 'قبض'; party = doc ? partyName(doc) : ''; }
+    else if (mod === 'payments') { kind = 'صرف'; party = doc ? partyName(doc) : ''; }
     else if (mod === 'boxTransfers') { const incoming = dr > 0; kind = incoming ? 'تحويل وارد' : 'تحويل صادر'; party = doc?.beneficiary || (incoming ? doc?.from : doc?.to); }
     return { mod, doc, id: doc?.id || e.id, box: box?.name, date: e.date, no: e.no, kind, party: party || '',
       chqStatus: doc?.method === 'شيك' ? doc.chequeStatus || (mod === 'payments' ? CHQ_OUT[0] : CHQ_IN[0]) : '', chqOpen: doc ? chqOpen(doc) : false,

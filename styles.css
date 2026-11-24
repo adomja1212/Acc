@@ -654,3 +654,27 @@ input[type="date"].input, input[type="month"].input, input[type="time"].input { 
 .rep-table tr.warn td { background: #fff4f2; color: #b42318; }
 .box-table td.bx-kind { white-space: normal; max-width: 120px; }
 .box-table td.bx-kind .pill + .pill { margin-top: 4px; }
+
+/* ===== محرر الأصناف داخل الإذن ===== */
+.modal-box.wide { max-width: min(1180px, 96vw); }
+.lines-box { width: 100%; }
+.lg-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+.lines-grid { width: 100%; border-collapse: collapse; font-size: 13px; }
+.lines-grid th { padding: 8px 6px; font-size: 12px; position: sticky; top: 0; }
+.lines-grid td { padding: 3px 4px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.lines-grid .lg-in { width: 100%; height: 34px; border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 4px 6px; font: inherit; min-width: 70px; }
+.lines-grid .lg-in:hover { border-color: var(--border); }
+.lines-grid .lg-in:focus { outline: 0; border-color: var(--navy-600); background: var(--surface); box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
+.lines-grid .lg-item { min-width: 210px; }
+.lines-grid .lg-in.pct { min-width: 64px; width: 70px; }
+.lines-grid .lg-n { color: var(--muted); text-align: center; width: 28px; }
+.lines-grid .lg-ro { color: var(--muted); padding: 0 8px; }
+.lines-grid td.num { text-align: end; font-variant-numeric: tabular-nums; }
+.lines-grid tfoot td { background: #f6f8fc; font-weight: 700; padding: 9px 8px; }
+.lines-grid tbody tr:last-child .lg-in[data-k="item"]:placeholder-shown { background: #fafbfe; }
+.lg-del { border: 0; background: none; color: var(--muted); cursor: pointer; width: 28px; height: 28px; border-radius: 6px; }
+.lg-del:hover { background: var(--red-soft); color: var(--red); }
+.lg-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+.lg-sum { margin-inline-start: auto; display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.lg-sum b { color: var(--navy-800); }
+.lg-sum .net { color: var(--navy-800); font-size: 14.5px; }
