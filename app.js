@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '28/11/2026, 19:00';
+  const APP_VERSION = '29/11/2026, 10:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -319,8 +319,8 @@
       // استحقاق المورد: من حـ/ المصروف إلى حـ/ المورد (حساب فئته)
       eff('supplierAccruals').forEach(r => add('supplierAccruals', r.store ? 'استلام من مورد' : 'استحقاق مورد', r, r.no, r.date, r.desc || (r.store ? `استلام ${acc(accCode(r.store))?.name || ''} من ${r.party}${r.docNo ? ' — مستند ' + r.docNo : ''}` : `استحقاق ${r.party} — ${periodText(r)}`),
         [L(accCode(r.store || r.expAcc), r.amount), L(accCode(r.account) || suppAcc(r.party), 0, r.amount)]));
-      eff('purchaseInvoices').forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات آجلة - ${r.supplier}`,
-        [L(accCode(r.account) || SYS.defPurchase, r.amount), L(suppAcc(r.supplier), 0, r.amount)]));
+      eff('purchaseInvoices').forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات - ${r.supplier}${r.docNo ? ' — فاتورة ' + r.docNo : r.month || r.from ? ' — ' + periodText(r) : ''}`,
+        [L(accCode(r.store || r.expAcc || r.account) || SYS.defPurchase, r.amount), L(accCode(r.sacc) || suppAcc(r.supplier), 0, r.amount)]));
       eff('purchaseReturns').forEach(r => add('purchaseReturns', 'مرتجع مشتريات', r, r.no, r.date, `مرتجع مشتريات - ${r.supplier}`,
         [L(suppAcc(r.supplier), r.amount), L(accCode(r.account) || SYS.defPurchase, 0, r.amount)]));
       eff('payments').forEach(r => { const chq = isChq(r, SYS.chqOut);
@@ -890,16 +890,56 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       C('no', 'رقم الأمر', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers'), full: true }), C('date', 'التاريخ', D), C('delivery', 'موعد التوريد', D),
       C('amount', 'القيمة', { ...M, total: true }), C('status', 'الحالة', status('جديد', 'معتمد', 'مستلم'))],
       actions: [{ icon: 'cart', title: 'تحويل إلى فاتورة مشتريات', target: 'purchaseInvoices', show: r => r.status !== 'جديد',
-        fn: r => openRecordForm('purchaseInvoices', null, { supplier: r.supplier, amount: r.amount }, () => { const x = db.purchaseOrders.find(q => q.id === r.id); if (x) x.status = 'مستلم'; }), write: true }] },
-    purchaseInvoices: { title: 'فواتير المشتريات', sub: 'تُرحّل: من حـ/ المخزون أو المصروف إلى حـ/ الموردين', single: 'فاتورة شراء', key: 'no', filter: 'status', cols: [
-      C('no', 'رقم الفاتورة', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers'), full: true }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
-      C('account', 'يُحمّل على حساب', { input: 'select', options: leafOpts(SYS.inventory, SYS.finished, '3', '11'), full: true, render: v => `<span class="hint">${esc(v)}</span>` }),
+        fn: r => openRecordForm('purchaseInvoices', null, { sacc: acc(suppAcc(r.supplier)) ? accLabel(acc(suppAcc(r.supplier))) : '', supplier: r.supplier, amount: r.amount }, () => { const x = db.purchaseOrders.find(q => q.id === r.id); if (x) x.status = 'مستلم'; }), write: true }] },
+    purchaseInvoices: { title: 'فواتير المشتريات', sub: 'موردو البضاعة (محاصيل / بضاعة / نقدي): المخزون المستلم والفرع ورقم فاتورة المورد · موردو الخدمات (سيارات / برادات / عمالة / معدات): الشهر والحساب المقابل — يُرحّل بعد الاعتماد إلى حـ/ المورد', single: 'فاتورة شراء', key: 'no', filter: 'status', cols: [
+      C('date', 'تاريخ الحركة', { ...D, aka: ['التاريخ'] }), C('no', 'رقم الفاتورة', CODE),
+      C('sacc', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— اختر حساب الموردين —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.suppliers)).map(accLabel), render: (v, r) => `<span class="pill">${esc(acc(accCode(v) || suppAcc(r.supplier))?.name || '')}</span>` }),
+      C('supplier', 'اسم المورد', { dyn: true, dynFrom: 'sacc', suggest: v => v?.sacc ? partyOpts(v.sacc) : db.suppliers.map(x => x.name), aka: ['المورد'] }),
+      // موردو البضاعة
+      C('store', 'المخزون المستلم', { aka: ['المخزون', 'حساب المخزون'], input: 'select', optional: true, allowEmpty: '— اختر حساب المخزون —', options: () => leafAccounts().filter(a => isInvAcc(a.code)).map(accLabel), formOnly: true, when: f => suppKind(f.sacc) === 'goods' }),
+      C('branch', 'الفرع', { input: 'select', optional: true, allowEmpty: '—', options: names('branches'), when: f => suppKind(f.sacc) === 'goods' }),
+      C('docNo', 'رقم فاتورة المورد', { aka: ['رقم المستند'], optional: true, cls: 'code', when: f => suppKind(f.sacc) === 'goods' }),
+      // موردو الخدمات
+      C('periodType', 'نوع الفترة', { input: 'select', optional: true, options: opt('شهر', 'من — إلى'), formOnly: true, when: f => suppKind(f.sacc) === 'service' }),
+      C('month', 'الشهر', { input: 'month', optional: true, formOnly: true, when: f => suppKind(f.sacc) === 'service' && f.periodType !== 'من — إلى' }),
+      C('from', 'من تاريخ', { input: 'date', optional: true, formOnly: true, when: f => suppKind(f.sacc) === 'service' && f.periodType === 'من — إلى' }),
+      C('to', 'إلى تاريخ', { input: 'date', optional: true, formOnly: true, when: f => suppKind(f.sacc) === 'service' && f.periodType === 'من — إلى' }),
+      C('expAcc', 'الحساب المقابل', { aka: ['يُحمّل على حساب', 'حساب المصروف'], input: 'select', optional: true, allowEmpty: '— اختر الحساب المقابل —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.expenses) || isInvAcc(a.code) || a.code.startsWith('11')).map(accLabel), formOnly: true, full: true, when: f => suppKind(f.sacc) === 'service' }),
+      C('counter', 'الحساب المقابل', { compute: r => { const c = accCode(r.store || r.expAcc || r.account); return c && acc(c) ? accLabel(acc(c)) : ''; }, render: v => `<span class="hint">${esc(v)}</span>` }),
+      C('period', 'الفترة / المستند', { compute: r => r.store || r.docNo ? (r.docNo ? `فاتورة ${r.docNo}` : '—') : periodText(r) || '—' }),
+      C('due', 'الاستحقاق', D),
       C('amount', 'القيمة', { ...M, total: true }),
       C('remaining', 'المتبقي', computed(r => +r.amount - purchPaid(r), { total: true })),
       C('status', 'الحالة', statusOf(purchStatus, 'معلقة', 'مدفوعة جزئياً', 'مدفوعة', 'متأخرة'))],
-      defaults: () => ({ due: addDays(today(), 30), account: acc(SYS.defPurchase) ? accLabel(acc(SYS.defPurchase)) : '' }),
+      defaults: () => ({ due: addDays(today(), 30), periodType: 'شهر', store: acc(SYS.defPurchase) ? accLabel(acc(SYS.defPurchase)) : '' }),
+      // الفواتير القديمة: الحساب المحمّل عليه يصبح المخزون المستلم أو الحساب المقابل
+      load: r => r.sacc ? {} : { sacc: acc(suppAcc(r.supplier)) ? accLabel(acc(suppAcc(r.supplier))) : '', ...(isInvAcc(accCode(r.account)) ? { store: r.account } : { expAcc: r.account, periodType: 'شهر', month: String(r.date || '').slice(0, 7) }) },
+      onSelect: { sacc: (f, v) => { const e = f.namedItem('expAcc'); if (e && !e.value && suppKind(v) === 'service') { const d = defaultExpFor(v); if (d) e.value = d; } },
+        supplier: (f, v) => { const sa = f.namedItem('sacc'); if (sa && !sa.value) { const c = suppAcc(v); if (acc(c) && c !== SYS.suppliers) sa.value = accLabel(acc(c)); }
+          const h = [...db.purchaseInvoices].reverse().find(r => r.supplier === v); if (h?.expAcc && f.namedItem('expAcc')) f.namedItem('expAcc').value = h.expAcc; if (h?.store && f.namedItem('store')) f.namedItem('store').value = h.store; } },
+      validate: (d, rec) => {
+        if (!accCode(d.sacc) && d.supplier) { const c = suppAcc(d.supplier); if (acc(c)) d.sacc = accLabel(acc(c)); }
+        const code = accCode(d.sacc); if (!code) return 'اختر اسم الحساب (فئة المورد)';
+        fixParty({ get party() { return d.supplier; }, set party(x) { d.supplier = x; } }, partyOpts(d.sacc));
+        if (!partyOpts(d.sacc).includes(d.supplier)) return `اختر المورد من موردي "${acc(code)?.name}"`;
+        if (suppKind(d.sacc) === 'goods') {
+          if (!accCode(d.store)) { const x = [d.account, d.expAcc].find(v => accCode(v) && isInvAcc(accCode(v))); if (x) d.store = x; }
+          if (!accCode(d.store) || !isInvAcc(accCode(d.store))) return 'اختر المخزون المستلم';
+          ['periodType', 'month', 'from', 'to', 'expAcc'].forEach(k => { d[k] = ''; });
+          if (d.docNo && db.purchaseInvoices.some(r => r !== rec && r.supplier === d.supplier && r.docNo === d.docNo) && !ask(`فاتورة المورد رقم ${d.docNo} مسجلة من قبل. متابعة؟`)) return 'تم الإلغاء';
+        } else {
+          if (!accCode(d.expAcc) && accCode(d.account)) d.expAcc = d.account;
+          ['store', 'branch', 'docNo'].forEach(k => { d[k] = ''; });
+          if (!d.month && d.from && d.to) d.periodType = 'من — إلى'; else if (!d.periodType) d.periodType = 'شهر';
+          if (d.periodType === 'شهر') { if (!d.month) d.month = String(d.date || today()).slice(0, 7); d.from = ''; d.to = ''; }
+          else { if (!d.from || !d.to) return 'اكتب الفترة من — إلى'; if (d.to < d.from) return 'تاريخ النهاية قبل البداية'; d.month = ''; }
+          if (!accCode(d.expAcc)) return 'اختر الحساب المقابل';
+        }
+        d.account = d.store || d.expAcc;
+        if (!(+d.amount > 0)) return 'اكتب قيمة الفاتورة';
+      },
       actions: [{ icon: 'pay', title: 'سداد (سند صرف)', write: true, target: 'payments', show: r => purchStatus(r) !== 'مدفوعة',
-        fn: r => openRecordForm('payments', null, { party: r.supplier, invoice: r.no, amount: +(r.amount - purchPaid(r)).toFixed(2), desc: `سداد فاتورة ${r.no}` }) }] },
+        fn: r => openRecordForm('payments', null, { account: accLabel(acc(accCode(r.sacc) || suppAcc(r.supplier)) || { code: '', name: '' }), party: r.supplier, invoice: r.no, amount: +(r.amount - purchPaid(r)).toFixed(2), desc: `سداد فاتورة ${r.no}` }) }] },
     purchaseReturns: { title: 'مرتجعات المشتريات', sub: 'تُرحّل: من حـ/ الموردين إلى حـ/ المخزون', single: 'مرتجع', key: 'no', cols: [
       C('no', 'رقم المرتجع', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers') }),
       C('invoice', 'الفاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.purchaseInvoices.map(i => [i.no, `${i.no} — ${i.supplier}`]) }),
@@ -1529,10 +1569,10 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     if (conds.length || dyns.length) {
       let lastDyn = null;
       const upd = () => { const v = Object.fromEntries(new FormData(form)); conds.forEach(c => { const el = $(`#modalBody [data-f="${c.key}"]`); if (el) el.hidden = !c.when(v); });
-        const sig = JSON.stringify([v.account ?? '', v.otype ?? '']); if (sig === lastDyn) return; const first = lastDyn === null; lastDyn = sig;
-        dyns.forEach(c => { const list = c.suggest(v), dl = $(`#dl-${c.key}`), inp = form.elements.namedItem(c.key); if (dl) dl.innerHTML = list.map(o => `<option value="${esc(o)}">${esc(c.key === 'party' ? partyLabel(o, v.account) : '')}</option>`).join('');
+        const sig = JSON.stringify([...dyns.map(c => v[c.dynFrom || 'account'] ?? ''), v.otype ?? '']); if (sig === lastDyn) return; const first = lastDyn === null; lastDyn = sig;
+        dyns.forEach(c => { const src = v[c.dynFrom || 'account'], list = c.suggest(v), dl = $(`#dl-${c.key}`), inp = form.elements.namedItem(c.key); if (dl) dl.innerHTML = list.map(o => `<option value="${esc(o)}">${esc(['party', 'supplier'].includes(c.key) ? partyLabel(o, src) : '')}</option>`).join('');
           if (!inp) return; inp.placeholder = list.length ? `اختر من ${list.length} — أو اكتب` : 'اكتب اسم المستفيد';
-          if (!first && inp.value && list.length && !list.includes(inp.value) && ['c', 's', 'o'].includes(partyKind(accCode(v.account)))) inp.value = '';
+          if (!first && inp.value && list.length && !list.includes(inp.value) && ['c', 's', 'o'].includes(partyKind(accCode(src)))) inp.value = '';
           if (list.length === 1 && !inp.value) inp.value = list[0]; }); };
       condUpd = upd; upd();
     }
