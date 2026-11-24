@@ -1476,7 +1476,8 @@ window.ACC_SEED = {
    "opening": 420,
    "min": 100,
    "cost": 2400,
-   "price": 2750
+   "price": 2750,
+   "store": "124106"
   },
   {
    "id": "items-002",
@@ -1488,7 +1489,8 @@ window.ACC_SEED = {
    "opening": 38,
    "min": 20,
    "cost": 38000,
-   "price": 41500
+   "price": 41500,
+   "store": "124106"
   },
   {
    "id": "items-003",
@@ -1500,7 +1502,8 @@ window.ACC_SEED = {
    "opening": 260,
    "min": 80,
    "cost": 180,
-   "price": 240
+   "price": 240,
+   "store": "124106"
   },
   {
    "id": "items-004",
@@ -1512,7 +1515,8 @@ window.ACC_SEED = {
    "opening": 12500,
    "min": 3000,
    "cost": 7,
-   "price": 10
+   "price": 10,
+   "store": "1242"
   },
   {
    "id": "items-005",
@@ -1524,7 +1528,8 @@ window.ACC_SEED = {
    "opening": 140,
    "min": 200,
    "cost": 95,
-   "price": 120
+   "price": 120,
+   "store": "124105"
   },
   {
    "id": "items-006",
@@ -1536,7 +1541,8 @@ window.ACC_SEED = {
    "opening": 6,
    "min": 10,
    "cost": 450,
-   "price": 550
+   "price": 550,
+   "store": "124105"
   },
   {
    "id": "items-007",
@@ -1548,7 +1554,8 @@ window.ACC_SEED = {
    "opening": 4,
    "min": 2,
    "cost": 18500,
-   "price": 21000
+   "price": 21000,
+   "store": "124105"
   }
  ],
  "warehouses": [
@@ -1646,7 +1653,8 @@ window.ACC_SEED = {
    "salary": 45000,
    "status": "نشط",
    "payGroup": "مرتبات العاملين",
-   "costType": "إدارية"
+   "costType": "إدارية",
+   "costCenter": "الإدارة العامة"
   },
   {
    "id": "employees-002",
@@ -1658,7 +1666,8 @@ window.ACC_SEED = {
    "salary": 28000,
    "status": "نشط",
    "payGroup": "مرتبات العاملين",
-   "costType": "إدارية"
+   "costType": "إدارية",
+   "costCenter": "الإدارة العامة"
   },
   {
    "id": "employees-003",
@@ -1670,7 +1679,8 @@ window.ACC_SEED = {
    "salary": 14000,
    "status": "نشط",
    "payGroup": "مرتبات العاملين",
-   "costType": "إدارية"
+   "costType": "إدارية",
+   "costCenter": "الإدارة العامة"
   },
   {
    "id": "employees-004",
@@ -1682,7 +1692,8 @@ window.ACC_SEED = {
    "salary": 24000,
    "status": "نشط",
    "payGroup": "مرتبات العاملين",
-   "costType": "تسويقية"
+   "costType": "تسويقية",
+   "costCenter": "الإدارة العامة"
   },
   {
    "id": "employees-005",
@@ -1694,7 +1705,8 @@ window.ACC_SEED = {
    "salary": 16000,
    "status": "نشط",
    "payGroup": "مرتبات العاملين",
-   "costType": "إدارية"
+   "costType": "إدارية",
+   "costCenter": "الإدارة العامة"
   },
   {
    "id": "employees-006",
@@ -1706,7 +1718,8 @@ window.ACC_SEED = {
    "salary": 12000,
    "status": "نشط",
    "payGroup": "مرتبات العاملين",
-   "costType": "تشغيلية"
+   "costType": "تشغيلية",
+   "costCenter": "مزرعة السادات 1"
   },
   {
    "id": "employees-007",
@@ -1718,7 +1731,8 @@ window.ACC_SEED = {
    "salary": 13500,
    "status": "نشط",
    "payGroup": "مرتبات العاملين",
-   "costType": "إدارية"
+   "costType": "إدارية",
+   "costCenter": "الإدارة العامة"
   },
   {
    "id": "employees-008",
@@ -1730,7 +1744,8 @@ window.ACC_SEED = {
    "salary": 26000,
    "status": "نشط",
    "payGroup": "مرتبات العاملين",
-   "costType": "تشغيلية"
+   "costType": "تشغيلية",
+   "costCenter": "مزرعة السادات 1"
   },
   {
    "id": "employees-009",
@@ -1742,7 +1757,8 @@ window.ACC_SEED = {
    "salary": 19000,
    "status": "نشط",
    "payGroup": "مرتبات العاملين",
-   "costType": "تشغيلية"
+   "costType": "تشغيلية",
+   "costCenter": "مزرعة السادات 1"
   }
  ],
  "attendance": [
@@ -2673,5 +2689,344 @@ window.ACC_SEED = {
   "vat": 14,
   "fiscalStart": "2026-01-01",
   "address": "العاشر من رمضان - المنطقة الصناعية الثالثة"
- }
+ },
+ "units": [
+  {
+   "id": "units-001",
+   "code": "U-01",
+   "name": "كجم",
+   "base": "",
+   "factor": 1
+  },
+  {
+   "id": "units-002",
+   "code": "U-02",
+   "name": "جرام",
+   "base": "كجم",
+   "factor": 0.001
+  },
+  {
+   "id": "units-003",
+   "code": "U-03",
+   "name": "طن",
+   "base": "كجم",
+   "factor": 1000
+  },
+  {
+   "id": "units-004",
+   "code": "U-04",
+   "name": "شيكارة 50 كجم",
+   "base": "كجم",
+   "factor": 50
+  },
+  {
+   "id": "units-005",
+   "code": "U-05",
+   "name": "شيكارة 25 كجم",
+   "base": "كجم",
+   "factor": 25
+  },
+  {
+   "id": "units-006",
+   "code": "U-06",
+   "name": "لتر",
+   "base": "",
+   "factor": 1
+  },
+  {
+   "id": "units-007",
+   "code": "U-07",
+   "name": "مللي",
+   "base": "لتر",
+   "factor": 0.001
+  },
+  {
+   "id": "units-008",
+   "code": "U-08",
+   "name": "جركن 20 لتر",
+   "base": "لتر",
+   "factor": 20
+  },
+  {
+   "id": "units-009",
+   "code": "U-09",
+   "name": "برميل 200 لتر",
+   "base": "لتر",
+   "factor": 200
+  },
+  {
+   "id": "units-010",
+   "code": "U-10",
+   "name": "قطعة",
+   "base": "",
+   "factor": 1
+  },
+  {
+   "id": "units-011",
+   "code": "U-11",
+   "name": "دستة",
+   "base": "قطعة",
+   "factor": 12
+  },
+  {
+   "id": "units-012",
+   "code": "U-12",
+   "name": "كرتونة 24 قطعة",
+   "base": "قطعة",
+   "factor": 24
+  },
+  {
+   "id": "units-013",
+   "code": "U-13",
+   "name": "متر",
+   "base": "",
+   "factor": 1
+  },
+  {
+   "id": "units-014",
+   "code": "U-14",
+   "name": "م³",
+   "base": "",
+   "factor": 1
+  },
+  {
+   "id": "units-015",
+   "code": "U-15",
+   "name": "شتلة",
+   "base": "",
+   "factor": 1
+  },
+  {
+   "id": "units-016",
+   "code": "U-16",
+   "name": "صينية شتلات 84",
+   "base": "شتلة",
+   "factor": 84
+  }
+ ],
+ "costCenters": [
+  {
+   "id": "costCenters-001",
+   "code": "CC-01",
+   "branch": "فرع السادات",
+   "sector": "قطاع الإنتاج الزراعي",
+   "name": "مزرعة السادات 1",
+   "area": 120,
+   "areaUnit": "فدان"
+  },
+  {
+   "id": "costCenters-002",
+   "code": "CC-02",
+   "branch": "فرع السادات",
+   "sector": "قطاع الإنتاج الزراعي",
+   "name": "مزرعة السادات 2",
+   "area": 85,
+   "areaUnit": "فدان"
+  },
+  {
+   "id": "costCenters-003",
+   "code": "CC-03",
+   "branch": "فرع السادات",
+   "sector": "قطاع المشاتل",
+   "name": "مشتل السادات",
+   "area": 12,
+   "areaUnit": "فدان"
+  },
+  {
+   "id": "costCenters-004",
+   "code": "CC-04",
+   "branch": "فرع النوبارية",
+   "sector": "قطاع الإنتاج الزراعي",
+   "name": "مزرعة النوبارية",
+   "area": 200,
+   "areaUnit": "فدان"
+  },
+  {
+   "id": "costCenters-005",
+   "code": "CC-05",
+   "branch": "فرع النوبارية",
+   "sector": "قطاع الثروة الحيوانية",
+   "name": "حظائر النوبارية",
+   "area": 6,
+   "areaUnit": "فدان"
+  },
+  {
+   "id": "costCenters-006",
+   "code": "CC-06",
+   "branch": "المكتب العام",
+   "sector": "القطاع الإداري",
+   "name": "الإدارة العامة",
+   "area": 0,
+   "areaUnit": "فدان"
+  }
+ ],
+ "crops": [
+  {
+   "id": "crops-001",
+   "code": "CR-01",
+   "name": "مانجو",
+   "variety": "عويس",
+   "season": "معمّر"
+  },
+  {
+   "id": "crops-002",
+   "code": "CR-02",
+   "name": "مانجو",
+   "variety": "صديقة",
+   "season": "معمّر"
+  },
+  {
+   "id": "crops-003",
+   "code": "CR-03",
+   "name": "مانجو",
+   "variety": "كيت",
+   "season": "معمّر"
+  },
+  {
+   "id": "crops-004",
+   "code": "CR-04",
+   "name": "عنب",
+   "variety": "فليم",
+   "season": "معمّر"
+  },
+  {
+   "id": "crops-005",
+   "code": "CR-05",
+   "name": "عنب",
+   "variety": "سوبيريور",
+   "season": "معمّر"
+  },
+  {
+   "id": "crops-006",
+   "code": "CR-06",
+   "name": "برتقال",
+   "variety": "بسرة",
+   "season": "معمّر"
+  },
+  {
+   "id": "crops-007",
+   "code": "CR-07",
+   "name": "برتقال",
+   "variety": "فالنشيا",
+   "season": "معمّر"
+  },
+  {
+   "id": "crops-008",
+   "code": "CR-08",
+   "name": "طماطم",
+   "variety": "هجين 023",
+   "season": "صيفي"
+  },
+  {
+   "id": "crops-009",
+   "code": "CR-09",
+   "name": "بطاطس",
+   "variety": "سبونتا",
+   "season": "شتوي"
+  },
+  {
+   "id": "crops-010",
+   "code": "CR-10",
+   "name": "قمح",
+   "variety": "سدس 14",
+   "season": "شتوي"
+  }
+ ],
+ "girlsFixed": [
+  {
+   "id": "girlsFixed-001",
+   "code": "GI-001",
+   "name": "فاطمة محمد علي",
+   "nationalId": "29801011234567",
+   "phone": "",
+   "job": "فرز وتعبئة",
+   "costCenter": "مزرعة السادات 1",
+   "hireDate": "2025-01-01",
+   "salary": 4500,
+   "costType": "تشغيلية",
+   "status": "نشط"
+  },
+  {
+   "id": "girlsFixed-002",
+   "code": "GI-002",
+   "name": "منى سعيد حسن",
+   "nationalId": "29905121234567",
+   "phone": "",
+   "job": "جمع ثمار",
+   "costCenter": "مشتل السادات",
+   "hireDate": "2025-02-01",
+   "salary": 4500,
+   "costType": "تشغيلية",
+   "status": "نشط"
+  },
+  {
+   "id": "girlsFixed-003",
+   "code": "GI-003",
+   "name": "هبة عادل محمود",
+   "nationalId": "30002021234567",
+   "phone": "",
+   "job": "مشتل",
+   "costCenter": "مزرعة السادات 1",
+   "hireDate": "2025-03-01",
+   "salary": 4500,
+   "costType": "تشغيلية",
+   "status": "نشط"
+  }
+ ],
+ "girlsTemp": [
+  {
+   "id": "girlsTemp-001",
+   "code": "GI-001",
+   "name": "أسماء رجب عبده",
+   "nationalId": "30103031234567",
+   "phone": "",
+   "job": "جمع ثمار موسمي",
+   "costCenter": "مزرعة النوبارية",
+   "hireDate": "2025-01-01",
+   "salary": 3500,
+   "costType": "تشغيلية",
+   "status": "نشط"
+  },
+  {
+   "id": "girlsTemp-002",
+   "code": "GI-002",
+   "name": "نورا خالد فتحي",
+   "nationalId": "30204041234567",
+   "phone": "",
+   "job": "تعبئة موسمي",
+   "costCenter": "مزرعة النوبارية",
+   "hireDate": "2025-02-01",
+   "salary": 3500,
+   "costType": "تشغيلية",
+   "status": "نشط"
+  }
+ ],
+ "bangladesh": [
+  {
+   "id": "bangladesh-001",
+   "code": "BA-001",
+   "name": "Md. Rahim Uddin",
+   "nationalId": "BD-A1234567",
+   "phone": "",
+   "job": "ري وتسميد",
+   "costCenter": "مزرعة السادات 2",
+   "hireDate": "2025-01-01",
+   "salary": 6000,
+   "costType": "تشغيلية",
+   "status": "نشط"
+  },
+  {
+   "id": "bangladesh-002",
+   "code": "BA-002",
+   "name": "Md. Karim Hossain",
+   "nationalId": "BD-B7654321",
+   "phone": "",
+   "job": "تقليم",
+   "costCenter": "مزرعة النوبارية",
+   "hireDate": "2025-02-01",
+   "salary": 6000,
+   "costType": "تشغيلية",
+   "status": "نشط"
+  }
+ ]
 };

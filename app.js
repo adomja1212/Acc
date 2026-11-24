@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 10:00';
+  const APP_VERSION = '25/11/2026, 13:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -32,7 +32,8 @@
   const APPR_PATH = 'meta/approvals';
   const TABLES = ['appUsers', 'accounts', 'customers', 'suppliers', 'items', 'warehouses', 'departments', 'employees', 'attendance', 'payroll', 'leaves',
     'workers', 'dailyLabor', 'advances', 'cashboxes', 'receipts', 'payments', 'boxTransfers', 'journal', 'salesInvoices', 'salesQuotes', 'salesReturns',
-    'purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'stockIn', 'stockOut', 'transfers', 'machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan'];
+    'purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'stockIn', 'stockOut', 'transfers', 'machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan',
+    'units', 'costCenters', 'crops', 'girlsFixed', 'girlsTemp', 'bangladesh'];
   const TX_TABLES = ['journal', 'receipts', 'payments', 'boxTransfers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
     'stockIn', 'stockOut', 'transfers', 'attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders'];
   const DEFAULT_SETTINGS = { company: 'نظام المحاسب', taxNo: '', commercialReg: '', currency: 'ج.م', vat: 14, fiscalStart: `${new Date().getFullYear()}-01-01`, address: '' };
@@ -196,6 +197,8 @@
 
   const money = n => `${nf.format(+n || 0)} ${esc(db.settings.currency)}`;
   const num = n => nf.format(+n || 0);
+  const nfq = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 6 });
+  const qn = n => nfq.format(+n || 0);
 
   // =====================================================================
   //                      محرك الترحيل والأرصدة
@@ -287,7 +290,7 @@
       // الاستحقاق: من حـ/ المصروف إلى حـ/ المرتبات المستحقة (والتأمينات)، ثم الصرف: من حـ/ المستحقة إلى حـ/ الخزينة
       eff('boxTransfers').forEach(r => add('boxTransfers', 'تحويل خزائن وبنوك', r, r.no, r.date, r.desc || `تحويل من ${r.from} إلى ${r.to}`,
         [L(boxAcc(r.to), r.amount), L(boxAcc(r.from), 0, r.amount)]));
-      eff('payroll').forEach(r => { const gross = +r.basic + +r.allowances, ded = +r.deductions, net = gross - ded, g = payAccs(r.group, r.costType || db.employees.find(e => e.name === r.employee)?.costType);
+      eff('payroll').forEach(r => { const gross = +r.basic + +r.allowances, ded = +r.deductions, net = gross - ded, g = payAccs(r.group, r.costType || staffOf(r.employee)?.costType);
         const no = `PAY-${r.month}-${r.id}`, date = `${r.month}-28`;
         add('payroll', 'استحقاق رواتب', r, no, date, `استحقاق راتب ${r.employee} عن ${r.month}`,
           [L(g.exp, gross), L(SYS.socialIns, 0, ded), L(g.liab, 0, net)]);
@@ -336,9 +339,9 @@
     const m = {}; const k = (i, w) => `${i}|${w}`;
     const addQ = (i, w, q) => { m[k(i, w)] = (m[k(i, w)] || 0) + (+q || 0); };
     db.items.forEach(i => addQ(i.name, i.warehouse, i.opening));
-    eff('stockIn').forEach(r => addQ(r.item, r.warehouse, r.qty));
-    eff('stockOut').forEach(r => addQ(r.item, r.warehouse, -r.qty));
-    eff('transfers').forEach(r => { addQ(r.item, r.from, -r.qty); addQ(r.item, r.to, r.qty); });
+    eff('stockIn').forEach(r => addQ(r.item, r.warehouse, baseQty(r)));
+    eff('stockOut').forEach(r => addQ(r.item, r.warehouse, -baseQty(r)));
+    eff('transfers').forEach(r => { addQ(r.item, r.from, -baseQty(r)); addQ(r.item, r.to, baseQty(r)); });
     return m;
   });
   const stockAt = (item, wh) => stockMap()[`${item}|${wh}`] || 0;
@@ -392,6 +395,22 @@
 
   // ---------- مصادر القوائم المنسدلة ----------
   const names = k => () => db[k].map(r => r.name);
+  // الوحدات: كل وحدة = معامل × وحدتها الأساسية (طن = 1000 كجم، شيكارة = 50 كجم)
+  const unitOf = n => db.units.find(u => u.name === n);
+  const unitRoot = n => memo('ur:' + n, () => { let f = 1, u = unitOf(n), seen = new Set();
+    while (u && u.base && u.base !== u.name && !seen.has(u.name)) { seen.add(u.name); f *= +u.factor || 1; u = unitOf(u.base); }
+    return { root: u?.name || n, f }; });
+  const convertQty = (q, from, to) => { if (!from || !to || from === to) return +q || 0; const a = unitRoot(from), b = unitRoot(to);
+    return a.root === b.root ? (+q || 0) * a.f / b.f : NaN; };
+  const sameFamily = (a, b) => unitRoot(a).root === unitRoot(b).root;
+  const unitsFor = item => { const u = db.items.find(i => i.name === item)?.unit; return u ? db.units.filter(x => sameFamily(x.name, u)).map(x => x.name).concat(unitOf(u) ? [] : [u]) : db.units.map(x => x.name); };
+  // كمية الحركة بوحدة الصنف الأساسية
+  const baseQty = r => { const u = db.items.find(i => i.name === r.item)?.unit; const q = convertQty(r.qty, r.unit || u, u); return isNaN(q) ? +r.qty || 0 : q; };
+  // فئات العاملين: كل قاعدة بيانات مرتبطة بفئة مرتبات (التزام + مصروف) في شجرة الحسابات
+  const STAFF = { employees: 'مرتبات العاملين', girlsFixed: 'مرتبات البنات الثابتة', girlsTemp: 'مرتبات البنات المؤقتة', bangladesh: 'مرتبات بنجلاديش' };
+  const allStaff = () => memo('staff', () => Object.entries(STAFF).flatMap(([t, g]) => db[t].map(r => ({ ...r, _t: t, group: t === 'employees' && r.payGroup ? r.payGroup : g }))));
+  const staffOf = n => allStaff().find(x => x.name === n);
+  const staffNames = () => allStaff().map(x => x.name);
   const opt = (...o) => () => o;
   const leafOpts = (...prefixes) => () => leafAccounts().filter(a => !prefixes.length || prefixes.some(p => a.code.startsWith(p))).map(accLabel);
 
@@ -434,6 +453,19 @@
     return '';
   };
 
+  const itemUnit = n => db.items.find(i => i.name === n)?.unit || '';
+  const unitErr = d => d.unit && d.item && isNaN(convertQty(1, d.unit, itemUnit(d.item))) ? `لا يمكن تحويل "${d.unit}" إلى وحدة الصنف "${itemUnit(d.item)}" — عرّف معامل التحويل في قاعدة بيانات الوحدات` : '';
+  const unitPick = (f, v) => { const u = itemUnit(v); if (f.unit && u && !f.unit.value) [...f.unit.options].forEach(o => { o.hidden = o.value && !sameFamily(o.value, u); }); };
+  const qtyNote = r => r.unit && r.unit !== itemUnit(r.item) ? ` (${num(r.qty)} ${r.unit})` : '';
+  const invAccOpts = () => leafAccounts().filter(a => a.code.startsWith(SYS.inventory)).map(a => [a.code, a.name]);
+  const staffCols = (nameLbl, idLbl) => [
+    C('code', 'الكود', CODE), C('name', nameLbl, { full: true }), C('nationalId', idLbl, { optional: true, cls: 'code' }), C('phone', 'الهاتف', { optional: true }),
+    C('job', 'الوظيفة / العمل', { optional: true }), C('costCenter', 'مركز التكلفة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.costCenters.map(c => [c.name, `${c.name} — ${c.branch || ''}`]) }),
+    C('hireDate', 'تاريخ الالتحاق', D), C('salary', 'الراتب / الأجر', { ...M, total: true }),
+    C('costType', 'نوع التكلفة', { render: plain, input: 'select', options: () => COST_TYPES }), C('status', 'الحالة', status('نشط', 'موقوف'))];
+  const staffDb = (t, title, single, nameLbl, idLbl, ct) => ({ title, sub: `مرتباتهم تُرحّل على فئة "${STAFF[t]}" — حسب نوع التكلفة (تشغيلية / تسويقية / إدارية)`, single, key: 'name', filter: 'status',
+    defaults: () => ({ costType: ct, status: 'نشط' }), cols: staffCols(nameLbl, idLbl), validate: (d, rec) => allStaff().some(x => x.name === d.name && !(x._t === t && x.id === rec?.id)) ? `"${d.name}" مسجل في قاعدة عاملين أخرى` : '' });
+
   const modules = {
     // ===== البيانات الأساسية =====
     customers: { title: 'العملاء', sub: 'كل تصنيف له حساب مستقل في شجرة الحسابات تحت حـ/ العملاء', single: 'عميل', key: 'name', filter: 'category', cols: [
@@ -449,9 +481,10 @@
       C('opening', 'رصيد أول المدة', { ...M, formOnly: true }),
       C('balance', 'المستحق للمورد', computed(r => suppBal(r.name), { total: true }))],
       actions: [{ icon: 'list', title: 'كشف حساب المورد', fn: r => supplierStatement(r) }] },
-    items: { title: 'الأصناف', sub: 'الرصيد = أول المدة + الإضافة − الصرف (في كل المخازن)', single: 'صنف', key: 'name', filter: 'category', cols: [
-      C('code', 'كود الصنف', CODE), C('name', 'اسم الصنف'), C('category', 'المجموعة', { render: plain, input: 'select', options: opt('خامات', 'إنتاج تام', 'قطع غيار', 'مهمات') }),
-      C('unit', 'الوحدة'), C('warehouse', 'المخزن الأساسي', { input: 'select', options: names('warehouses') }),
+    items: { title: 'الأصناف', sub: 'اسم المخزون (حساب الشجرة) › المجموعة › الصنف › الوحدة — الرصيد = أول المدة + الإضافة − الصرف', single: 'صنف', key: 'name', filter: 'category', cols: [
+      C('code', 'كود الصنف', CODE), C('store', 'اسم المخزون', { input: 'select', optional: true, allowEmpty: '— اختر حساب المخزون —', options: invAccOpts, render: v => v ? `<span class="pill">${esc(acc(v)?.name || v)}</span>` : '—' }),
+      C('category', 'المجموعة', { render: plain, suggest: () => [...new Set(db.items.map(i => i.category).filter(Boolean))] }), C('name', 'الصنف'),
+      C('unit', 'الوحدة', { input: 'select', options: () => { const l = db.units.map(u => u.name); return l.length ? l : ['قطعة']; } }), C('warehouse', 'المخزن الأساسي', { input: 'select', options: names('warehouses') }),
       C('opening', 'رصيد أول المدة', N),
       C('qty', 'الرصيد الحالي', { cls: 'num', compute: r => itemQty(r.name), render: (v, r) => v < +r.min ? `<span class="pill red" title="أقل من حد الطلب">${num(v)}</span>` : `<b>${num(v)}</b>` }),
       C('min', 'حد الطلب', N), C('cost', 'التكلفة', M), C('price', 'سعر البيع', M),
@@ -462,6 +495,29 @@
       C('location', 'الموقع'), C('keeper', 'أمين المخزن'),
       C('itemsCount', 'أصناف بها رصيد', { cls: 'num', compute: r => db.items.filter(i => stockAt(i.name, r.name) > 0).length }),
       C('value', 'قيمة الرصيد', computed(r => sum(db.items, i => stockAt(i.name, r.name) * i.cost), { total: true }))] },
+    units: { title: 'الوحدات ومعامل التحويل', sub: '1 وحدة = المعامل × الوحدة الأساسية — مثل: طن = 1000 كجم، شيكارة = 50 كجم', single: 'وحدة', key: 'name', cols: [
+      C('code', 'الكود', CODE), C('name', 'الوحدة'), C('base', 'الوحدة الأساسية', { input: 'select', optional: true, allowEmpty: '— وحدة أساسية بذاتها —', options: () => db.units.map(u => u.name) }),
+      C('factor', 'معامل التحويل', { ...N, render: qn, optional: true }),
+      C('conv', 'التحويل', { compute: r => r.base && r.base !== r.name ? `1 ${r.name} = ${qn(+r.factor || 0)} ${r.base}` : 'وحدة أساسية', render: v => `<span class="hint">${esc(v)}</span>` }),
+      C('family', 'تساوي بالوحدات الأخرى', { compute: r => db.units.filter(u => u.name !== r.name && sameFamily(u.name, r.name)).map(u => `${qn(convertQty(1, r.name, u.name))} ${u.name}`).join(' · '), render: v => `<span class="hint">${esc(v) || '—'}</span>` }),
+      C('itemsCount', 'أصناف بها', { cls: 'num', compute: r => db.items.filter(i => i.unit === r.name).length })],
+      defaults: () => ({ factor: 1 }),
+      validate: d => { if (d.base && d.base !== d.name && !(+d.factor > 0)) return 'اكتب معامل التحويل (أكبر من صفر)'; if (!d.base || d.base === d.name) { d.base = ''; d.factor = 1; }
+        let u = d.base, seen = new Set([d.name]); while (u) { if (seen.has(u)) return 'التحويل يرجع لنفس الوحدة — راجع الوحدة الأساسية'; seen.add(u); u = unitOf(u)?.base; } } },
+    costCenters: { title: 'مراكز التكلفة', sub: 'الفرع › القطاع › مركز التكلفة والمساحة', single: 'مركز تكلفة', key: 'name', filter: 'branch', cols: [
+      C('code', 'الكود', CODE), C('branch', 'الفرع', { render: plain, suggest: () => [...new Set(db.costCenters.map(c => c.branch).filter(Boolean))] }),
+      C('sector', 'القطاع', { suggest: () => [...new Set(db.costCenters.map(c => c.sector).filter(Boolean))] }), C('name', 'مركز التكلفة'),
+      C('area', 'المساحة', { ...N, total: true }), C('areaUnit', 'وحدة المساحة', { input: 'select', options: opt('فدان', 'قيراط', 'م²', 'هكتار') }),
+      C('staff', 'العاملون', { cls: 'num', compute: r => allStaff().filter(x => x.costCenter === r.name).length }),
+      C('notes', 'ملاحظات', { optional: true, full: true, formOnly: true })],
+      defaults: () => ({ areaUnit: 'فدان' }) },
+    crops: { title: 'المحاصيل الزراعية', sub: 'المحصول والصنف', single: 'محصول', filter: 'name', cols: [
+      C('code', 'الكود', CODE), C('name', 'المحصول', { suggest: () => [...new Set(db.crops.map(c => c.name))] }), C('variety', 'الصنف'),
+      C('season', 'الموسم', { input: 'select', optional: true, allowEmpty: '—', options: opt('صيفي', 'شتوي', 'نيلي', 'معمّر') }), C('notes', 'ملاحظات', { optional: true, full: true })],
+      validate: (d, rec) => db.crops.some(c => c !== rec && c.name === d.name && c.variety === d.variety) ? `${d.name} — ${d.variety} مسجل من قبل` : '' },
+    girlsFixed: staffDb('girlsFixed', 'البنات الثابتة', 'عاملة ثابتة', 'الاسم', 'الرقم القومي', 'تشغيلية'),
+    girlsTemp: staffDb('girlsTemp', 'البنات المؤقتة', 'عاملة مؤقتة', 'الاسم', 'الرقم القومي', 'تشغيلية'),
+    bangladesh: staffDb('bangladesh', 'عمالة بنجلاديش', 'عامل', 'الاسم', 'رقم جواز السفر', 'تشغيلية'),
     departments: { title: 'الإدارات', sub: 'الهيكل التنظيمي — مرتبط ببيانات الموظفين', single: 'إدارة', key: 'name', cols: [
       C('code', 'الكود', CODE), C('name', 'اسم الإدارة'), C('manager', 'المدير'),
       C('staff', 'عدد الموظفين', { cls: 'num', compute: r => db.employees.filter(e => e.department === r.name).length }),
@@ -577,36 +633,41 @@
     // ===== المخازن =====
     stockIn: { title: 'أذون الإضافة', sub: 'تزيد رصيد الصنف في المخزن', single: 'إذن إضافة', key: 'no', cols: [
       C('no', 'رقم الإذن', CODE), C('date', 'التاريخ', D), C('warehouse', 'المخزن', { input: 'select', options: names('warehouses') }),
-      C('item', 'الصنف', { input: 'select', options: names('items') }), C('qty', 'الكمية', N), C('source', 'الوارد من', { full: true })] },
+      C('item', 'الصنف', { input: 'select', options: names('items') }), C('qty', 'الكمية', N), C('unit', 'الوحدة', { input: 'select', optional: true, allowEmpty: '— وحدة الصنف —', options: () => db.units.map(u => u.name) }), C('baseQty', 'بوحدة الصنف', { cls: 'num', compute: r => r.unit && r.unit !== itemUnit(r.item) ? baseQty(r) : '', render: (v, r) => v === '' ? '' : `${num(v)} ${esc(itemUnit(r.item))}` }), C('source', 'الوارد من', { full: true })],
+      validate: d => unitErr(d), onSelect: { item: unitPick } },
     stockOut: { title: 'أذون الصرف', sub: 'تنقص رصيد الصنف — لا يُسمح بالصرف بأكثر من الرصيد', single: 'إذن صرف', key: 'no', cols: [
       C('no', 'رقم الإذن', CODE), C('date', 'التاريخ', D), C('warehouse', 'المخزن', { input: 'select', options: names('warehouses') }),
-      C('item', 'الصنف', { input: 'select', options: names('items') }), C('qty', 'الكمية', N), C('to', 'المنصرف إلى', { full: true })],
+      C('item', 'الصنف', { input: 'select', options: names('items') }), C('qty', 'الكمية', N), C('unit', 'الوحدة', { input: 'select', optional: true, allowEmpty: '— وحدة الصنف —', options: () => db.units.map(u => u.name) }), C('baseQty', 'بوحدة الصنف', { cls: 'num', compute: r => r.unit && r.unit !== itemUnit(r.item) ? baseQty(r) : '', render: (v, r) => v === '' ? '' : `${num(v)} ${esc(itemUnit(r.item))}` }), C('to', 'المنصرف إلى', { full: true })],
+      onSelect: { item: unitPick },
       validate: (d, rec) => {
-        const avail = stockAt(d.item, d.warehouse) + (rec && rec.item === d.item && rec.warehouse === d.warehouse ? +rec.qty : 0);
-        if (+d.qty > avail) return `الرصيد المتاح من "${d.item}" في ${d.warehouse} هو ${num(avail)} فقط`;
+        const ue = unitErr(d); if (ue) return ue;
+        const avail = stockAt(d.item, d.warehouse) + (rec && rec.item === d.item && rec.warehouse === d.warehouse ? baseQty(rec) : 0);
+        if (baseQty(d) > avail) return `الرصيد المتاح من "${d.item}" في ${d.warehouse} هو ${num(avail)} ${itemUnit(d.item)} فقط`;
       } },
     transfers: { title: 'التحويلات المخزنية', sub: 'نقل رصيد بين المخازن', single: 'تحويل', key: 'no', cols: [
       C('no', 'رقم التحويل', CODE), C('date', 'التاريخ', D), C('from', 'من مخزن', { input: 'select', options: names('warehouses') }),
-      C('to', 'إلى مخزن', { input: 'select', options: names('warehouses') }), C('item', 'الصنف', { input: 'select', options: names('items') }), C('qty', 'الكمية', N)],
+      C('to', 'إلى مخزن', { input: 'select', options: names('warehouses') }), C('item', 'الصنف', { input: 'select', options: names('items') }), C('qty', 'الكمية', N), C('unit', 'الوحدة', { input: 'select', optional: true, allowEmpty: '— وحدة الصنف —', options: () => db.units.map(u => u.name) }), C('baseQty', 'بوحدة الصنف', { cls: 'num', compute: r => r.unit && r.unit !== itemUnit(r.item) ? baseQty(r) : '', render: (v, r) => v === '' ? '' : `${num(v)} ${esc(itemUnit(r.item))}` })],
+      onSelect: { item: unitPick },
       validate: (d, rec) => {
         if (d.from === d.to) return 'لا يمكن التحويل لنفس المخزن';
-        const avail = stockAt(d.item, d.from) + (rec && rec.item === d.item && rec.from === d.from ? +rec.qty : 0) - (rec && rec.item === d.item && rec.to === d.from ? +rec.qty : 0);
-        if (+d.qty > avail) return `الرصيد المتاح من "${d.item}" في ${d.from} هو ${num(avail)} فقط`;
+        const ue = unitErr(d); if (ue) return ue;
+        const avail = stockAt(d.item, d.from) + (rec && rec.item === d.item && rec.from === d.from ? baseQty(rec) : 0) - (rec && rec.item === d.item && rec.to === d.from ? baseQty(rec) : 0);
+        if (baseQty(d) > avail) return `الرصيد المتاح من "${d.item}" في ${d.from} هو ${num(avail)} ${itemUnit(d.item)} فقط`;
       } },
 
     // ===== شئون العاملين =====
-    employees: { title: 'الموظفون', sub: 'نوع التكلفة يحدد حساب المرتب: تشغيلية أو تسويقية أو إدارية', single: 'موظف', key: 'name', filter: 'department', defaults: () => ({ costType: 'إدارية' }), cols: [
+    employees: { title: 'العاملين', sub: 'مرتباتهم تُرحّل على فئة "مرتبات العاملين" — حسب نوع التكلفة (تشغيلية / تسويقية / إدارية)', single: 'موظف', key: 'name', filter: 'department', defaults: () => ({ costType: 'إدارية' }), cols: [
       C('code', 'الكود', CODE), C('name', 'اسم الموظف', { full: true }), C('department', 'الإدارة', { input: 'select', options: names('departments') }),
-      C('job', 'الوظيفة'), C('payGroup', 'فئة المرتبات', { render: plain, input: 'select', options: payGroups }),
+      C('job', 'الوظيفة'), C('costCenter', 'مركز التكلفة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.costCenters.map(c => [c.name, `${c.name} — ${c.branch || ''}`]) }),
       C('costType', 'نوع التكلفة', { render: plain, input: 'select', options: () => COST_TYPES }),
       C('hireDate', 'تاريخ التعيين', D), C('salary', 'الراتب الأساسي', { ...M, total: true }),
       C('onLeave', 'الحالة اليوم', { compute: r => db.leaves.some(l => l.employee === r.name && l.status === 'معتمدة' && l.from <= today() && l.to >= today()) ? 'إجازة' : r.status, render: pill }),
       C('status', 'حالة التعاقد', { ...status('نشط', 'موقوف'), formOnly: true })] },
     attendance: { title: 'الحضور والانصراف', sub: 'سجل الحضور اليومي للموظفين', single: 'سجل حضور', filter: 'status', cols: [
-      C('date', 'التاريخ', D), C('employee', 'الموظف', { input: 'select', options: names('employees'), full: true }),
+      C('date', 'التاريخ', D), C('employee', 'الموظف / العامل', { input: 'select', options: staffNames, full: true }),
       C('timeIn', 'الحضور', { input: 'time', optional: true }), C('timeOut', 'الانصراف', { input: 'time', optional: true }), C('status', 'الحالة', status('حاضر', 'متأخر', 'غائب', 'إجازة'))] },
     payroll: { title: 'الرواتب', sub: 'الاستحقاق: من حـ/ المرتبات إلى حـ/ المرتبات المستحقة · الصرف: من حـ/ المستحقة إلى حـ/ الخزينة', single: 'راتب', filter: 'paid', cols: [
-      C('month', 'الشهر', { input: 'month' }), C('employee', 'الموظف', { input: 'select', options: names('employees') }),
+      C('month', 'الشهر', { input: 'month' }), C('employee', 'الموظف / العامل', { input: 'select', options: () => allStaff().map(x => [x.name, `${x.name} — ${pageInfo(x._t).title}`]) }),
       C('group', 'فئة المرتبات', { render: plain, input: 'select', options: payGroups }),
       C('costType', 'نوع التكلفة', { render: plain, input: 'select', options: () => COST_TYPES }),
       C('expAcc', 'حساب المصروف', { compute: r => accLabel(acc(payAccs(r.group, r.costType).exp) || { code: '', name: '' }), render: v => `<span class="hint">${esc(v)}</span>` }),
@@ -614,13 +675,13 @@
       C('net', 'صافي الراتب', computed(r => r.basic + r.allowances - r.deductions, { total: true, render: v => `<b>${money(v)}</b>` })),
       C('paid', 'الحالة', status('مستحق', 'مصروف')), boxField('يُصرف من')],
       defaults: () => ({ allowances: 0, deductions: 0, paid: 'مستحق', costType: 'إدارية', box: db.cashboxes.find(b => b.type === 'بنك')?.name }),
-      onSelect: { employee: (f, v) => { const e = db.employees.find(x => x.name === v); if (e) { f.basic.value = e.salary; if (e.payGroup) f.group.value = e.payGroup; if (e.costType && f.costType) f.costType.value = e.costType; } } },
+      onSelect: { employee: (f, v) => { const e = staffOf(v); if (e) { f.basic.value = e.salary; if (e.group) f.group.value = e.group; if (e.costType && f.costType) f.costType.value = e.costType; } } },
       actions: [{ icon: 'pay', title: 'صرف الراتب', write: true, show: r => r.paid === 'مستحق', fn: r => {
         const x = db.payroll.find(p => p.id === r.id); if (!x || !can('payroll', 'e')) return denied();
         x.paid = 'مصروف'; submitForApproval('payroll', x, true); save(); renderPage(); renderNav(); toast(`تم صرف راتب ${x.employee} من ${x.box}`); } }],
       validate: (d, rec) => db.payroll.some(p => p !== rec && p.month === d.month && p.employee === d.employee) ? `راتب ${d.employee} عن ${d.month} مسجل من قبل` : '' },
     leaves: { title: 'الإجازات', sub: 'الإجازة المعتمدة تظهر في حالة الموظف تلقائياً', single: 'إجازة', filter: 'status', cols: [
-      C('employee', 'الموظف', { input: 'select', options: names('employees'), full: true }), C('type', 'نوع الإجازة', { render: plain, input: 'select', options: opt('اعتيادية', 'عارضة', 'مرضية', 'بدون أجر') }),
+      C('employee', 'الموظف / العامل', { input: 'select', options: staffNames, full: true }), C('type', 'نوع الإجازة', { render: plain, input: 'select', options: opt('اعتيادية', 'عارضة', 'مرضية', 'بدون أجر') }),
       C('from', 'من', D), C('to', 'إلى', D), C('days', 'الأيام', { cls: 'num', compute: r => Math.max(0, Math.round((new Date(r.to) - new Date(r.from)) / 864e5) + 1) }),
       C('status', 'الحالة', status('قيد المراجعة', 'معتمدة', 'مرفوض'))],
       validate: d => d.to < d.from ? 'تاريخ النهاية قبل تاريخ البداية' : '' },
@@ -679,6 +740,11 @@
     warehouses: [['items', 'warehouse'], ['stockIn', 'warehouse'], ['stockOut', 'warehouse'], ['transfers', 'from'], ['transfers', 'to']],
     departments: [['employees', 'department']],
     employees: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee'], ['maintenanceOrders', 'technician']],
+    girlsFixed: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee']],
+    girlsTemp: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee']],
+    bangladesh: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee']],
+    units: [['items', 'unit'], ['units', 'base'], ['stockIn', 'unit'], ['stockOut', 'unit'], ['transfers', 'unit']],
+    costCenters: [['employees', 'costCenter'], ['girlsFixed', 'costCenter'], ['girlsTemp', 'costCenter'], ['bangladesh', 'costCenter']],
     workers: [['dailyLabor', 'worker'], ['advances', 'worker'], ['machineOps', 'operator'], ['maintenanceOrders', 'technician']],
     machines: [['machineOps', 'machine'], ['maintenanceOrders', 'machine'], ['maintenancePlan', 'machine']],
     cashboxes: [['receipts', 'box'], ['payments', 'box'], ['boxTransfers', 'from'], ['boxTransfers', 'to'], ['payroll', 'box'], ['dailyLabor', 'box'], ['advances', 'box'], ['maintenanceOrders', 'box']],
@@ -719,7 +785,12 @@
       { title: 'الصيانة', icon: 'wrench', items: ['maintenanceOrders', 'maintenancePlan'] },
     ] },
     { title: 'التقارير', icon: 'trend', items: ['reportCenter', 'reports'] },
-    { title: 'قواعد البيانات', icon: 'db', items: ['customers', 'suppliers', 'items', 'warehouses', 'employees', 'workers', 'departments', 'machines'] },
+    { title: 'قواعد البيانات', icon: 'db', items: [
+      { title: 'العملاء والموردون', icon: 'users', items: ['customers', 'suppliers'] },
+      { title: 'الأصناف والمخازن', icon: 'box', items: ['items', 'units', 'warehouses'] },
+      { title: 'العاملون', icon: 'users', items: ['employees', 'girlsFixed', 'girlsTemp', 'bangladesh', 'workers', 'departments'] },
+      { title: 'مراكز التكلفة والمحاصيل', icon: 'list', items: ['costCenters', 'crops'] },
+      'machines'] },
     { title: 'الإدارة والإعدادات', icon: 'shield', items: ['dashboard', 'approvals', 'users', 'import', 'database', 'settings'] },
   ];
   const EMO = {
@@ -727,7 +798,7 @@
     cashboxes: '🗃️', bankMoves: '🧾', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️',
     purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
     attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
-    customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', workers: '🦺', departments: '🏢', machines: '🚜',
+    customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', units: '⚖️', costCenters: '🎯', crops: '🌱', girlsFixed: '👩‍🌾', girlsTemp: '👩', bangladesh: '🧑‍🔧', workers: '🦺', departments: '🏢', machines: '🚜',
   };
   // مسار كل صفحة داخل القائمة (لفتح المجموعات التي تحتويها)
   let pagePath = {};
@@ -976,7 +1047,7 @@
     if (c.input === 'checks') return `<div class="field full"><label>${c.label}</label><div class="checks">${c.options().map(o => `<label class="check"><input type="checkbox" name="${c.key}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div></div>`;
     const input = c.input === 'select'
       ? `<select class="input" name="${c.key}" ${c.optional ? '' : 'required'}>${c.allowEmpty ? `<option value="">${c.allowEmpty}</option>` : ''}${c.options().map(o => { const [ov, ol] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`; }).join('')}</select>`
-      : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.optional ? '' : 'required'}>`;
+      : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.optional ? '' : 'required'} ${c.suggest ? `list="dl-${c.key}" autocomplete="off"` : ''}>${c.suggest ? `<datalist id="dl-${c.key}">${c.suggest().map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : ''}`;
     return `<div class="field ${c.full ? 'full' : ''}" data-f="${c.key}"><label>${c.label}</label>${input}</div>`;
   };
   function openModal(title, fields, values, submit) {
@@ -1067,7 +1138,7 @@
     // تعبئة تلقائية عند اختيار عنصر مرتبط
     if (m.onSelect) {
       const f = form.elements;
-      Object.entries(m.onSelect).forEach(([k, fn]) => { f[k]?.addEventListener('change', e => fn(f, e.target.value)); if (!record && f[k] && !(k in prefill)) fn(f, f[k].value); });
+      Object.entries(m.onSelect).forEach(([k, fn]) => { const el = f.namedItem(k); el?.addEventListener('change', e => fn(f, e.target.value)); if (!record && el && !(k in prefill)) fn(f, el.value); });
     }
   }
 
@@ -1107,9 +1178,9 @@
   }
   function itemCard(it) {
     const rows = [
-      ...eff('stockIn').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `إضافة إلى ${r.warehouse} — من ${r.source}`, a: +r.qty, go: 'stockIn' })),
-      ...eff('stockOut').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `صرف من ${r.warehouse} — إلى ${r.to}`, b: +r.qty, go: 'stockOut' })),
-      ...eff('transfers').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `تحويل من ${r.from} إلى ${r.to} (${num(r.qty)})`, go: 'transfers' })),
+      ...eff('stockIn').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `إضافة إلى ${r.warehouse} — من ${r.source}${qtyNote(r)}`, a: baseQty(r), go: 'stockIn' })),
+      ...eff('stockOut').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `صرف من ${r.warehouse} — إلى ${r.to}${qtyNote(r)}`, b: baseQty(r), go: 'stockOut' })),
+      ...eff('transfers').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `تحويل من ${r.from} إلى ${r.to} (${num(r.qty)} ${r.unit || it.unit || ''})`, go: 'transfers' })),
     ];
     const whs = db.warehouses.map(w => [w.name, stockAt(it.name, w.name)]).filter(([, q]) => q);
     openInfo(`كارت الصنف: ${it.name}`, statementHTML(+it.opening || 0, rows, { inc: 'وارد', dec: 'منصرف', fmt: num,
@@ -1518,9 +1589,9 @@
   const ROLES = {
     admin: { title: 'مدير النظام', build: () => ({ perms: grant(permPages(), 'vaed'), special: SPECIALS.map(s => s[0]) }) },
     accountant: { title: 'محاسب', build: () => ({ perms: { ...grant(permPages(), 'v'), ...grant(['accounts', 'journal', 'cashboxes', 'receipts', 'payments', 'salesInvoices', 'salesReturns', 'purchaseInvoices', 'purchaseReturns', 'payroll', 'customers', 'suppliers'], 'vae') }, special: ['export'] }) },
-    storekeeper: { title: 'أمين مخزن', build: () => ({ perms: { ...grant(['dashboard', 'suppliers', 'purchaseOrders'], 'v'), ...grant(['items', 'warehouses', 'stockBalances', 'stockIn', 'stockOut', 'transfers'], 'vae') }, special: ['export'] }) },
+    storekeeper: { title: 'أمين مخزن', build: () => ({ perms: { ...grant(['dashboard', 'suppliers', 'purchaseOrders'], 'v'), ...grant(['items', 'units', 'warehouses', 'stockBalances', 'stockIn', 'stockOut', 'transfers'], 'vae') }, special: ['export'] }) },
     sales: { title: 'مندوب مبيعات', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['customers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'receipts'], 'vae') }, special: [] }) },
-    hr: { title: 'شئون العاملين', build: () => ({ perms: { ...grant(['dashboard'], 'v'), ...grant(['employees', 'attendance', 'payroll', 'leaves', 'departments', 'workers', 'dailyLabor', 'advances'], 'vae') }, special: ['export'] }) },
+    hr: { title: 'شئون العاملين', build: () => ({ perms: { ...grant(['dashboard'], 'v'), ...grant(['employees', 'girlsFixed', 'girlsTemp', 'bangladesh', 'costCenters', 'attendance', 'payroll', 'leaves', 'departments', 'workers', 'dailyLabor', 'advances'], 'vae') }, special: ['export'] }) },
     maint: { title: 'الميكنة والصيانة', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan', 'stockOut'], 'vae') }, special: [] }) },
     viewer: { title: 'مشاهد', build: () => ({ perms: grant(permPages(), 'v'), special: [] }) },
     custom: { title: 'مخصص', build: () => ({ perms: { dashboard: 'v' }, special: [] }) },
@@ -2548,7 +2619,7 @@
     } },
     // ===== المخازن =====
     { id: 'stkMove', group: 'المخازن', title: 'حركة الأصناف للفترة', need: 'items', run: (f, t) => {
-      const q = (list, it, sign, fieldWh) => sum(list.filter(r => r.item === it), r => +r.qty * sign);
+      const q = (list, it, sign, fieldWh) => sum(list.filter(r => r.item === it), r => baseQty(r) * sign);
       const rows = db.items.map(it => {
         const before = r => f && r.date < f, within = r => inRange(r.date, f, t);
         const open = +it.opening + q(eff('stockIn').filter(before), it.name, 1) - q(eff('stockOut').filter(before), it.name, 1);
