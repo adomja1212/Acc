@@ -1380,6 +1380,13 @@ window.ACC_SEED = {
    "name": "إهلاك الأصول الثابتة",
    "parent": "346",
    "balance": 96000
+  },
+  {
+   "id": "acc23110",
+   "code": "23110",
+   "name": "مورد برادات",
+   "parent": "231",
+   "balance": 0
   }
  ],
  "customers": [
@@ -1533,6 +1540,16 @@ window.ACC_SEED = {
    "city": "",
    "phone": "",
    "opening": 0
+  },
+  {
+   "id": "suppliers-012",
+   "code": "S-012",
+   "name": "شركة البرادات المصرية",
+   "category": "مورد برادات",
+   "city": "",
+   "phone": "",
+   "openDr": 0,
+   "openCr": 0
   }
  ],
  "items": [

@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '28/11/2026, 16:00';
+  const APP_VERSION = '28/11/2026, 19:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -317,8 +317,8 @@
       eff('openingBalances').forEach(r => { const a = openAcc(r), d = obDr(r), c = obCr(r); if (!a || !(d || c)) return;
         add('openingBalances', 'رصيد افتتاحي', r, r.no, r.date, r.desc || `رصيد افتتاحي — ${openTarget(r)}`, [L(a, d, c), L(SYS.openEq, c, d)]); });
       // استحقاق المورد: من حـ/ المصروف إلى حـ/ المورد (حساب فئته)
-      eff('supplierAccruals').forEach(r => add('supplierAccruals', 'استحقاق مورد', r, r.no, r.date, r.desc || `استحقاق ${r.party} — ${periodText(r)}`,
-        [L(accCode(r.expAcc), r.amount), L(accCode(r.account) || suppAcc(r.party), 0, r.amount)]));
+      eff('supplierAccruals').forEach(r => add('supplierAccruals', r.store ? 'استلام من مورد' : 'استحقاق مورد', r, r.no, r.date, r.desc || (r.store ? `استلام ${acc(accCode(r.store))?.name || ''} من ${r.party}${r.docNo ? ' — مستند ' + r.docNo : ''}` : `استحقاق ${r.party} — ${periodText(r)}`),
+        [L(accCode(r.store || r.expAcc), r.amount), L(accCode(r.account) || suppAcc(r.party), 0, r.amount)]));
       eff('purchaseInvoices').forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات آجلة - ${r.supplier}`,
         [L(accCode(r.account) || SYS.defPurchase, r.amount), L(suppAcc(r.supplier), 0, r.amount)]));
       eff('purchaseReturns').forEach(r => add('purchaseReturns', 'مرتجع مشتريات', r, r.no, r.date, `مرتجع مشتريات - ${r.supplier}`,
@@ -515,8 +515,10 @@
   const fmtDMY = d => d ? d.split('-').reverse().join('-') : '';
   const periodText = r => r.periodType === 'شهر' || (r.month && !r.from) ? `شهر ${r.month || ''}` : r.from || r.to ? `من ${fmtDMY(r.from)} إلى ${fmtDMY(r.to)}` : '';
   // حساب المصروف المقترح حسب نوع المورد (عمالة / معدات / سيارات)
+  // موردو البضاعة (محاصيل / بضاعة / نقدي) يُستلم منهم مخزون، وغيرهم موردو خدمات بفترة وحساب مقابل
+  const suppKind = accV => { const n = acc(accCode(accV))?.name || ''; return !n ? '' : /محاصيل|بضاع|نقد/.test(n) ? 'goods' : 'service'; };
   const defaultExpFor = accV => { const n = acc(accCode(accV))?.name || '';
-    const c = /عمال/.test(n) ? laborAcc('تشغيلية') : /معدات/.test(n) ? leafByName(SYS.expenses, 'إيجار معدات تشغيلية') : /سيارات/.test(n) ? leafByName(SYS.expenses, 'إيجار سيارات تشغيلية') : '';
+    const c = /عمال/.test(n) ? laborAcc('تشغيلية') : /براد|مبرد/.test(n) ? leafByName(SYS.expenses, 'إيجار شاحنات مبردة تشغيلية') : /معدات/.test(n) ? leafByName(SYS.expenses, 'إيجار معدات تشغيلية') : /سيارات/.test(n) ? leafByName(SYS.expenses, 'إيجار سيارات تشغيلية') : '';
     return c && acc(c) ? accLabel(acc(c)) : ''; };
   const partyLabel = (name, accV) => { const k = partyKind(accCode(accV)); return k === 's' ? `الرصيد المستحق: ${money(suppBal(name))}` : k === 'c' ? `رصيد العميل: ${money(custBal(name))}` : ''; };
   const partyName = r => r.party && r.party !== 'أخرى' ? r.party : r.beneficiary || acc(accCode(r.account))?.name || r.party || '';
@@ -841,32 +843,46 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       } },
 
     // ===== إدارة الموردين =====
-    supplierAccruals: { title: 'استحقاقات الموردين', sub: 'اسم الحساب ← اسم المورد ← الفترة ← المبلغ المستحق · يُرحّل بعد الاعتماد: من حـ/ المصروف إلى حـ/ المورد', single: 'استحقاق مورد', key: 'no', prefix: 'SA-', filter: 'account', cols: [
-      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الاستحقاق', D),
+    supplierAccruals: { title: 'استحقاقات الموردين', sub: 'موردو البضاعة (محاصيل / بضاعة / نقدي): المخزون المستلم والفرع ورقم المستند · موردو الخدمات (سيارات / برادات / عمالة / معدات): الشهر والحساب المقابل — يُرحّل بعد الاعتماد إلى حـ/ المورد', single: 'استحقاق مورد', key: 'no', prefix: 'SA-', filter: 'account', cols: [
+      C('date', 'تاريخ الحركة', { ...D, aka: ['تاريخ الاستحقاق'] }), C('no', 'رقم الحركة', CODE),
       C('account', 'اسم الحساب', { input: 'select', allowEmpty: '— اختر حساب الموردين —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.suppliers)).map(accLabel), render: v => `<span class="pill">${esc(acc(accCode(v))?.name || v)}</span>` }),
       C('party', 'اسم المورد', { dyn: true, suggest: v => partyOpts(v?.account) }),
-      C('periodType', 'نوع الفترة', { input: 'select', options: opt('شهر', 'من — إلى'), formOnly: true }),
-      C('month', 'الشهر', { input: 'month', optional: true, formOnly: true, when: f => f.periodType === 'شهر' }),
-      C('from', 'من تاريخ', { input: 'date', optional: true, formOnly: true, when: f => f.periodType !== 'شهر' }),
-      C('to', 'إلى تاريخ', { input: 'date', optional: true, formOnly: true, when: f => f.periodType !== 'شهر' }),
-      C('period', 'الفترة', { compute: periodText }),
-      C('expAcc', 'حساب المصروف المقابل', { input: 'select', allowEmpty: '— اختر حساب المصروف —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.expenses) || isInvAcc(a.code)).map(accLabel), full: true, render: v => `<span class="hint">${esc(v)}</span>` }),
-      C('amount', 'المبلغ المستحق', { ...M, total: true }),
+      // موردو البضاعة
+      C('store', 'المخزون المستلم', { aka: ['المخزون', 'حساب المخزون'], input: 'select', optional: true, allowEmpty: '— اختر حساب المخزون —', options: () => leafAccounts().filter(a => isInvAcc(a.code)).map(accLabel), formOnly: true, when: f => suppKind(f.account) === 'goods' }),
+      C('branch', 'الفرع', { input: 'select', optional: true, allowEmpty: '—', options: names('branches'), when: f => suppKind(f.account) === 'goods' }),
+      C('docNo', 'رقم المستند', { aka: ['رقم الفاتورة', 'رقم مستند المورد'], optional: true, cls: 'code', when: f => suppKind(f.account) === 'goods' }),
+      // موردو الخدمات
+      C('periodType', 'نوع الفترة', { input: 'select', options: opt('شهر', 'من — إلى'), formOnly: true, when: f => suppKind(f.account) === 'service' }),
+      C('month', 'الشهر', { input: 'month', optional: true, formOnly: true, when: f => suppKind(f.account) === 'service' && f.periodType === 'شهر' }),
+      C('from', 'من تاريخ', { input: 'date', optional: true, formOnly: true, when: f => suppKind(f.account) === 'service' && f.periodType !== 'شهر' }),
+      C('to', 'إلى تاريخ', { input: 'date', optional: true, formOnly: true, when: f => suppKind(f.account) === 'service' && f.periodType !== 'شهر' }),
+      C('expAcc', 'الحساب المقابل', { aka: ['حساب المصروف المقابل', 'حساب المصروف'], input: 'select', optional: true, allowEmpty: '— اختر الحساب المقابل —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.expenses) || isInvAcc(a.code)).map(accLabel), formOnly: true, full: true, when: f => suppKind(f.account) === 'service' }),
+      C('period', 'الفترة / المستند', { compute: r => r.store ? (r.docNo ? `مستند ${r.docNo}` : '—') : periodText(r) }),
+      C('counter', 'الحساب المقابل', { compute: r => accCode(r.store || r.expAcc) ? accLabel(acc(accCode(r.store || r.expAcc)) || { code: '', name: r.store || r.expAcc }) : '', render: v => `<span class="hint">${esc(v)}</span>` }),
+      C('amount', 'المبلغ', { ...M, total: true, aka: ['المبلغ المستحق'] }),
       C('bal', 'رصيد المورد الحالي', computed(r => suppBal(r.party))),
-      C('desc', 'البيان', { optional: true, full: true })],
+      C('desc', 'البيان', { optional: true, full: true, formOnly: true })],
       defaults: () => ({ periodType: 'شهر' }),
-      onSelect: { account: (f, v) => { const e = f.namedItem('expAcc'); if (e && !e.value) { const d = defaultExpFor(v, f.namedItem('party')?.value); if (d) e.value = d; } },
-        party: (f, v) => { const e = f.namedItem('expAcc'), h = [...db.supplierAccruals].reverse().find(r => r.party === v && r.expAcc); if (e && h) e.value = h.expAcc; } },
+      onSelect: { account: (f, v) => { const e = f.namedItem('expAcc'); if (e && !e.value && suppKind(v) === 'service') { const d = defaultExpFor(v); if (d) e.value = d; } },
+        party: (f, v) => { const h = [...db.supplierAccruals].reverse().find(r => r.party === v);
+          if (h?.expAcc && f.namedItem('expAcc')) f.namedItem('expAcc').value = h.expAcc; if (h?.store && f.namedItem('store') && !f.namedItem('store').value) f.namedItem('store').value = h.store; } },
       validate: (d, rec) => {
         const code = accCode(d.account); if (!code) return 'اختر اسم الحساب';
         fixParty(d, partyOpts(d.account)); if (!partyOpts(d.account).includes(d.party)) return `اختر المورد من موردي "${acc(code)?.name}"`;
-        if (!d.month && d.from && d.to) d.periodType = 'من — إلى'; else if (d.month && !d.from) d.periodType = 'شهر';
-        if (d.periodType === 'شهر') { if (!d.month) return 'اختر الشهر'; d.from = ''; d.to = ''; }
-        else { if (!d.from || !d.to) return 'اكتب الفترة من — إلى'; if (d.to < d.from) return 'تاريخ النهاية قبل البداية'; d.month = ''; }
-        if (!accCode(d.expAcc)) return 'اختر حساب المصروف المقابل';
-        if (!(+d.amount > 0)) return 'اكتب المبلغ المستحق';
-        const dup = db.supplierAccruals.find(r => r !== rec && r.party === d.party && periodText(r) === periodText(d));
-        if (dup && !ask(`يوجد استحقاق للمورد ${d.party} عن نفس الفترة (${dup.no}). متابعة؟`)) return 'تم الإلغاء';
+        if (suppKind(d.account) === 'goods') {
+          if (!accCode(d.store) || !isInvAcc(accCode(d.store))) return 'اختر المخزون المستلم';
+          ['periodType', 'month', 'from', 'to', 'expAcc'].forEach(k => { d[k] = ''; });
+          if (d.docNo && db.supplierAccruals.some(r => r !== rec && r.party === d.party && r.docNo === d.docNo) && !ask(`رقم المستند ${d.docNo} مسجل من قبل لنفس المورد. متابعة؟`)) return 'تم الإلغاء';
+        } else {
+          ['store', 'branch', 'docNo'].forEach(k => { d[k] = ''; });
+          if (!d.month && d.from && d.to) d.periodType = 'من — إلى'; else if (d.month && !d.from) d.periodType = 'شهر';
+          if (d.periodType === 'شهر') { if (!d.month) return 'اختر الشهر'; d.from = ''; d.to = ''; }
+          else { if (!d.from || !d.to) return 'اكتب الفترة من — إلى'; if (d.to < d.from) return 'تاريخ النهاية قبل البداية'; d.month = ''; }
+          if (!accCode(d.expAcc)) return 'اختر الحساب المقابل';
+          const dup = db.supplierAccruals.find(r => r !== rec && r.party === d.party && !r.store && periodText(r) === periodText(d));
+          if (dup && !ask(`يوجد استحقاق للمورد ${d.party} عن نفس الفترة (${dup.no}). متابعة؟`)) return 'تم الإلغاء';
+        }
+        if (!(+d.amount > 0)) return 'اكتب المبلغ';
       } },
 
     // ===== المشتريات =====
@@ -1755,7 +1771,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     const rows = [
       ...eff('purchaseInvoices').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: 'فاتورة مشتريات', a: +i.amount, go: 'purchaseInvoices' })),
       ...eff('purchaseReturns').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: `مرتجع — ${i.reason}`, b: +i.amount, go: 'purchaseReturns' })),
-      ...eff('supplierAccruals').filter(i => i.party === s.name).map(i => ({ date: i.date, ref: i.no, desc: `استحقاق ${periodText(i)}${i.desc ? ' — ' + i.desc : ''}`, a: +i.amount, go: 'supplierAccruals' })),
+      ...eff('supplierAccruals').filter(i => i.party === s.name).map(i => ({ date: i.date, ref: i.no, desc: i.store ? `استلام ${acc(accCode(i.store))?.name || ''}${i.docNo ? ' — مستند ' + i.docNo : ''}` : `استحقاق ${periodText(i)}${i.desc ? ' — ' + i.desc : ''}`, a: +i.amount, go: 'supplierAccruals' })),
       ...eff('stockIn').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: `إذن إضافة — ${linesSummary(i)}`, a: docTotals(i).net, go: 'stockIn' })),
       ...eff('payments').filter(i => i.party === s.name && isPartyDoc(i, 's')).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند صرف', b: +i.amount, go: 'payments' })),
     ];
@@ -3291,8 +3307,8 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       const rows = []; let last = null;
       list.forEach(r => { const a = acc(accCode(r.account))?.name || '';
         if (a !== last) { const g = list.filter(x => (acc(accCode(x.account))?.name || '') === a); rows.push({ cells: [a, `${g.length} استحقاق`, '', '', sum(g, x => +x.amount)], cls: 'section' }); last = a; }
-        rows.push([r.party, periodText(r), r.no, acc(accCode(r.expAcc))?.name || '', +r.amount]); });
-      return { cols: [col('المورد'), col('الفترة'), col('رقم الحركة'), col('حساب المصروف'), col('المبلغ المستحق', M$)], rows, note: 'مجمّعة حسب اسم الحساب (فئة المورد)' };
+        rows.push([r.party, r.store ? `مستند ${r.docNo || '—'}${r.branch ? ' · ' + r.branch : ''}` : periodText(r), r.no, acc(accCode(r.store || r.expAcc))?.name || '', +r.amount]); });
+      return { cols: [col('المورد'), col('الفترة / المستند'), col('رقم الحركة'), col('الحساب المقابل'), col('المبلغ المستحق', M$)], rows, note: 'مجمّعة حسب اسم الحساب (فئة المورد)' };
     } },
     { id: 'purCat', group: 'المشتريات', title: 'المشتريات حسب تصنيف الموردين', need: 'purchaseInvoices', run: (f, t) => {
       const cat = n => db.suppliers.find(s => s.name === n)?.category || 'بدون تصنيف';
