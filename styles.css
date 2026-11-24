@@ -804,3 +804,19 @@ textarea.input { min-height: 72px; }
 .tile-icon svg { width: 16px; height: 16px; }
 .tile h4 { font-size: 13.5px; }
 .tile p, .tile div { font-size: 12px; }
+
+/* تعديل: القائمة أعرض 0.2 سم (≈8px)، خطها أصغر درجة، ونوع خط عادي */
+:root { --sidebar-w: 168px; }
+body, button, input, select, textarea { font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+.sidebar { font-weight: 400; }
+.brand-name { font-size: 11px; font-weight: 700; }
+.brand-sub { font-size: 9.5px; }
+.nav-tabs button { font-size: 10px; font-weight: 600; }
+.nav-search input { font-size: 10px; }
+.nav-head { font-size: 11px; font-weight: 600; }
+.nav-group.lvl1 > .nav-head { font-size: 10.5px; font-weight: 600; }
+.nav-leaf a { font-size: 10.5px; font-weight: 400; }
+.nav-title small { font-size: 9px; }
+.danger-btn { font-size: 10px; font-weight: 600; }
+.user-name { font-size: 10.5px; font-weight: 600; }
+.user-role, .version { font-size: 9px; }
