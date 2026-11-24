@@ -1470,6 +1470,69 @@ window.ACC_SEED = {
    "city": "العاشر من رمضان",
    "opening": 30000,
    "category": "مورد بضاعة"
+  },
+  {
+   "id": "suppliers-005",
+   "code": "S-005",
+   "name": "مقاول عمالة الأمل",
+   "category": "مورد عمالة مزارع",
+   "city": "",
+   "phone": "",
+   "opening": 0
+  },
+  {
+   "id": "suppliers-006",
+   "code": "S-006",
+   "name": "مقاول عمالة النور",
+   "category": "مورد عمالة مزارع",
+   "city": "",
+   "phone": "",
+   "opening": 0
+  },
+  {
+   "id": "suppliers-007",
+   "code": "S-007",
+   "name": "شركة النقل السريع",
+   "category": "مورد سيارات مزارع",
+   "city": "",
+   "phone": "",
+   "opening": 0
+  },
+  {
+   "id": "suppliers-008",
+   "code": "S-008",
+   "name": "مؤسسة المعدات الزراعية",
+   "category": "مورد معدات مزارع",
+   "city": "",
+   "phone": "",
+   "opening": 0
+  },
+  {
+   "id": "suppliers-009",
+   "code": "S-009",
+   "name": "مقاول عمالة المحطة",
+   "category": "مورد عمالة محطة",
+   "city": "",
+   "phone": "",
+   "opening": 0
+  },
+  {
+   "id": "suppliers-010",
+   "code": "S-010",
+   "name": "شركة كلارك للمعدات",
+   "category": "مورد معدات محطة",
+   "city": "",
+   "phone": "",
+   "opening": 0
+  },
+  {
+   "id": "suppliers-011",
+   "code": "S-011",
+   "name": "شركة التبريد للنقل",
+   "category": "مورد سيارات محطة",
+   "city": "",
+   "phone": "",
+   "opening": 0
   }
  ],
  "items": [
@@ -3151,5 +3214,6 @@ window.ACC_SEED = {
    "price": 25,
    "stockItem": ""
   }
- ]
+ ],
+ "supplierAccruals": []
 };

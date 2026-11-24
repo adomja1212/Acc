@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 10:00';
+  const APP_VERSION = '26/11/2026, 14:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -33,8 +33,8 @@
   const TABLES = ['appUsers', 'accounts', 'customers', 'suppliers', 'items', 'warehouses', 'departments', 'employees', 'attendance', 'payroll', 'leaves',
     'workers', 'dailyLabor', 'advances', 'cashboxes', 'receipts', 'payments', 'boxTransfers', 'journal', 'salesInvoices', 'salesQuotes', 'salesReturns',
     'purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'stockIn', 'stockOut', 'transfers', 'machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan',
-    'units', 'costCenters', 'crops', 'girlsFixed', 'girlsTemp', 'bangladesh', 'branches', 'salesItems'];
-  const TX_TABLES = ['journal', 'receipts', 'payments', 'boxTransfers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
+    'units', 'costCenters', 'crops', 'girlsFixed', 'girlsTemp', 'bangladesh', 'branches', 'salesItems', 'supplierAccruals'];
+  const TX_TABLES = ['journal', 'receipts', 'payments', 'boxTransfers', 'supplierAccruals', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
     'stockIn', 'stockOut', 'transfers', 'attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders'];
   const DEFAULT_SETTINGS = { company: 'نظام المحاسب', taxNo: '', commercialReg: '', currency: 'ج.م', vat: 14, fiscalStart: `${new Date().getFullYear()}-01-01`, address: '' };
   const emptyDb = () => ({ ...Object.fromEntries(TABLES.map(t => [t, []])), settings: { ...DEFAULT_SETTINGS }, approvalCfg: {} });
@@ -292,6 +292,9 @@
           [L(chq ? SYS.chqIn : boxAcc(r.box), r.amount), L(accCode(r.account) || (isCustomer(r.party) ? custAcc(r.party) : SYS.otherRev), 0, r.amount)]);
         if (chq && r.chequeStatus === 'محصّل') add('receipts', 'تحصيل شيك', r, `${r.no}-ت`, r.clearDate || r.chequeDate || r.date, `تحصيل الشيك ${r.chequeNo} — ${partyName(r)}`,
           [L(boxAcc(r.box), r.amount), L(SYS.chqIn, 0, r.amount)]); });
+      // استحقاق المورد: من حـ/ المصروف إلى حـ/ المورد (حساب فئته)
+      eff('supplierAccruals').forEach(r => add('supplierAccruals', 'استحقاق مورد', r, r.no, r.date, r.desc || `استحقاق ${r.party} — ${periodText(r)}`,
+        [L(accCode(r.expAcc), r.amount), L(accCode(r.account) || suppAcc(r.party), 0, r.amount)]));
       eff('purchaseInvoices').forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات آجلة - ${r.supplier}`,
         [L(accCode(r.account) || SYS.defPurchase, r.amount), L(suppAcc(r.supplier), 0, r.amount)]));
       eff('purchaseReturns').forEach(r => add('purchaseReturns', 'مرتجع مشتريات', r, r.no, r.date, `مرتجع مشتريات - ${r.supplier}`,
@@ -349,7 +352,7 @@
   });
   const suppBal = name => memo('sb:' + name, () => {
     const s = db.suppliers.find(x => x.name === name);
-    return +(s?.opening || 0) + sum(eff('purchaseInvoices').filter(i => i.supplier === name), i => i.amount) + sum(eff('stockIn').filter(r => r.supplier === name), r => docTotals(r).net)
+    return +(s?.opening || 0) + sum(eff('purchaseInvoices').filter(i => i.supplier === name), i => i.amount) + sum(eff('stockIn').filter(r => r.supplier === name), r => docTotals(r).net) + sum(eff('supplierAccruals').filter(r => r.party === name), r => +r.amount || 0)
       - sum(eff('purchaseReturns').filter(r => r.supplier === name), r => r.amount) - sum(eff('payments').filter(r => r.party === name && isPartyDoc(r, 's')), r => r.amount);
   });
   const salesPaid = inv => sum(eff('receipts').filter(r => r.invoice === inv.no), r => r.amount) + sum(eff('salesReturns').filter(r => r.invoice === inv.no), r => r.amount);
@@ -482,6 +485,13 @@
     if (k === 's' && !ok.includes(d.party)) return `اختر المورد من موردي "${acc(code)?.name}"`;
     if (k === 'o') d.party = ok[0];
     return ''; };
+  const fmtDMY = d => d ? d.split('-').reverse().join('-') : '';
+  const periodText = r => r.periodType === 'شهر' || (r.month && !r.from) ? `شهر ${r.month || ''}` : r.from || r.to ? `من ${fmtDMY(r.from)} إلى ${fmtDMY(r.to)}` : '';
+  // حساب المصروف المقترح حسب نوع المورد (عمالة / معدات / سيارات)
+  const defaultExpFor = accV => { const n = acc(accCode(accV))?.name || '';
+    const c = /عمال/.test(n) ? laborAcc('تشغيلية') : /معدات/.test(n) ? leafByName(SYS.expenses, 'إيجار معدات تشغيلية') : /سيارات/.test(n) ? leafByName(SYS.expenses, 'إيجار سيارات تشغيلية') : '';
+    return c && acc(c) ? accLabel(acc(c)) : ''; };
+  const partyLabel = (name, accV) => { const k = partyKind(accCode(accV)); return k === 's' ? `الرصيد المستحق: ${money(suppBal(name))}` : k === 'c' ? `رصيد العميل: ${money(custBal(name))}` : ''; };
   const partyName = r => r.party && r.party !== 'أخرى' ? r.party : r.beneficiary || acc(accCode(r.account))?.name || r.party || '';
   const bankFields = (side, who, statuses = CHQ_IN, withBen = true) => [
     C('method', 'طريقة الإيداع / الصرف', { input: 'select', options: () => PAY_METHODS, formOnly: true, when: side }),
@@ -732,6 +742,34 @@
         if (f.namedItem('warehouse') && !f.namedItem('warehouse').value) f.namedItem('warehouse').value = inv.warehouse || ''; } },
       validate: (d, rec) => { const le = salesLinesCheck(d, rec, 'in'); if (le) return le; const inv = db.salesInvoices.find(i => i.no === d.invoice); if (inv && inv.customer !== d.customer) return `الفاتورة ${inv.no} تخص ${inv.customer}`; } },
 
+    // ===== إدارة الموردين =====
+    supplierAccruals: { title: 'استحقاقات الموردين', sub: 'اسم الحساب ← اسم المورد ← الفترة ← المبلغ المستحق · يُرحّل بعد الاعتماد: من حـ/ المصروف إلى حـ/ المورد', single: 'استحقاق مورد', key: 'no', prefix: 'SA-', filter: 'account', cols: [
+      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الاستحقاق', D),
+      C('account', 'اسم الحساب', { input: 'select', allowEmpty: '— اختر حساب الموردين —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.suppliers)).map(accLabel), render: v => `<span class="pill">${esc(acc(accCode(v))?.name || v)}</span>` }),
+      C('party', 'اسم المورد', { dyn: true, suggest: v => partyOpts(v?.account) }),
+      C('periodType', 'نوع الفترة', { input: 'select', options: opt('شهر', 'من — إلى'), formOnly: true }),
+      C('month', 'الشهر', { input: 'month', optional: true, formOnly: true, when: f => f.periodType === 'شهر' }),
+      C('from', 'من تاريخ', { input: 'date', optional: true, formOnly: true, when: f => f.periodType !== 'شهر' }),
+      C('to', 'إلى تاريخ', { input: 'date', optional: true, formOnly: true, when: f => f.periodType !== 'شهر' }),
+      C('period', 'الفترة', { compute: periodText }),
+      C('expAcc', 'حساب المصروف المقابل', { input: 'select', allowEmpty: '— اختر حساب المصروف —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.expenses) || a.code.startsWith(SYS.inventory)).map(accLabel), full: true, render: v => `<span class="hint">${esc(v)}</span>` }),
+      C('amount', 'المبلغ المستحق', { ...M, total: true }),
+      C('bal', 'رصيد المورد الحالي', computed(r => suppBal(r.party))),
+      C('desc', 'البيان', { optional: true, full: true })],
+      defaults: () => ({ periodType: 'شهر' }),
+      onSelect: { account: (f, v) => { const e = f.namedItem('expAcc'); if (e && !e.value) { const d = defaultExpFor(v, f.namedItem('party')?.value); if (d) e.value = d; } },
+        party: (f, v) => { const e = f.namedItem('expAcc'), h = [...db.supplierAccruals].reverse().find(r => r.party === v && r.expAcc); if (e && h) e.value = h.expAcc; } },
+      validate: (d, rec) => {
+        const code = accCode(d.account); if (!code) return 'اختر اسم الحساب';
+        if (!partyOpts(d.account).includes(d.party)) return `اختر المورد من موردي "${acc(code)?.name}"`;
+        if (d.periodType === 'شهر') { if (!d.month) return 'اختر الشهر'; d.from = ''; d.to = ''; }
+        else { if (!d.from || !d.to) return 'اكتب الفترة من — إلى'; if (d.to < d.from) return 'تاريخ النهاية قبل البداية'; d.month = ''; }
+        if (!accCode(d.expAcc)) return 'اختر حساب المصروف المقابل';
+        if (!(+d.amount > 0)) return 'اكتب المبلغ المستحق';
+        const dup = db.supplierAccruals.find(r => r !== rec && r.party === d.party && periodText(r) === periodText(d));
+        if (dup && !ask(`يوجد استحقاق للمورد ${d.party} عن نفس الفترة (${dup.no}). متابعة؟`)) return 'تم الإلغاء';
+      } },
+
     // ===== المشتريات =====
     purchaseOrders: { title: 'أوامر الشراء', sub: 'طلبات الشراء (لا تُرحّل حتى تصدر الفاتورة)', single: 'أمر شراء', key: 'no', filter: 'status', cols: [
       C('no', 'رقم الأمر', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers'), full: true }), C('date', 'التاريخ', D), C('delivery', 'موعد التوريد', D),
@@ -869,7 +907,7 @@
   // الروابط بين الجداول: عند تغيير الاسم يتحدث في كل مكان، ولا يُحذف سجل مستخدم
   const refs = {
     customers: [['salesInvoices', 'customer'], ['salesQuotes', 'customer'], ['salesReturns', 'customer'], ['receipts', 'party']],
-    suppliers: [['purchaseOrders', 'supplier'], ['purchaseInvoices', 'supplier'], ['purchaseReturns', 'supplier'], ['payments', 'party'], ['stockIn', 'supplier']],
+    suppliers: [['purchaseOrders', 'supplier'], ['purchaseInvoices', 'supplier'], ['purchaseReturns', 'supplier'], ['payments', 'party'], ['stockIn', 'supplier'], ['supplierAccruals', 'party']],
     items: [['stockIn', 'item'], ['stockOut', 'item'], ['transfers', 'item'], ['salesItems', 'stockItem']],
     warehouses: [['items', 'warehouse'], ['stockIn', 'warehouse'], ['stockOut', 'warehouse'], ['transfers', 'from'], ['transfers', 'to']],
     departments: [['employees', 'department']],
@@ -932,6 +970,7 @@
       { title: 'الخزينة', icon: 'cash', items: () => [...db.cashboxes.filter(b => !isBankBox(b)).sort((a, b) => String(a.code).localeCompare(String(b.code))).map(b => 'box/' + b.id), 'receipts', 'payments', 'boxTransfers'] },
       { title: 'البنوك', icon: 'bank', items: () => [...db.cashboxes.filter(isBankBox).sort((a, b) => String(a.code).localeCompare(String(b.code))).map(b => 'box/' + b.id), 'bankMoves', 'cashboxes'] },
       { title: 'المبيعات', icon: 'sales', items: [...SALE_TYPES.map(([k]) => 'si_' + k), ...SALE_TYPES.map(([k]) => 'sr_' + k), 'salesInvoices', 'salesReturns', 'salesQuotes'] },
+      { title: 'إدارة الموردين', icon: 'users', items: ['supplierAccruals', 'suppliers'] },
       { title: 'المشتريات', icon: 'cart', items: ['purchaseOrders', 'purchaseInvoices', 'purchaseReturns'] },
       { title: 'المخازن', icon: 'box', items: ['stockBalances', 'stockIn', 'stockOut', 'transfers'] },
       { title: 'شئون العاملين', icon: 'users', items: ['attendance', 'payroll', 'leaves'] },
@@ -953,7 +992,7 @@
     cashboxes: '🗃️', bankMoves: '🧾', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️', si_local: '🏪', si_seedlings: '🌱', si_scrap: '♻️', si_livestock: '🐄', sr_local: '↩️', sr_seedlings: '↩️', sr_scrap: '↩️', sr_livestock: '↩️',
     purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
     attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
-    customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', units: '⚖️', salesItems: '🧺', branches: '📍', costCenters: '🎯', crops: '🌱', girlsFixed: '👩‍🌾', girlsTemp: '👩', bangladesh: '🧑‍🔧', workers: '🦺', departments: '🏢', machines: '🚜',
+    customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', units: '⚖️', salesItems: '🧺', supplierAccruals: '🗓️', branches: '📍', costCenters: '🎯', crops: '🌱', girlsFixed: '👩‍🌾', girlsTemp: '👩', bangladesh: '🧑‍🔧', workers: '🦺', departments: '🏢', machines: '🚜',
   };
   // مسار كل صفحة داخل القائمة (لفتح المجموعات التي تحتويها)
   let pagePath = {};
@@ -1205,7 +1244,7 @@
     if (c.input === 'checks') return `<div class="field full"><label>${c.label}</label><div class="checks">${c.options().map(o => `<label class="check"><input type="checkbox" name="${c.key}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div></div>`;
     const input = c.input === 'select'
       ? `<select class="input" name="${c.key}" ${c.optional ? '' : 'required'}>${c.allowEmpty ? `<option value="">${c.allowEmpty}</option>` : ''}${c.options().map(o => { const [ov, ol] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`; }).join('')}</select>`
-      : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.optional ? '' : 'required'} ${c.suggest ? `list="dl-${c.key}" autocomplete="off"` : ''}>${c.suggest ? `<datalist id="dl-${c.key}">${c.suggest(vals).map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : ''}`;
+      : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.optional ? '' : 'required'} ${c.suggest ? `data-dl="dl-${c.key}" autocomplete="off"` : ''}>${c.suggest ? `<datalist id="dl-${c.key}">${c.suggest(vals).map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : ''}`;
     return `<div class="field ${c.full ? 'full' : ''}" data-f="${c.key}"><label>${c.label}</label>${input}</div>`;
   };
   function openModal(title, fields, values, submit) {
@@ -1304,7 +1343,7 @@
       let lastDyn = null;
       const upd = () => { const v = Object.fromEntries(new FormData(form)); conds.forEach(c => { const el = $(`#modalBody [data-f="${c.key}"]`); if (el) el.hidden = !c.when(v); });
         const sig = JSON.stringify(v.account ?? ''); if (sig === lastDyn) return; const first = lastDyn === null; lastDyn = sig;
-        dyns.forEach(c => { const list = c.suggest(v), dl = $(`#dl-${c.key}`), inp = form.elements.namedItem(c.key); if (dl) dl.innerHTML = list.map(o => `<option value="${esc(o)}">`).join('');
+        dyns.forEach(c => { const list = c.suggest(v), dl = $(`#dl-${c.key}`), inp = form.elements.namedItem(c.key); if (dl) dl.innerHTML = list.map(o => `<option value="${esc(o)}">${esc(c.key === 'party' ? partyLabel(o, v.account) : '')}</option>`).join('');
           if (!inp) return; inp.placeholder = list.length ? `اختر من ${list.length} — أو اكتب` : 'اكتب اسم المستفيد';
           if (!first && inp.value && list.length && !list.includes(inp.value) && ['c', 's', 'o'].includes(partyKind(accCode(v.account)))) inp.value = '';
           if (list.length === 1 && !inp.value) inp.value = list[0]; }); };
@@ -1316,6 +1355,40 @@
       Object.entries(m.onSelect).forEach(([k, fn]) => { const el = f.namedItem(k); el?.addEventListener('change', e => fn(f, e.target.value)); if (!record && el && !(k in prefill)) fn(f, el.value); });
     }
   }
+
+  // ---------- كومبوبوكس بحث: يعرض الخيارات المطابقة لما يُكتب ----------
+  const normAr = x => String(x ?? '').toLowerCase().replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[\u064B-\u0652\u0640]/g, '').replace(/\s+/g, ' ').trim();
+  const combo = (() => {
+    const box = document.createElement('div'); box.className = 'combo-list'; box.hidden = true; document.body.appendChild(box);
+    let inp = null, items = [], idx = -1;
+    const close = () => { box.hidden = true; inp = null; idx = -1; };
+    const pick = i => { const it = items[i]; if (!it || !inp) return; const el = inp; el.value = it.v; close(); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
+    const hl = (t, q) => { if (!q) return esc(t); const nt = normAr(t), i = nt.indexOf(q); return i < 0 || nt.length !== t.length ? esc(t) : esc(t.slice(0, i)) + '<mark>' + esc(t.slice(i, i + q.length)) + '</mark>' + esc(t.slice(i + q.length)); };
+    const show = el => {
+      const dl = document.getElementById(el.dataset.dl); if (!dl) return close();
+      const q = normAr(el.value), words = q.split(' ').filter(Boolean);
+      const all = [...dl.options].map(o => ({ v: o.value, l: o.textContent.trim() }));
+      items = all.filter(o => { const t = normAr(o.v + ' ' + o.l); return words.every(w => t.includes(w)); }).sort((a, b) => (normAr(a.v).startsWith(q) ? 0 : 1) - (normAr(b.v).startsWith(q) ? 0 : 1)).slice(0, 60);
+      inp = el; idx = items.length ? 0 : -1;
+      if (!all.length) return close();
+      box.innerHTML = items.length ? items.map((o, i) => `<div class="combo-opt ${i === idx ? 'on' : ''}" data-i="${i}"><b>${hl(o.v, q)}</b>${o.l ? `<small>${esc(o.l)}</small>` : ''}</div>`).join('') + `<div class="combo-foot">${items.length} من ${all.length}</div>`
+        : `<div class="combo-none">لا توجد نتيجة مطابقة لـ "${esc(el.value)}"</div>`;
+      const r = el.getBoundingClientRect(); box.style.top = `${r.bottom + 4}px`; box.style.left = `${r.left}px`; box.style.width = `${Math.max(r.width, 260)}px`; box.hidden = false;
+    };
+    const move = d => { if (!items.length) return; idx = (idx + d + items.length) % items.length; $$('.combo-opt', box).forEach((o, i) => o.classList.toggle('on', i === idx)); box.querySelector('.combo-opt.on')?.scrollIntoView({ block: 'nearest' }); };
+    document.addEventListener('focusin', e => { if (e.target.matches?.('[data-dl]')) show(e.target); });
+    document.addEventListener('input', e => { if (e.target.matches?.('[data-dl]') && e.isTrusted) show(e.target); });
+    document.addEventListener('keydown', e => {
+      if (!inp || e.target !== inp || box.hidden) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); move(1); } else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+      else if (e.key === 'Enter' && idx >= 0 && normAr(inp.value) !== normAr(items[idx].v)) { e.preventDefault(); e.stopPropagation(); pick(idx); }
+      else if (e.key === 'Escape') { e.stopPropagation(); close(); } else if (e.key === 'Tab') close();
+    }, true);
+    box.addEventListener('mousedown', e => { const o = e.target.closest('.combo-opt'); if (o) { e.preventDefault(); pick(+o.dataset.i); } });
+    document.addEventListener('focusout', e => { if (e.target === inp) setTimeout(() => { if (document.activeElement !== inp) close(); }, 120); });
+    window.addEventListener('scroll', () => { if (inp) show(inp); }, true);
+    return { close };
+  })();
 
   // ---------- محرر الأصناف (مثل Excel): صف لكل صنف، يجلب بيانات الصنف تلقائياً ----------
   function initLines(box, hidden, { tax, priceOf, onTotal, items, empty }) {
@@ -1333,7 +1406,7 @@
     const cell = (k, v, cls = '', type = 'number') => `<td><input class="lg-in ${cls}" data-k="${k}" type="${type}" ${type === 'number' ? 'step="any" min="0"' : ''} value="${esc(v ?? '')}"></td>`;
     const rowHTML = (l, i) => { const it = itemOf(l.item);
       return `<tr data-i="${i}"><td class="lg-n">${i + 1}</td>
-        <td class="lg-item"><input class="lg-in" data-k="item" list="dl-lg-items" autocomplete="off" placeholder="اكتب اسم أو كود الصنف" value="${esc(l.item)}"></td>
+        <td class="lg-item"><input class="lg-in" data-k="item" data-dl="dl-lg-items" autocomplete="off" placeholder="اكتب اسم أو كود الصنف" value="${esc(l.item)}"></td>
         <td class="lg-ro code" data-c="code">${esc(it?.code || '')}</td>
         <td><select class="lg-in" data-k="unit">${unitOpts(l)}</select></td>
         <td class="lg-ro num" data-c="bal">${it ? balOf(l) : ''}</td>
@@ -1423,6 +1496,7 @@
     const rows = [
       ...eff('purchaseInvoices').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: 'فاتورة مشتريات', a: +i.amount, go: 'purchaseInvoices' })),
       ...eff('purchaseReturns').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: `مرتجع — ${i.reason}`, b: +i.amount, go: 'purchaseReturns' })),
+      ...eff('supplierAccruals').filter(i => i.party === s.name).map(i => ({ date: i.date, ref: i.no, desc: `استحقاق ${periodText(i)}${i.desc ? ' — ' + i.desc : ''}`, a: +i.amount, go: 'supplierAccruals' })),
       ...eff('stockIn').filter(i => i.supplier === s.name).map(i => ({ date: i.date, ref: i.no, desc: `إذن إضافة — ${linesSummary(i)}`, a: docTotals(i).net, go: 'stockIn' })),
       ...eff('payments').filter(i => i.party === s.name && isPartyDoc(i, 's')).map(i => ({ date: i.date, ref: i.no, desc: i.desc || 'سند صرف', b: +i.amount, go: 'payments' })),
     ];
@@ -1843,7 +1917,7 @@
   const grant = (list, acts) => Object.fromEntries(list.map(p => [p, actsOf(p).filter(a => acts.includes(a)).join('')]));
   const ROLES = {
     admin: { title: 'مدير النظام', build: () => ({ perms: grant(permPages(), 'vaed'), special: SPECIALS.map(s => s[0]) }) },
-    accountant: { title: 'محاسب', build: () => ({ perms: { ...grant(permPages(), 'v'), ...grant(['accounts', 'journal', 'cashboxes', 'receipts', 'payments', 'salesInvoices', 'salesReturns', 'purchaseInvoices', 'purchaseReturns', 'payroll', 'customers', 'suppliers'], 'vae') }, special: ['export'] }) },
+    accountant: { title: 'محاسب', build: () => ({ perms: { ...grant(permPages(), 'v'), ...grant(['accounts', 'journal', 'cashboxes', 'receipts', 'payments', 'supplierAccruals', 'salesInvoices', 'salesReturns', 'purchaseInvoices', 'purchaseReturns', 'payroll', 'customers', 'suppliers'], 'vae') }, special: ['export'] }) },
     storekeeper: { title: 'أمين مخزن', build: () => ({ perms: { ...grant(['dashboard', 'suppliers', 'purchaseOrders'], 'v'), ...grant(['items', 'units', 'warehouses', 'stockBalances', 'stockIn', 'stockOut', 'transfers'], 'vae'), ...grant(['branches', 'costCenters'], 'v') }, special: ['export'] }) },
     sales: { title: 'مندوب مبيعات', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['customers', 'salesItems', 'salesInvoices', 'salesQuotes', 'salesReturns', 'receipts'], 'vae') }, special: [] }) },
     hr: { title: 'شئون العاملين', build: () => ({ perms: { ...grant(['dashboard'], 'v'), ...grant(['employees', 'girlsFixed', 'girlsTemp', 'bangladesh', 'costCenters', 'attendance', 'payroll', 'leaves', 'departments', 'workers', 'dailyLabor', 'advances'], 'vae') }, special: ['export'] }) },
@@ -2538,7 +2612,7 @@
   //                 دورة الموافقات (الاعتمادات) وطباعة المستندات
   // المستند الذي يحتاج اعتماداً لا يُرحّل ولا يؤثر في أي رصيد حتى تكتمل كل مستوياته
   // =====================================================================
-  const APPR_MODULES = ['journal', 'receipts', 'payments', 'boxTransfers', 'salesInvoices', 'salesReturns', 'purchaseInvoices', 'purchaseReturns',
+  const APPR_MODULES = ['journal', 'receipts', 'payments', 'boxTransfers', 'supplierAccruals', 'salesInvoices', 'salesReturns', 'purchaseInvoices', 'purchaseReturns',
     'stockIn', 'stockOut', 'transfers', 'payroll', 'dailyLabor', 'advances', 'maintenanceOrders'];
   const QTY_MODULES = ['stockIn', 'stockOut', 'transfers'];
   const amountOf = (t, r) => t === 'payroll' ? (+r.basic + +r.allowances - +r.deductions) : t === 'dailyLabor' ? r.days * r.wage
@@ -2888,6 +2962,14 @@
         return [s.name, s.category || '', iv.length, sum(iv, i => i.amount), sum(ret.filter(r => r.supplier === s.name), r => r.amount), sum(pay.filter(r => r.party === s.name), r => r.amount), suppBal(s.name)]; })
         .filter(r => r[2] || r[4] || r[5]);
       return { cols: [col('المورد'), col('التصنيف'), col('عدد الفواتير', N$), col('المشتريات', M$), col('المرتجعات', M$), col('المسدد', M$), col('المستحق له', M$)], rows };
+    } },
+    { id: 'suppAccr', group: 'المشتريات', title: 'استحقاقات الموردين حسب الحساب والفترة', need: 'supplierAccruals', run: (f, t) => {
+      const list = eff('supplierAccruals').filter(r => inRange(r.date, f, t)).sort((a, b) => String(a.account).localeCompare(String(b.account)) || String(a.party).localeCompare(String(b.party), 'ar') || byDate(a, b));
+      const rows = []; let last = null;
+      list.forEach(r => { const a = acc(accCode(r.account))?.name || '';
+        if (a !== last) { const g = list.filter(x => (acc(accCode(x.account))?.name || '') === a); rows.push({ cells: [a, `${g.length} استحقاق`, '', '', sum(g, x => +x.amount)], cls: 'section' }); last = a; }
+        rows.push([r.party, periodText(r), r.no, acc(accCode(r.expAcc))?.name || '', +r.amount]); });
+      return { cols: [col('المورد'), col('الفترة'), col('رقم الحركة'), col('حساب المصروف'), col('المبلغ المستحق', M$)], rows, note: 'مجمّعة حسب اسم الحساب (فئة المورد)' };
     } },
     { id: 'purCat', group: 'المشتريات', title: 'المشتريات حسب تصنيف الموردين', need: 'purchaseInvoices', run: (f, t) => {
       const cat = n => db.suppliers.find(s => s.name === n)?.category || 'بدون تصنيف';

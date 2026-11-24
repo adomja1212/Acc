@@ -679,3 +679,13 @@ input[type="date"].input, input[type="month"].input, input[type="time"].input { 
 .lg-sum b { color: var(--navy-800); }
 .lg-sum .net { color: var(--navy-800); font-size: 14.5px; }
 .lg-empty { padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; background: var(--amber-soft); color: var(--amber); font-size: 13px; }
+
+/* ===== كومبوبوكس البحث ===== */
+.combo-list { position: fixed; z-index: 1000; max-height: 300px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 32px rgba(15, 23, 42, .18); padding: 4px; }
+.combo-opt { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 10px; border-radius: 7px; cursor: pointer; }
+.combo-opt b { font-weight: 600; color: var(--navy-800); }
+.combo-opt small { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.combo-opt.on, .combo-opt:hover { background: var(--accent-soft); }
+.combo-opt mark { background: #fde68a; color: inherit; border-radius: 3px; padding: 0 1px; }
+.combo-foot { font-size: 11px; color: var(--muted); padding: 4px 10px 2px; border-top: 1px solid var(--border); margin-top: 2px; }
+.combo-none { padding: 10px; color: var(--muted); font-size: 13px; }
