@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '27/11/2026, 14:00';
+  const APP_VERSION = '27/11/2026, 16:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -3421,13 +3421,50 @@
     enforce(); if (r?.then) r.then(enforce);
   };
   const isMobile = () => matchMedia('(max-width: 900px)').matches;
+  // ---------- تبويبات الصفحات (مثل المتصفح): كل صفحة تُفتح في تبويب ويبقى ما قبلها مفتوحاً ----------
+  const TABS_KEY = 'acc-erp-tabs', MAX_TABS = 14;
+  const tabs = { list: [], view: {} };
+  try { const t = JSON.parse(localStorage.getItem(TABS_KEY)); if (Array.isArray(t?.list)) tabs.list = t.list.filter(x => typeof x === 'string').slice(0, MAX_TABS); } catch {}
+  const saveTabs = () => { try { localStorage.setItem(TABS_KEY, JSON.stringify({ list: tabs.list })); } catch {} };
+  const tabIcon = p => EMO[p] || (p.startsWith('wh/') ? '🏬' : p.startsWith('box/') ? (isBankBox(db.cashboxes.find(b => 'box/' + b.id === p)) ? '🏦' : '💵') : '📄');
+  function renderTabs() {
+    const bar = $('#tabBar'); if (!bar) return;
+    tabs.list = tabs.list.filter(p => pageInfo(p) && can(p));
+    bar.innerHTML = tabs.list.map(p => `<div class="tab ${p === state.page ? 'on' : ''}" data-tab-p="${esc(p)}" title="${esc(pageInfo(p).title)}" role="tab" aria-selected="${p === state.page}">
+        <span class="tab-ico">${tabIcon(p)}</span><span class="tab-t">${esc(pageInfo(p).title)}</span>${badge(badges[p]?.() || 0)}
+        <button type="button" class="tab-x" data-tab-x="${esc(p)}" title="إغلاق التبويب" aria-label="إغلاق">✕</button></div>`).join('')
+      + (tabs.list.length > 1 ? `<button type="button" class="tab-closeall" id="tabCloseAll" title="إغلاق كل التبويبات عدا الحالي">إغلاق الباقي</button>` : '');
+    bar.hidden = !tabs.list.length;
+    bar.querySelector('.tab.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  function closeTab(p) {
+    const i = tabs.list.indexOf(p); if (i < 0) return;
+    tabs.list.splice(i, 1); delete tabs.view[p]; saveTabs();
+    if (p === state.page) { const next = tabs.list[i] || tabs.list[i - 1] || 'dashboard'; if (decodeURIComponent(location.hash.slice(1)) === next) route(); else location.hash = next; }
+    else renderTabs();
+  }
+  document.addEventListener('click', e => {
+    const x = e.target.closest('[data-tab-x]'); if (x) { e.stopPropagation(); closeTab(x.dataset.tabX); return; }
+    if (e.target.closest('#tabCloseAll')) { tabs.list = tabs.list.filter(p => p === state.page); saveTabs(); renderTabs(); return; }
+    const t = e.target.closest('[data-tab-p]'); if (t && t.dataset.tabP !== state.page) location.hash = t.dataset.tabP;
+  });
+  document.addEventListener('auxclick', e => { const t = e.target.closest('[data-tab-p]'); if (t && e.button === 1) { e.preventDefault(); closeTab(t.dataset.tabP); } });
+
   function route() {
     if (!store.ready || !curUser()) return;
     buildPaths();
     const hash = decodeURIComponent(location.hash.slice(1)) || 'dashboard';
     let page = pageInfo(hash) ? hash : 'dashboard';
     if (!can(page)) page = ['dashboard', ...Object.keys(pagePath)].find(x => can(x)) || page;
-    if (page !== state.page || pendingQuery !== null) { state.q = pendingQuery ?? ''; state.filter = ''; pendingQuery = null; }
+    // حفظ حالة التبويب السابق (البحث والفلتر ومكان التمرير) واسترجاع حالة التبويب المفتوح
+    if (state.page && page !== state.page) tabs.view[state.page] = { q: state.q, filter: state.filter, y: window.scrollY };
+    const back = page !== state.page && pendingQuery === null ? tabs.view[page] : null;
+    if (page !== state.page || pendingQuery !== null) { state.q = pendingQuery ?? back?.q ?? ''; state.filter = back?.filter ?? ''; pendingQuery = null; }
+    if (!tabs.list.includes(page)) {
+      const at = tabs.list.indexOf(state.page); tabs.list.splice(at < 0 ? tabs.list.length : at + 1, 0, page);
+      while (tabs.list.length > MAX_TABS) { const drop = tabs.list.find(p => p !== page); tabs.list.splice(tabs.list.indexOf(drop), 1); delete tabs.view[drop]; }
+      saveTabs();
+    }
     const changed = page !== state.page;
     state.page = page;
     const path = pagePath[page];
@@ -3440,9 +3477,10 @@
     closeModal();
     renderBrand();
     renderNav();
+    renderTabs();
     renderPage();
     if (!(prefs.pinned && isMobile())) document.body.classList.remove('nav-open');
-    if (changed) window.scrollTo(0, 0);
+    if (changed) window.scrollTo(0, back?.y || 0);
   }
 
   // إعادة الرسم عند وصول تحديثات من مستخدمين آخرين (مع الحفاظ على مكان الكتابة)
@@ -3456,7 +3494,7 @@
       sessionStillValid().then(ok => { if (!ok && session) logout('انتهت جلستك أو تم تعديل حسابك — سجّل الدخول مرة أخرى'); });
       const a = document.activeElement, id = a?.id, pos = a?.selectionStart;
       const inContent = a && content.contains(a);
-      renderBrand(); renderNav();
+      renderBrand(); renderNav(); renderTabs();
       if (!(inContent && !id)) renderPage();
       if (id && inContent) { const el = document.getElementById(id); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } }
     }, 80);
