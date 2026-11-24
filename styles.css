@@ -854,3 +854,4 @@ select.sel-hidden { position: absolute !important; opacity: 0 !important; pointe
 .jlines-grid .jl-note { min-width: 180px; }
 .jlines-grid .num-in { min-width: 110px; direction: ltr; text-align: right; }
 .jlines-grid tfoot td { white-space: nowrap; }
+.rep-layout.single { grid-template-columns: 1fr; }

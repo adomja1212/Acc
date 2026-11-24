@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '27/11/2026, 18:00';
+  const APP_VERSION = '27/11/2026, 20:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -1006,7 +1006,7 @@
     accounts: { title: 'شجرة الحسابات', sub: 'الأرصدة = الرصيد الافتتاحي + الحركات المرحّلة', render: renderTree },
     journal: { title: 'القيود اليومية', sub: 'القيود اليدوية والقيود المتولدة تلقائياً من المستندات', render: renderJournal },
     ledger: { title: 'كشف حساب', sub: 'حركة الحساب التفصيلية والرصيد المتحرك', render: renderLedger },
-    reports: { title: 'القوائم المالية', sub: 'قائمة الدخل، المركز المالي، ميزان المراجعة', render: renderReports },
+    reports: { title: 'القوائم المالية مجمّعة', sub: 'قائمة الدخل، المركز المالي، ميزان المراجعة في صفحة واحدة', render: () => renderReports() },
     stockBalances: { title: 'أرصدة المخازن', sub: 'رصيد كل صنف في كل مخزن', render: renderStockBalances },
     import: { title: 'استيراد البيانات', sub: 'من Excel أو CSV إلى أي جدول', render: renderImport },
     reportCenter: { title: 'مركز التقارير', sub: 'التقارير المالية والمحاسبية وتقارير الإدارات', render: renderReportCenter },
@@ -1034,7 +1034,13 @@
   const stockLine = l => { const si = salesItemOf(l.item); if (si) return si.stockItem && db.items.some(i => i.name === si.stockItem) ? { ...l, item: si.stockItem, unit: l.unit || si.unit } : null;
     return db.items.some(i => i.name === l.item) ? l : null; };
   const rowsOf = n => { const m = modules[n]; return m?.view ? db[m.table].filter(m.view) : db[n]; };
-  const pageInfo = id => pages[id] || modules[id] || boxPageInfo(id) || whPageInfo(id);
+  const repPageInfo = id => {
+    if (String(id).startsWith('st/')) { const k = id.slice(3); return STATEMENTS[k] ? { title: STATEMENTS[k], sub: 'من الأرصدة الحالية — يمكن طباعتها', render: () => renderReports(k) } : null; }
+    if (!String(id).startsWith('rep/')) return null;
+    const r = REPORTS.find(x => x.id === id.slice(4));
+    return r ? { title: r.title, sub: 'حدد الفترة ثم اطبع أو صدّر', render: () => renderReportCenter(r.id) } : null;
+  };
+  const pageInfo = id => pages[id] || modules[id] || boxPageInfo(id) || whPageInfo(id) || repPageInfo(id);
 
   // ---------- القائمة الجانبية ----------
   const nav = [
@@ -1051,7 +1057,10 @@
       { title: 'الميكنة', icon: 'truck', items: ['machineOps'] },
       { title: 'الصيانة', icon: 'wrench', items: ['maintenanceOrders', 'maintenancePlan'] },
     ] },
-    { title: 'التقارير', icon: 'trend', items: ['reportCenter', 'reports'] },
+    // تُبنى عند العرض (قائمة التقارير معرّفة لاحقاً في الملف)
+    { title: 'التقارير', icon: 'trend', items: () => { try { return ['reportCenter',
+      { title: 'القوائم المالية', icon: 'ledger', items: [...Object.keys(STATEMENTS).map(k => 'st/' + k), 'reports'] },
+      ...[...new Set(REPORTS.map(r => r.group))].map(g => ({ title: g, icon: 'list', items: REPORTS.filter(r => r.group === g).map(r => 'rep/' + r.id) }))]; } catch { return ['reportCenter', 'reports']; } } },
     { title: 'قواعد البيانات', icon: 'db', items: [
       { title: 'العملاء والموردون', icon: 'users', items: ['customers', 'suppliers'] },
       { title: 'الأصناف والمخازن', icon: 'box', items: ['salesItems', 'items', 'units', 'warehouses'] },
@@ -1097,7 +1106,7 @@
     if (!can(p)) return '';
     const fav = prefs.fav.includes(p), info = pageInfo(p);
     return `<div class="nav-leaf ${state.page === p ? 'active' : ''}">
-      <a href="#${p}" data-page="${p}"><span class="emo">${EMO[p] || (p.startsWith('wh/') ? '🏬' : p.startsWith('box/') ? (isBankBox(db.cashboxes.find(b => 'box/' + b.id === p)) ? '🏦' : '💵') : '•')}</span><span class="nav-title">${info.title}${withPath ? `<small>${pagePath[p].titles.join(' › ')}</small>` : ''}</span>${badge(badges[p]?.() || 0)}</a>
+      <a href="#${p}" data-page="${p}"><span class="emo">${EMO[p] || (p.startsWith('rep/') ? '📑' : p.startsWith('st/') ? '📈' : p.startsWith('wh/') ? '🏬' : p.startsWith('box/') ? (isBankBox(db.cashboxes.find(b => 'box/' + b.id === p)) ? '🏦' : '💵') : '•')}</span><span class="nav-title">${info.title}${withPath ? `<small>${pagePath[p].titles.join(' › ')}</small>` : ''}</span>${badge(badges[p]?.() || 0)}</a>
       <button class="star ${fav ? 'on' : ''}" data-fav="${p}" title="${fav ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}" aria-pressed="${fav}">${fav ? '★' : '☆'}</button></div>`;
   }
   function groupHTML(g, key, lvl) {
@@ -1934,7 +1943,8 @@
   }
 
   // ---------- القوائم المالية ----------
-  function renderReports() {
+  const STATEMENTS = { income: 'قائمة الدخل', balance: 'قائمة المركز المالي', tb: 'ميزان المراجعة بالأرصدة' };
+  function renderReports(only) {
     const section = rootCode => childrenOf(rootCode).map(g => `
       <tr class="section"><td>${esc(g.name)}</td><td class="num">${money(rollup(g.code))}</td></tr>
       ${childrenOf(g.code).map(a => `<tr><td style="padding-inline-start:32px"><button class="link-btn" data-ledger="${esc(a.code)}">${esc(a.code)} - ${esc(a.name)}</button></td><td class="num">${money(rollup(a.code))}</td></tr>`).join('')}`).join('');
@@ -1945,18 +1955,19 @@
     const dr = sum(tb, r => r.d), cr = sum(tb, r => r.c);
     const dt = new Date().toLocaleDateString('ar-EG');
 
+    const show = k => !only || only === k;
     content.innerHTML = `
       <div class="toolbar" style="margin-bottom:16px;justify-content:flex-end"><button class="btn ghost" onclick="window.print()">${icons.print}طباعة</button></div>
-      <div class="grid-2" style="grid-template-columns:1fr 1fr">
-        <div class="card">
+      <div class="grid-2" style="grid-template-columns:${only ? 'minmax(0, 760px)' : '1fr 1fr'}">
+        ${show('income') ? `<div class="card">
           <div class="card-head"><div><h3>قائمة الدخل</h3><div class="sub">عن الفترة حتى ${dt}</div></div></div>
           <table class="report"><tbody>
             <tr class="total"><td>الإيرادات</td><td class="num">${money(rev)}</td></tr>${section('4')}
             <tr class="total"><td>المصروفات</td><td class="num">${money(exp)}</td></tr>${section('3')}
             <tr class="total"><td>صافي ${net >= 0 ? 'الربح' : 'الخسارة'}</td><td class="num ${net >= 0 ? 'up' : 'down'}">${money(Math.abs(net))}</td></tr>
           </tbody></table>
-        </div>
-        <div class="card">
+        </div>` : ''}
+        ${show('balance') ? `<div class="card">
           <div class="card-head"><div><h3>قائمة المركز المالي</h3><div class="sub">في ${dt}</div></div></div>
           <table class="report"><tbody>
             <tr class="total"><td>الأصول</td><td class="num">${money(rollup('1'))}</td></tr>${section('1')}
@@ -1964,9 +1975,9 @@
             <tr><td style="padding-inline-start:32px">صافي ربح الفترة</td><td class="num">${money(net)}</td></tr>
             <tr class="total"><td>الإجمالي بعد صافي الربح</td><td class="num">${money(rollup('2') + net)}</td></tr>
           </tbody></table>
-        </div>
+        </div>` : ''}
       </div>
-      <div class="card">
+      ${show('tb') ? `<div class="card">
         <div class="card-head"><div><h3>ميزان المراجعة بالأرصدة</h3><div class="sub">يشمل ${glEntries().length} قيد مرحّل</div></div><div class="spacer"></div>
           ${Math.abs(dr - cr) < 0.01 ? '<span class="pill green">الميزان متوازن</span>' : `<span class="pill red">فرق: ${money(Math.abs(dr - cr))}</span>`}</div>
         <div class="table-wrap"><table>
@@ -1975,7 +1986,7 @@
           <tr style="font-weight:800;background:#f4f7fd"><td colspan="2">الإجمالي</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr>
           </tbody>
         </table></div>
-      </div>`;
+      </div>` : ''}`;
     $$('[data-ledger]', content).forEach(b => b.onclick = () => openLedger(b.dataset.ledger));
   }
 
@@ -2098,7 +2109,7 @@
   const VIEW_ONLY = ['dashboard', 'ledger', 'reports', 'stockBalances', 'database'];
   const SPECIAL_PAGES = { users: 'users', import: 'import', approvals: 'approvalsSetup', reportCenter: '_all' };
   const actsOf = p => SPECIAL_PAGES[p] ? [] : VIEW_ONLY.includes(p) ? ['v'] : p === 'settings' ? ['v', 'e'] : ['v', 'a', 'e', 'd'];
-  const permPages = () => Object.keys(pagePath).filter(p => !SPECIAL_PAGES[p] && p !== 'bankMoves' && !p.startsWith('box/') && !p.startsWith('wh/'));
+  const permPages = () => [...Object.keys(pagePath).filter(p => !SPECIAL_PAGES[p] && p !== 'bankMoves' && !/^(box|wh|rep|st)\//.test(p))];
   const grant = (list, acts) => Object.fromEntries(list.map(p => [p, actsOf(p).filter(a => acts.includes(a)).join('')]));
   const ROLES = {
     admin: { title: 'مدير النظام', build: () => ({ perms: grant(permPages(), 'vaed'), special: SPECIALS.map(s => s[0]) }) },
@@ -2121,6 +2132,8 @@
     const u = curUser(); if (!u) return false;
     if (isAdminUser(u)) return true;
     if (page === 'reportCenter') return true;
+    if (String(page).startsWith('st/')) return String(u.perms?.reports || '').includes(act);
+    if (String(page).startsWith('rep/')) { const r = REPORTS.find(x => x.id === page.slice(4)); return !!r && act === 'v' && can(r.need); }
     if (String(page).startsWith('wh/')) return act === 'v' && ['stockIn', 'stockOut', 'transfers', 'stockBalances', 'items'].some(x => String(u.perms?.[x] || '').includes('v'));
     if (page === 'bankMoves' || String(page).startsWith('box/')) return act === 'v' && ['receipts', 'payments', 'boxTransfers', 'cashboxes'].some(x => String(u.perms?.[x] || '').includes('v'));
     if (page === 'approvals') return isApprover(u) || (u.special || []).includes('approvalsSetup');
@@ -2443,7 +2456,7 @@
       ? `<td><label class="pchk"><input type="checkbox" name="p:${p}:${a}" ${locked || String(perms[p] || '').includes(a) ? 'checked' : ''} ${dis}><i>${IC.check}</i></label></td>` : '<td class="na">—</td>').join('')}</tr>`;
     const groups = [];
     const walk = (items, titles) => items.forEach(it => {
-      if (typeof it === 'string') { if (SPECIAL_PAGES[it] || it === 'bankMoves' || it.startsWith('box/') || it.startsWith('wh/')) return; let g = groups.find(x => x.t === titles.join(' › ')); if (!g) groups.push(g = { t: titles.join(' › '), p: [] }); g.p.push(it); }
+      if (typeof it === 'string') { if (SPECIAL_PAGES[it] || it === 'bankMoves' || /^(box|wh|rep|st)\//.test(it)) return; let g = groups.find(x => x.t === titles.join(' › ')); if (!g) groups.push(g = { t: titles.join(' › '), p: [] }); g.p.push(it); }
       else walk(itemsOf(it), [...titles, it.title]);
     });
     walk(nav, []);
@@ -3266,17 +3279,17 @@
       ${res.totals && res.rows.length ? `<tfoot><tr>${res.totals.map((v, i) => `<td class="${v != null ? 'num' : ''}">${i === 0 ? 'الإجمالي' : v != null ? fmtCell(res.cols[i], v) : ''}</td>`).join('')}</tr></tfoot>` : ''}
     </table>`;
   }
-  function renderReportCenter() {
+  function renderReportCenter(only) {
     const list = REPORTS.filter(r => can(r.need));
     const groups = [...new Set(list.map(r => r.group))];
-    const rep = list.find(r => r.id === state.report) || list[0];
+    const rep = only ? list.find(r => r.id === only) : list.find(r => r.id === state.report) || list[0];
     if (!rep) { content.innerHTML = '<div class="boot"><p>لا توجد تقارير متاحة لصلاحياتك</p></div>'; return; }
-    state.report = rep.id;
+    if (!only) state.report = rep.id;
     const res = runReport(rep);
     const period = rep.noDate ? 'الوضع الحالي' : rep.dateOnly ? `حتى ${state.rTo || today()}` : `${state.rFrom || 'من البداية'} — ${state.rTo || 'حتى اليوم'}`;
     content.innerHTML = `
-      <div class="rep-layout">
-        <aside class="rep-menu">${groups.map(g => `<div class="rep-group"><h4>${esc(g)}</h4>${list.filter(r => r.group === g).map(r => `<button class="rep-item ${r.id === rep.id ? 'on' : ''}" data-rep="${r.id}">${esc(r.title)}</button>`).join('')}</div>`).join('')}</aside>
+      <div class="rep-layout ${only ? 'single' : ''}">
+        ${only ? '' : `<aside class="rep-menu">${groups.map(g => `<div class="rep-group"><h4>${esc(g)}</h4>${list.filter(r => r.group === g).map(r => `<button class="rep-item ${r.id === rep.id ? 'on' : ''}" data-rep="${r.id}">${esc(r.title)}</button>`).join('')}</div>`).join('')}</aside>`}
         <section class="card rep-main">
           <div class="card-head"><div><h3>${esc(rep.title)}</h3><div class="sub">${esc(rep.group)} · ${esc(period)}${res.note ? ` · ${esc(res.note)}` : ''}</div></div>
             <div class="spacer"></div>
@@ -3517,7 +3530,7 @@
   const tabs = { list: [], view: {} };
   try { const t = JSON.parse(localStorage.getItem(TABS_KEY)); if (Array.isArray(t?.list)) tabs.list = t.list.filter(x => typeof x === 'string').slice(0, MAX_TABS); } catch {}
   const saveTabs = () => { try { localStorage.setItem(TABS_KEY, JSON.stringify({ list: tabs.list })); } catch {} };
-  const tabIcon = p => EMO[p] || (p.startsWith('wh/') ? '🏬' : p.startsWith('box/') ? (isBankBox(db.cashboxes.find(b => 'box/' + b.id === p)) ? '🏦' : '💵') : '📄');
+  const tabIcon = p => EMO[p] || (p.startsWith('rep/') ? '📑' : p.startsWith('st/') ? '📈' : p.startsWith('wh/') ? '🏬' : p.startsWith('box/') ? (isBankBox(db.cashboxes.find(b => 'box/' + b.id === p)) ? '🏦' : '💵') : '📄');
   function renderTabs() {
     const bar = $('#tabBar'); if (!bar) return;
     tabs.list = tabs.list.filter(p => pageInfo(p) && can(p));
