@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '27/11/2026, 20:00';
+  const APP_VERSION = '28/11/2026, 10:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -205,12 +205,15 @@
   // =====================================================================
   const acc = code => db.accounts.find(a => a.code === code);
   const accLabel = a => `${a.code} - ${a.name}`;
-  const childrenOf = code => db.accounts.filter(a => a.parent === code).sort((a, b) => a.code.localeCompare(b.code));
+  const codeSort = (a, b) => a.code.localeCompare(b.code, 'en', { numeric: true });
+  const childrenOf = code => db.accounts.filter(a => a.parent === code).sort(codeSort);
   const hasChildren = code => db.accounts.some(a => a.parent === code);
-  const leafAccounts = () => db.accounts.filter(a => !hasChildren(a.code)).sort((a, b) => a.code.localeCompare(b.code));
+  const leafAccounts = () => db.accounts.filter(a => !hasChildren(a.code)).sort(codeSort);
   // الحسابات التي يرحّل عليها النظام تلقائياً
   const SYS = { cash: '121', banks: '122', customers: '123', inventory: '124', empAdvances: '1281', otherDebit: '128', drawings: '214', suppliers: '231',
-    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '124106', expenses: '3', revenue: '4', accruedSal: '236', chqIn: '129', chqOut: '237', wht: '238', cogs: '311', openEq: '215' };
+    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '1246', expenses: '3', revenue: '4', accruedSal: '236', chqIn: '129', chqOut: '237', wht: '238', cogs: '311', openEq: '215', finished: '126' };
+  // حسابات المخزون: مخزون المواد الخام (124 وفروعه) + مخزون الإنتاج التام (126)
+  const isInvAcc = code => String(code).startsWith(SYS.inventory) || code === SYS.finished;
   // مراكز التكلفة: كل مرتب أو أجر يُحمّل على المصروف التشغيلي أو التسويقي أو الإداري حسب نوع تكلفة الموظف/العامل
   const COST_TYPES = ['تشغيلية', 'تسويقية', 'إدارية'];
   // طبيعة الحساب: من الحساب نفسه أو أقرب أب محدد له طبيعة (مثل مسحوبات الملاك: مدين)، وإلا حسب الرقم الأول
@@ -584,7 +587,7 @@
   const unitErr = d => d.unit && d.item && isNaN(convertQty(1, d.unit, itemUnit(d.item))) ? `لا يمكن تحويل "${d.unit}" إلى وحدة الصنف "${itemUnit(d.item)}" — عرّف معامل التحويل في قاعدة بيانات الوحدات` : '';
   const unitPick = (f, v) => { const u = itemUnit(v); if (f.unit && u && !f.unit.value) [...f.unit.options].forEach(o => { o.hidden = o.value && !sameFamily(o.value, u); }); };
   const qtyNote = r => r.unit && r.unit !== itemUnit(r.item) ? ` (${num(r.qty)} ${r.unit})` : '';
-  const invAccOpts = () => leafAccounts().filter(a => a.code.startsWith(SYS.inventory)).map(a => [a.code, a.name]);
+  const invAccOpts = () => leafAccounts().filter(a => isInvAcc(a.code)).map(a => [a.code, a.name]);
   const staffCols = (nameLbl, idLbl) => [
     C('code', 'الكود', CODE), C('name', nameLbl, { full: true }), C('nationalId', idLbl, { optional: true, cls: 'code' }), C('phone', 'الهاتف', { optional: true }),
     C('job', 'الوظيفة / العمل', { optional: true }), C('costCenter', 'مركز التكلفة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.costCenters.map(c => [c.name, `${c.name} — ${c.branch || ''}`]) }),
@@ -824,7 +827,7 @@
       C('from', 'من تاريخ', { input: 'date', optional: true, formOnly: true, when: f => f.periodType !== 'شهر' }),
       C('to', 'إلى تاريخ', { input: 'date', optional: true, formOnly: true, when: f => f.periodType !== 'شهر' }),
       C('period', 'الفترة', { compute: periodText }),
-      C('expAcc', 'حساب المصروف المقابل', { input: 'select', allowEmpty: '— اختر حساب المصروف —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.expenses) || a.code.startsWith(SYS.inventory)).map(accLabel), full: true, render: v => `<span class="hint">${esc(v)}</span>` }),
+      C('expAcc', 'حساب المصروف المقابل', { input: 'select', allowEmpty: '— اختر حساب المصروف —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.expenses) || isInvAcc(a.code)).map(accLabel), full: true, render: v => `<span class="hint">${esc(v)}</span>` }),
       C('amount', 'المبلغ المستحق', { ...M, total: true }),
       C('bal', 'رصيد المورد الحالي', computed(r => suppBal(r.party))),
       C('desc', 'البيان', { optional: true, full: true })],
@@ -851,7 +854,7 @@
         fn: r => openRecordForm('purchaseInvoices', null, { supplier: r.supplier, amount: r.amount }, () => { const x = db.purchaseOrders.find(q => q.id === r.id); if (x) x.status = 'مستلم'; }), write: true }] },
     purchaseInvoices: { title: 'فواتير المشتريات', sub: 'تُرحّل: من حـ/ المخزون أو المصروف إلى حـ/ الموردين', single: 'فاتورة شراء', key: 'no', filter: 'status', cols: [
       C('no', 'رقم الفاتورة', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers'), full: true }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
-      C('account', 'يُحمّل على حساب', { input: 'select', options: leafOpts(SYS.inventory, '3', '11'), full: true, render: v => `<span class="hint">${esc(v)}</span>` }),
+      C('account', 'يُحمّل على حساب', { input: 'select', options: leafOpts(SYS.inventory, SYS.finished, '3', '11'), full: true, render: v => `<span class="hint">${esc(v)}</span>` }),
       C('amount', 'القيمة', { ...M, total: true }),
       C('remaining', 'المتبقي', computed(r => +r.amount - purchPaid(r), { total: true })),
       C('status', 'الحالة', statusOf(purchStatus, 'معلقة', 'مدفوعة جزئياً', 'مدفوعة', 'متأخرة'))],
@@ -861,7 +864,7 @@
     purchaseReturns: { title: 'مرتجعات المشتريات', sub: 'تُرحّل: من حـ/ الموردين إلى حـ/ المخزون', single: 'مرتجع', key: 'no', cols: [
       C('no', 'رقم المرتجع', CODE), C('supplier', 'المورد', { input: 'select', options: names('suppliers') }),
       C('invoice', 'الفاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.purchaseInvoices.map(i => [i.no, `${i.no} — ${i.supplier}`]) }),
-      C('date', 'التاريخ', D), C('account', 'الحساب الدائن', { input: 'select', options: leafOpts(SYS.inventory, '3', '11'), formOnly: true, full: true }),
+      C('date', 'التاريخ', D), C('account', 'الحساب الدائن', { input: 'select', options: leafOpts(SYS.inventory, SYS.finished, '3', '11'), formOnly: true, full: true }),
       C('amount', 'القيمة', { ...M, total: true }), C('reason', 'السبب', { full: true })],
       defaults: () => ({ account: acc(SYS.defPurchase) ? accLabel(acc(SYS.defPurchase)) : '' }),
       validate: d => { const inv = db.purchaseInvoices.find(i => i.no === d.invoice); if (inv && inv.supplier !== d.supplier) return `الفاتورة ${inv.no} تخص ${inv.supplier}`; } },
@@ -869,7 +872,7 @@
     // ===== المخازن =====
     stockIn: { title: 'أذون الإضافة (الاستلام)', sub: 'استلام أصناف — عدة أصناف في الإذن · بعد الاعتماد يُرحّل: من حـ/ المخزون و ض.ق.م إلى حـ/ المورد و ض. الخصم والإضافة', single: 'إذن إضافة', key: 'no', wide: true, filter: 'warehouse', cols: [
       C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), C('warehouse', 'اسم المخزن', { input: 'select', options: names('warehouses') }),
-      C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— حساب مخزون كل صنف —', options: () => leafAccounts().filter(a => a.code.startsWith(SYS.inventory)).map(accLabel), render: v => `<span class="hint">${v ? esc(v) : 'حسب الصنف'}</span>` }),
+      C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— حساب مخزون كل صنف —', options: () => leafAccounts().filter(a => isInvAcc(a.code)).map(accLabel), render: v => `<span class="hint">${v ? esc(v) : 'حسب الصنف'}</span>` }),
       C('supplier', 'المورد', { input: 'select', optional: true, allowEmpty: '— بدون مورد —', options: names('suppliers'), render: (v, r) => esc(v || r.source || '—') }),
       C('branch', 'الفرع', { input: 'select', optional: true, allowEmpty: '—', options: names('branches') }),
       C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true, tax: true }),
@@ -880,7 +883,7 @@
       validate: (d, rec) => stockDocCheck(d, rec, 'in') },
     stockOut: { title: 'أذون الصرف', sub: 'صرف أصناف لمركز تكلفة — عدة أصناف في الإذن · بعد الاعتماد يُرحّل بالتكلفة: من حـ/ الحساب المختار إلى حـ/ المخزون', single: 'إذن صرف', key: 'no', wide: true, filter: 'warehouse', cols: [
       C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), C('warehouse', 'اسم المخزن', { input: 'select', options: names('warehouses') }),
-      C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— اختر الحساب المدين —', options: () => leafAccounts().filter(a => !isTreasury(a.code) && !a.code.startsWith(SYS.inventory) && /^[123]/.test(a.code)).map(accLabel), render: v => `<span class="hint">${esc(v || '—')}</span>` }),
+      C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— اختر الحساب المدين —', options: () => leafAccounts().filter(a => !isTreasury(a.code) && !isInvAcc(a.code) && /^[123]/.test(a.code)).map(accLabel), render: v => `<span class="hint">${esc(v || '—')}</span>` }),
       C('costCenter', 'جهة الصرف (مركز التكلفة)', { input: 'select', optional: true, allowEmpty: '— اختر مركز التكلفة —', options: () => db.costCenters.map(c => [c.name, `${c.name}${c.sector ? ' — ' + c.sector : ''}`]), render: (v, r) => esc(v || r.to || '—') }),
       C('branch', 'الفرع التابع له', { input: 'select', optional: true, allowEmpty: '—', options: names('branches') }),
       C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true }),
@@ -1762,7 +1765,7 @@
       const other = e.lines.filter(l => !set.has(l.acc)).map(l => acc(l.acc)?.name || l.acc);
       return { date: e.date, ref: e.no, desc: `${e.desc}${other.length ? ` (${[...new Set(other)].join('، ')})` : ''}`, a: deb ? d : c, b: deb ? c : d, go: e.manual ? 'journal' : e.module };
     }).filter(Boolean);
-    const sorted = db.accounts.slice().sort((x, y) => x.code.localeCompare(y.code));
+    const sorted = db.accounts.slice().sort(codeSort);
     content.innerHTML = `
       <div class="card">
         <div class="card-head">
@@ -1911,7 +1914,7 @@
     const isLeaf = !a || !hasChildren(a.code);
     const fields = [
       { key: 'parent', label: 'الحساب الأب', input: 'select', optional: true, allowEmpty: '— حساب رئيسي (مستوى أول) —', full: true,
-        options: () => db.accounts.filter(x => !a || x.code !== a.code).sort((x, y) => x.code.localeCompare(y.code)).map(x => [x.code, accLabel(x)]) },
+        options: () => db.accounts.filter(x => !a || x.code !== a.code).sort(codeSort).map(x => [x.code, accLabel(x)]) },
       { key: 'code', label: 'كود الحساب', input: 'text' },
       { key: 'name', label: 'اسم الحساب', input: 'text' },
       { key: 'nature', label: 'طبيعة الحساب', input: 'select', optional: true, allowEmpty: '— تلقائي حسب نوع الحساب —', options: () => ['مدين', 'دائن'] },
@@ -1950,7 +1953,7 @@
       ${childrenOf(g.code).map(a => `<tr><td style="padding-inline-start:32px"><button class="link-btn" data-ledger="${esc(a.code)}">${esc(a.code)} - ${esc(a.name)}</button></td><td class="num">${money(rollup(a.code))}</td></tr>`).join('')}`).join('');
     const rev = rollup('4'), exp = rollup('3'), net = rev - exp;
     // ميزان المراجعة: كل حساب له رصيد خاص به
-    const tb = db.accounts.filter(a => !hasChildren(a.code) || Math.abs(ownBal(a)) > 0.001).sort((x, y) => x.code.localeCompare(y.code))
+    const tb = db.accounts.filter(a => !hasChildren(a.code) || Math.abs(ownBal(a)) > 0.001).sort(codeSort)
       .map(a => { const b = ownBal(a); const d = isDebitNature(a.code) ? b : -b; return { a, d: d > 0 ? d : 0, c: d < 0 ? -d : 0 }; });
     const dr = sum(tb, r => r.d), cr = sum(tb, r => r.c);
     const dt = new Date().toLocaleDateString('ar-EG');
@@ -3096,7 +3099,7 @@
     // ===== التقارير المحاسبية =====
     { id: 'tb', group: 'التقارير المحاسبية', title: 'ميزان المراجعة بالمجاميع والأرصدة', need: 'reports', run: (f, t) => {
       const mv = mvBetween(f, t), before = mvBefore(f);
-      const rows = db.accounts.filter(a => !hasChildren(a.code) || +a.balance).sort((x, y) => x.code.localeCompare(y.code)).map(a => {
+      const rows = db.accounts.filter(a => !hasChildren(a.code) || +a.balance).sort(codeSort).map(a => {
         const deb = isDebitNature(a.code); const ob = deb ? +a.balance : -a.balance;
         const o = ob + (before[a.code]?.dr || 0) - (before[a.code]?.cr || 0); const d = mv[a.code]?.dr || 0, c = mv[a.code]?.cr || 0; const cl = o + d - c;
         return [a.code, a.name, o > 0 ? o : 0, o < 0 ? -o : 0, d, c, cl > 0 ? cl : 0, cl < 0 ? -cl : 0];

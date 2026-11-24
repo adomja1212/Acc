@@ -9,10 +9,101 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
+   "id": "acc2",
+   "code": "2",
+   "name": "الخصوم وحقوق الملكية",
+   "parent": null,
+   "balance": 0
+  },
+  {
+   "id": "acc3",
+   "code": "3",
+   "name": "المصروفات",
+   "parent": null,
+   "balance": 0
+  },
+  {
+   "id": "acc4",
+   "code": "4",
+   "name": "الإيرادات",
+   "parent": null,
+   "balance": 0
+  },
+  {
    "id": "acc11",
    "code": "11",
    "name": "الأصول الثابتة",
    "parent": "1",
+   "balance": 0
+  },
+  {
+   "id": "acc12",
+   "code": "12",
+   "name": "الأصول المتداولة",
+   "parent": "1",
+   "balance": 0
+  },
+  {
+   "id": "acc21",
+   "code": "21",
+   "name": "حقوق الملكية",
+   "parent": "2",
+   "balance": 0
+  },
+  {
+   "id": "acc22",
+   "code": "22",
+   "name": "الخصوم طويلة الأجل",
+   "parent": "2",
+   "balance": 0
+  },
+  {
+   "id": "acc23",
+   "code": "23",
+   "name": "الخصوم المتداولة",
+   "parent": "2",
+   "balance": 0
+  },
+  {
+   "id": "acc31",
+   "code": "31",
+   "name": "تكلفة المبيعات",
+   "parent": "3",
+   "balance": 0
+  },
+  {
+   "id": "acc32",
+   "code": "32",
+   "name": "مصروفات التشغيل",
+   "parent": "3",
+   "balance": 0
+  },
+  {
+   "id": "acc33",
+   "code": "33",
+   "name": "المصروفات التسويقية",
+   "parent": "3",
+   "balance": 0
+  },
+  {
+   "id": "acc34",
+   "code": "34",
+   "name": "المصروفات الإدارية والعمومية",
+   "parent": "3",
+   "balance": 0
+  },
+  {
+   "id": "acc41",
+   "code": "41",
+   "name": "إيرادات النشاط",
+   "parent": "4",
+   "balance": 0
+  },
+  {
+   "id": "acc42",
+   "code": "42",
+   "name": "إيرادات أخرى",
+   "parent": "4",
    "balance": 0
   },
   {
@@ -58,17 +149,305 @@ window.ACC_SEED = {
    "balance": 48000
   },
   {
-   "id": "acc12",
-   "code": "12",
-   "name": "الأصول المتداولة",
-   "parent": "1",
-   "balance": 0
-  },
-  {
    "id": "acc121",
    "code": "121",
    "name": "النقدية بالخزائن",
    "parent": "12",
+   "balance": 0
+  },
+  {
+   "id": "acc122",
+   "code": "122",
+   "name": "البنوك",
+   "parent": "12",
+   "balance": 0
+  },
+  {
+   "id": "acc123",
+   "code": "123",
+   "name": "العملاء",
+   "parent": "12",
+   "balance": 0
+  },
+  {
+   "id": "acc124",
+   "code": "124",
+   "name": "مخزون المواد الخام",
+   "parent": "12",
+   "balance": 0
+  },
+  {
+   "id": "acc125",
+   "code": "125",
+   "name": "أوراق القبض",
+   "parent": "12",
+   "balance": 75000
+  },
+  {
+   "id": "acc126",
+   "code": "126",
+   "name": "مخزون الإنتاج التام",
+   "parent": "12",
+   "balance": 162000
+  },
+  {
+   "id": "acc127",
+   "code": "127",
+   "name": "مصروفات مدفوعة مقدماً",
+   "parent": "12",
+   "balance": 12000
+  },
+  {
+   "id": "acc128",
+   "code": "128",
+   "name": "أرصدة مدينة أخرى",
+   "parent": "12",
+   "balance": 0
+  },
+  {
+   "id": "acc129",
+   "code": "129",
+   "name": "شيكات تحت التحصيل (أوراق قبض)",
+   "parent": "12",
+   "balance": 0
+  },
+  {
+   "id": "acc211",
+   "code": "211",
+   "name": "رأس المال",
+   "parent": "21",
+   "balance": 1800000
+  },
+  {
+   "id": "acc212",
+   "code": "212",
+   "name": "الاحتياطيات",
+   "parent": "21",
+   "balance": 180000
+  },
+  {
+   "id": "acc213",
+   "code": "213",
+   "name": "الأرباح المرحلة",
+   "parent": "21",
+   "balance": 149500
+  },
+  {
+   "id": "acc214",
+   "code": "214",
+   "name": "مسحوبات الملاك",
+   "parent": "21",
+   "balance": 0,
+   "nature": "مدين"
+  },
+  {
+   "id": "acc215",
+   "code": "215",
+   "name": "أرصدة افتتاحية (حساب وسيط)",
+   "parent": "21",
+   "balance": 0
+  },
+  {
+   "id": "acc221",
+   "code": "221",
+   "name": "قروض طويلة الأجل",
+   "parent": "22",
+   "balance": 600000
+  },
+  {
+   "id": "acc231",
+   "code": "231",
+   "name": "الموردون",
+   "parent": "23",
+   "balance": 0
+  },
+  {
+   "id": "acc232",
+   "code": "232",
+   "name": "أوراق الدفع",
+   "parent": "23",
+   "balance": 60000
+  },
+  {
+   "id": "acc233",
+   "code": "233",
+   "name": "مصروفات مستحقة",
+   "parent": "23",
+   "balance": 28000
+  },
+  {
+   "id": "acc234",
+   "code": "234",
+   "name": "مصلحة الضرائب",
+   "parent": "23",
+   "balance": 42000
+  },
+  {
+   "id": "acc235",
+   "code": "235",
+   "name": "هيئة التأمينات الاجتماعية",
+   "parent": "23",
+   "balance": 19000
+  },
+  {
+   "id": "acc236",
+   "code": "236",
+   "name": "أرصدة دائنة أخرى",
+   "parent": "23",
+   "balance": 0
+  },
+  {
+   "id": "acc237",
+   "code": "237",
+   "name": "شيكات صادرة لم تُصرف (أوراق دفع)",
+   "parent": "23",
+   "balance": 0
+  },
+  {
+   "id": "acc238",
+   "code": "238",
+   "name": "ضرائب الخصم والإضافة",
+   "parent": "23",
+   "balance": 0
+  },
+  {
+   "id": "acc311",
+   "code": "311",
+   "name": "تكلفة البضاعة المباعة",
+   "parent": "31",
+   "balance": 1240000
+  },
+  {
+   "id": "acc321",
+   "code": "321",
+   "name": "مرتبات وأجور تشغيلية",
+   "parent": "32",
+   "balance": 0
+  },
+  {
+   "id": "acc322",
+   "code": "322",
+   "name": "إيجارات تشغيلية",
+   "parent": "32",
+   "balance": 0
+  },
+  {
+   "id": "acc323",
+   "code": "323",
+   "name": "مصروفات المخازن التشغيلية",
+   "parent": "32",
+   "balance": 0
+  },
+  {
+   "id": "acc324",
+   "code": "324",
+   "name": "مصروفات تشغيل أخرى",
+   "parent": "32",
+   "balance": 0
+  },
+  {
+   "id": "acc331",
+   "code": "331",
+   "name": "مرتبات وأجور تسويقية",
+   "parent": "33",
+   "balance": 0
+  },
+  {
+   "id": "acc332",
+   "code": "332",
+   "name": "إيجارات تسويقية",
+   "parent": "33",
+   "balance": 0
+  },
+  {
+   "id": "acc341",
+   "code": "341",
+   "name": "مرتبات وأجور إدارية",
+   "parent": "34",
+   "balance": 0
+  },
+  {
+   "id": "acc342",
+   "code": "342",
+   "name": "البدلات",
+   "parent": "34",
+   "balance": 0
+  },
+  {
+   "id": "acc343",
+   "code": "343",
+   "name": "إيجارات إدارية",
+   "parent": "34",
+   "balance": 0
+  },
+  {
+   "id": "acc344",
+   "code": "344",
+   "name": "مصروفات المخازن الإدارية",
+   "parent": "34",
+   "balance": 0
+  },
+  {
+   "id": "acc345",
+   "code": "345",
+   "name": "الوقود والصيانة",
+   "parent": "34",
+   "balance": 0
+  },
+  {
+   "id": "acc346",
+   "code": "346",
+   "name": "مصروفات عمومية متنوعة",
+   "parent": "34",
+   "balance": 0
+  },
+  {
+   "id": "acc411",
+   "code": "411",
+   "name": "مبيعات السوق المحلي",
+   "parent": "41",
+   "balance": 2980000
+  },
+  {
+   "id": "acc412",
+   "code": "412",
+   "name": "مبيعات الشتلات",
+   "parent": "41",
+   "balance": 0
+  },
+  {
+   "id": "acc413",
+   "code": "413",
+   "name": "مبيعات الخردة",
+   "parent": "41",
+   "balance": 0
+  },
+  {
+   "id": "acc414",
+   "code": "414",
+   "name": "مبيعات الثروة الحيوانية",
+   "parent": "41",
+   "balance": 0
+  },
+  {
+   "id": "acc421",
+   "code": "421",
+   "name": "إيرادات تأجير المعدات",
+   "parent": "42",
+   "balance": 85000
+  },
+  {
+   "id": "acc422",
+   "code": "422",
+   "name": "إيرادات متنوعة",
+   "parent": "42",
+   "balance": 12000
+  },
+  {
+   "id": "acc423",
+   "code": "423",
+   "name": "إيرادات أخرى (عملاء آخرون)",
+   "parent": "42",
    "balance": 0
   },
   {
@@ -114,13 +493,6 @@ window.ACC_SEED = {
    "balance": 10000
   },
   {
-   "id": "acc122",
-   "code": "122",
-   "name": "البنوك",
-   "parent": "12",
-   "balance": 0
-  },
-  {
    "id": "acc1221",
    "code": "1221",
    "name": "البنك الزراعي",
@@ -163,13 +535,6 @@ window.ACC_SEED = {
    "balance": 30000
   },
   {
-   "id": "acc123",
-   "code": "123",
-   "name": "العملاء",
-   "parent": "12",
-   "balance": 0
-  },
-  {
    "id": "acc1231",
    "code": "1231",
    "name": "عملاء السوق المحلي",
@@ -205,115 +570,66 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
-   "id": "acc124",
-   "code": "124",
-   "name": "المخزون",
-   "parent": "12",
-   "balance": 0
-  },
-  {
    "id": "acc1241",
    "code": "1241",
-   "name": "مخزون المواد الخام",
-   "parent": "124",
-   "balance": 0
-  },
-  {
-   "id": "acc124101",
-   "code": "124101",
    "name": "مخزون الأسمدة",
-   "parent": "1241",
-   "balance": 0
-  },
-  {
-   "id": "acc124102",
-   "code": "124102",
-   "name": "مخزون المبيدات",
-   "parent": "1241",
-   "balance": 0
-  },
-  {
-   "id": "acc124103",
-   "code": "124103",
-   "name": "مخزون البذور والشتلات",
-   "parent": "1241",
-   "balance": 0
-  },
-  {
-   "id": "acc124104",
-   "code": "124104",
-   "name": "مخزون التعبئة والتغليف",
-   "parent": "1241",
-   "balance": 0
-  },
-  {
-   "id": "acc124105",
-   "code": "124105",
-   "name": "مخزون قطع الغيار",
-   "parent": "1241",
-   "balance": 38000
-  },
-  {
-   "id": "acc124106",
-   "code": "124106",
-   "name": "مخزون الإنشاءات",
-   "parent": "1241",
-   "balance": 215000
-  },
-  {
-   "id": "acc124107",
-   "code": "124107",
-   "name": "مخزون القوى المحركة",
-   "parent": "1241",
-   "balance": 0
-  },
-  {
-   "id": "acc124108",
-   "code": "124108",
-   "name": "مخزون النثريات",
-   "parent": "1241",
-   "balance": 0
-  },
-  {
-   "id": "acc124109",
-   "code": "124109",
-   "name": "مخزون الأطعمة",
-   "parent": "1241",
-   "balance": 0
-  },
-  {
-   "id": "acc124110",
-   "code": "124110",
-   "name": "مخزون العهدة",
-   "parent": "1241",
+   "parent": "124",
    "balance": 0
   },
   {
    "id": "acc1242",
    "code": "1242",
-   "name": "مخزون الإنتاج التام",
+   "name": "مخزون المبيدات",
    "parent": "124",
-   "balance": 162000
+   "balance": 0
   },
   {
-   "id": "acc125",
-   "code": "125",
-   "name": "أوراق القبض",
-   "parent": "12",
-   "balance": 75000
+   "id": "acc1243",
+   "code": "1243",
+   "name": "مخزون البذور والشتلات",
+   "parent": "124",
+   "balance": 0
   },
   {
-   "id": "acc127",
-   "code": "127",
-   "name": "مصروفات مدفوعة مقدماً",
-   "parent": "12",
-   "balance": 12000
+   "id": "acc1244",
+   "code": "1244",
+   "name": "مخزون التعبئة والتغليف",
+   "parent": "124",
+   "balance": 0
   },
   {
-   "id": "acc128",
-   "code": "128",
-   "name": "أرصدة مدينة أخرى",
-   "parent": "12",
+   "id": "acc1245",
+   "code": "1245",
+   "name": "مخزون قطع الغيار",
+   "parent": "124",
+   "balance": 38000
+  },
+  {
+   "id": "acc1246",
+   "code": "1246",
+   "name": "مخزون الإنشاءات",
+   "parent": "124",
+   "balance": 215000
+  },
+  {
+   "id": "acc1247",
+   "code": "1247",
+   "name": "مخزون القوى المحركة",
+   "parent": "124",
+   "balance": 0
+  },
+  {
+   "id": "acc1248",
+   "code": "1248",
+   "name": "مخزون النثريات",
+   "parent": "124",
+   "balance": 0
+  },
+  {
+   "id": "acc1249",
+   "code": "1249",
+   "name": "مخزون الأطعمة",
+   "parent": "124",
    "balance": 0
   },
   {
@@ -373,56 +689,6 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
-   "id": "acc129",
-   "code": "129",
-   "name": "شيكات تحت التحصيل (أوراق قبض)",
-   "parent": "12",
-   "balance": 0
-  },
-  {
-   "id": "acc2",
-   "code": "2",
-   "name": "الخصوم وحقوق الملكية",
-   "parent": null,
-   "balance": 0
-  },
-  {
-   "id": "acc21",
-   "code": "21",
-   "name": "حقوق الملكية",
-   "parent": "2",
-   "balance": 0
-  },
-  {
-   "id": "acc211",
-   "code": "211",
-   "name": "رأس المال",
-   "parent": "21",
-   "balance": 1800000
-  },
-  {
-   "id": "acc212",
-   "code": "212",
-   "name": "الاحتياطيات",
-   "parent": "21",
-   "balance": 180000
-  },
-  {
-   "id": "acc213",
-   "code": "213",
-   "name": "الأرباح المرحلة",
-   "parent": "21",
-   "balance": 149500
-  },
-  {
-   "id": "acc214",
-   "code": "214",
-   "name": "مسحوبات الملاك",
-   "parent": "21",
-   "balance": 0,
-   "nature": "مدين"
-  },
-  {
    "id": "acc2141",
    "code": "2141",
    "name": "محسن السيد توفيق البلتاجي",
@@ -455,41 +721,6 @@ window.ACC_SEED = {
    "code": "2145",
    "name": "طارق محسن السيد البلتاجي",
    "parent": "214",
-   "balance": 0
-  },
-  {
-   "id": "acc215",
-   "code": "215",
-   "name": "أرصدة افتتاحية (حساب وسيط)",
-   "parent": "21",
-   "balance": 0
-  },
-  {
-   "id": "acc22",
-   "code": "22",
-   "name": "الخصوم طويلة الأجل",
-   "parent": "2",
-   "balance": 0
-  },
-  {
-   "id": "acc221",
-   "code": "221",
-   "name": "قروض طويلة الأجل",
-   "parent": "22",
-   "balance": 600000
-  },
-  {
-   "id": "acc23",
-   "code": "23",
-   "name": "الخصوم المتداولة",
-   "parent": "2",
-   "balance": 0
-  },
-  {
-   "id": "acc231",
-   "code": "231",
-   "name": "الموردون",
-   "parent": "23",
    "balance": 0
   },
   {
@@ -556,41 +787,6 @@ window.ACC_SEED = {
    "balance": 20000
   },
   {
-   "id": "acc232",
-   "code": "232",
-   "name": "أوراق الدفع",
-   "parent": "23",
-   "balance": 60000
-  },
-  {
-   "id": "acc233",
-   "code": "233",
-   "name": "مصروفات مستحقة",
-   "parent": "23",
-   "balance": 28000
-  },
-  {
-   "id": "acc234",
-   "code": "234",
-   "name": "مصلحة الضرائب",
-   "parent": "23",
-   "balance": 42000
-  },
-  {
-   "id": "acc235",
-   "code": "235",
-   "name": "هيئة التأمينات الاجتماعية",
-   "parent": "23",
-   "balance": 19000
-  },
-  {
-   "id": "acc236",
-   "code": "236",
-   "name": "أرصدة دائنة أخرى",
-   "parent": "23",
-   "balance": 0
-  },
-  {
    "id": "acc2361",
    "code": "2361",
    "name": "مرتبات العاملين المستحقة",
@@ -654,52 +850,10 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
-   "id": "acc237",
-   "code": "237",
-   "name": "شيكات صادرة لم تُصرف (أوراق دفع)",
-   "parent": "23",
-   "balance": 0
-  },
-  {
-   "id": "acc238",
-   "code": "238",
-   "name": "ضرائب الخصم والإضافة",
-   "parent": "23",
-   "balance": 0
-  },
-  {
-   "id": "acc3",
-   "code": "3",
-   "name": "المصروفات",
-   "parent": null,
-   "balance": 0
-  },
-  {
-   "id": "acc31",
-   "code": "31",
-   "name": "تكلفة المبيعات",
-   "parent": "3",
-   "balance": 0
-  },
-  {
-   "id": "acc311",
-   "code": "311",
-   "name": "تكلفة البضاعة المباعة",
-   "parent": "31",
-   "balance": 1240000
-  },
-  {
-   "id": "acc32",
-   "code": "32",
-   "name": "مصروفات التشغيل",
-   "parent": "3",
-   "balance": 0
-  },
-  {
-   "id": "acc321",
-   "code": "321",
-   "name": "مرتبات وأجور تشغيلية",
-   "parent": "32",
+   "id": "acc12410",
+   "code": "12410",
+   "name": "مخزون العهدة",
+   "parent": "124",
    "balance": 0
   },
   {
@@ -736,13 +890,6 @@ window.ACC_SEED = {
    "name": "أجور عمالة تشغيلية",
    "parent": "321",
    "balance": 265000
-  },
-  {
-   "id": "acc322",
-   "code": "322",
-   "name": "إيجارات تشغيلية",
-   "parent": "32",
-   "balance": 0
   },
   {
    "id": "acc32201",
@@ -787,13 +934,6 @@ window.ACC_SEED = {
    "balance": 48000
   },
   {
-   "id": "acc323",
-   "code": "323",
-   "name": "مصروفات المخازن التشغيلية",
-   "parent": "32",
-   "balance": 0
-  },
-  {
    "id": "acc32301",
    "code": "32301",
    "name": "مصروف مخزن الأسمدة",
@@ -836,13 +976,6 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
-   "id": "acc324",
-   "code": "324",
-   "name": "مصروفات تشغيل أخرى",
-   "parent": "32",
-   "balance": 0
-  },
-  {
    "id": "acc32401",
    "code": "32401",
    "name": "وقود وزيوت المعدات",
@@ -862,20 +995,6 @@ window.ACC_SEED = {
    "name": "كهرباء ومياه",
    "parent": "324",
    "balance": 36000
-  },
-  {
-   "id": "acc33",
-   "code": "33",
-   "name": "المصروفات التسويقية",
-   "parent": "3",
-   "balance": 0
-  },
-  {
-   "id": "acc331",
-   "code": "331",
-   "name": "مرتبات وأجور تسويقية",
-   "parent": "33",
-   "balance": 0
   },
   {
    "id": "acc33101",
@@ -913,13 +1032,6 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
-   "id": "acc332",
-   "code": "332",
-   "name": "إيجارات تسويقية",
-   "parent": "33",
-   "balance": 0
-  },
-  {
    "id": "acc33201",
    "code": "33201",
    "name": "إيجار سيارات تسويقية",
@@ -938,20 +1050,6 @@ window.ACC_SEED = {
    "code": "33203",
    "name": "إيجار شاحنات مبردة تسويقية",
    "parent": "332",
-   "balance": 0
-  },
-  {
-   "id": "acc34",
-   "code": "34",
-   "name": "المصروفات الإدارية والعمومية",
-   "parent": "3",
-   "balance": 0
-  },
-  {
-   "id": "acc341",
-   "code": "341",
-   "name": "مرتبات وأجور إدارية",
-   "parent": "34",
    "balance": 0
   },
   {
@@ -1002,13 +1100,6 @@ window.ACC_SEED = {
    "name": "حصة الشركة في التأمينات",
    "parent": "341",
    "balance": 58000
-  },
-  {
-   "id": "acc342",
-   "code": "342",
-   "name": "البدلات",
-   "parent": "34",
-   "balance": 0
   },
   {
    "id": "acc34201",
@@ -1081,13 +1172,6 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
-   "id": "acc343",
-   "code": "343",
-   "name": "إيجارات إدارية",
-   "parent": "34",
-   "balance": 0
-  },
-  {
    "id": "acc34301",
    "code": "34301",
    "name": "إيجار سيارات إدارية",
@@ -1123,13 +1207,6 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
-   "id": "acc344",
-   "code": "344",
-   "name": "مصروفات المخازن الإدارية",
-   "parent": "34",
-   "balance": 0
-  },
-  {
    "id": "acc34401",
    "code": "34401",
    "name": "مصروف مخزن قطع الغيار إدارية",
@@ -1155,13 +1232,6 @@ window.ACC_SEED = {
    "code": "34404",
    "name": "مصروف مخزن الإنشاءات إدارية",
    "parent": "344",
-   "balance": 0
-  },
-  {
-   "id": "acc345",
-   "code": "345",
-   "name": "الوقود والصيانة",
-   "parent": "34",
    "balance": 0
   },
   {
@@ -1197,13 +1267,6 @@ window.ACC_SEED = {
    "code": "34505",
    "name": "صيانة تروسيكل",
    "parent": "345",
-   "balance": 0
-  },
-  {
-   "id": "acc346",
-   "code": "346",
-   "name": "مصروفات عمومية متنوعة",
-   "parent": "34",
    "balance": 0
   },
   {
@@ -1317,76 +1380,6 @@ window.ACC_SEED = {
    "name": "إهلاك الأصول الثابتة",
    "parent": "346",
    "balance": 96000
-  },
-  {
-   "id": "acc4",
-   "code": "4",
-   "name": "الإيرادات",
-   "parent": null,
-   "balance": 0
-  },
-  {
-   "id": "acc41",
-   "code": "41",
-   "name": "إيرادات النشاط",
-   "parent": "4",
-   "balance": 0
-  },
-  {
-   "id": "acc411",
-   "code": "411",
-   "name": "مبيعات السوق المحلي",
-   "parent": "41",
-   "balance": 2980000
-  },
-  {
-   "id": "acc412",
-   "code": "412",
-   "name": "مبيعات الشتلات",
-   "parent": "41",
-   "balance": 0
-  },
-  {
-   "id": "acc413",
-   "code": "413",
-   "name": "مبيعات الخردة",
-   "parent": "41",
-   "balance": 0
-  },
-  {
-   "id": "acc414",
-   "code": "414",
-   "name": "مبيعات الثروة الحيوانية",
-   "parent": "41",
-   "balance": 0
-  },
-  {
-   "id": "acc42",
-   "code": "42",
-   "name": "إيرادات أخرى",
-   "parent": "4",
-   "balance": 0
-  },
-  {
-   "id": "acc421",
-   "code": "421",
-   "name": "إيرادات تأجير المعدات",
-   "parent": "42",
-   "balance": 85000
-  },
-  {
-   "id": "acc422",
-   "code": "422",
-   "name": "إيرادات متنوعة",
-   "parent": "42",
-   "balance": 12000
-  },
-  {
-   "id": "acc423",
-   "code": "423",
-   "name": "إيرادات أخرى (عملاء آخرون)",
-   "parent": "42",
-   "balance": 0
   }
  ],
  "customers": [
@@ -1554,7 +1547,7 @@ window.ACC_SEED = {
    "min": 100,
    "cost": 2400,
    "price": 2750,
-   "store": "124106"
+   "store": "1246"
   },
   {
    "id": "items-002",
@@ -1567,7 +1560,7 @@ window.ACC_SEED = {
    "min": 20,
    "cost": 38000,
    "price": 41500,
-   "store": "124106"
+   "store": "1246"
   },
   {
    "id": "items-003",
@@ -1580,7 +1573,7 @@ window.ACC_SEED = {
    "min": 80,
    "cost": 180,
    "price": 240,
-   "store": "124106"
+   "store": "1246"
   },
   {
    "id": "items-004",
@@ -1593,7 +1586,7 @@ window.ACC_SEED = {
    "min": 3000,
    "cost": 7,
    "price": 10,
-   "store": "1242"
+   "store": "126"
   },
   {
    "id": "items-005",
@@ -1606,7 +1599,7 @@ window.ACC_SEED = {
    "min": 200,
    "cost": 95,
    "price": 120,
-   "store": "124105"
+   "store": "1245"
   },
   {
    "id": "items-006",
@@ -1619,7 +1612,7 @@ window.ACC_SEED = {
    "min": 10,
    "cost": 450,
    "price": 550,
-   "store": "124105"
+   "store": "1245"
   },
   {
    "id": "items-007",
@@ -1632,7 +1625,7 @@ window.ACC_SEED = {
    "min": 2,
    "cost": 18500,
    "price": 21000,
-   "store": "124105"
+   "store": "1245"
   }
  ],
  "warehouses": [
@@ -2467,7 +2460,7 @@ window.ACC_SEED = {
    "supplier": "مصنع العاشر للحديد",
    "date": "2026-11-09",
    "due": "2026-12-09",
-   "account": "124106 - مخزون الإنشاءات",
+   "account": "1246 - مخزون الإنشاءات",
    "amount": 70000
   },
   {
@@ -2476,7 +2469,7 @@ window.ACC_SEED = {
    "supplier": "شركة السويس للأسمنت",
    "date": "2026-10-28",
    "due": "2026-11-28",
-   "account": "124106 - مخزون الإنشاءات",
+   "account": "1246 - مخزون الإنشاءات",
    "amount": 98000
   },
   {
@@ -2485,7 +2478,7 @@ window.ACC_SEED = {
    "supplier": "مؤسسة الفتح لقطع الغيار",
    "date": "2026-10-12",
    "due": "2026-11-12",
-   "account": "124105 - مخزون قطع الغيار",
+   "account": "1245 - مخزون قطع الغيار",
    "amount": 41000
   },
   {
@@ -2505,7 +2498,7 @@ window.ACC_SEED = {
    "supplier": "مؤسسة الفتح لقطع الغيار",
    "invoice": "PI-2205",
    "date": "2026-10-14",
-   "account": "124105 - مخزون قطع الغيار",
+   "account": "1245 - مخزون قطع الغيار",
    "amount": 2700,
    "reason": "قطع غير مطابقة للمواصفات"
   }
