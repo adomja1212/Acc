@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 14:00';
+  const APP_VERSION = '26/11/2026, 17:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -479,7 +479,9 @@
     if (k === 'o') return [acc(code)?.name].filter(Boolean);
     const hist = [...db.receipts, ...db.payments].filter(r => code && accCode(r.account) === code && r.party && r.party !== 'أخرى').map(r => r.party);
     return [...new Set(k === 'e' ? [...staffNames(), ...db.workers.map(w => w.name), ...hist] : hist)]; };
-  const partyCheck = d => { const code = accCode(d.account), k = partyKind(code), ok = partyOpts(d.account);
+  const fixParty = (d, ok) => { if (d.party && !ok.includes(d.party)) { const m = ok.find(o => normAr(o) === normAr(d.party)); if (m) d.party = m; } };
+  const inferAcc = n => { const c = isCustomer(n) ? custAcc(n) : isSupplier(n) ? suppAcc(n) : ownerAcc(n); return c && acc(c) ? accLabel(acc(c)) : ''; };
+  const partyCheck = d => { if (!d.account && d.party) d.account = inferAcc(d.party); const code = accCode(d.account), k = partyKind(code), ok = partyOpts(d.account); fixParty(d, ok);
     if (!code) return 'اختر اسم الحساب';
     if (k === 'c' && !ok.includes(d.party)) return `اختر العميل من عملاء "${acc(code)?.name}"`;
     if (k === 's' && !ok.includes(d.party)) return `اختر المورد من موردي "${acc(code)?.name}"`;
@@ -664,7 +666,7 @@
       validate: (d, rec) => db.cashboxes.some(b => b.accountNo === d.accountNo && b !== rec) ? 'هذا الحساب مرتبط بخزينة أخرى' : '' },
     receipts: { title: 'سندات القبض', sub: 'اختر اسم الحساب ثم المستفيد من قائمته — يُرحّل بعد الاعتماد: من حـ/ الخزينة أو البنك إلى حـ/ الحساب المختار', single: 'سند قبض', key: 'no', cols: [
       C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), boxField(),
-      C('account', 'اسم الحساب', { input: 'select', allowEmpty: '— اختر الحساب —', options: treasAccOpts, full: true, render: (v, r) => `<span class="hint">${esc(v || (isCustomer(r.party) ? accLabel(acc(custAcc(r.party)) || { code: '', name: '' }) : '—'))}</span>` }),
+      C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— اختر الحساب —', options: treasAccOpts, full: true, render: (v, r) => `<span class="hint">${esc(v || (isCustomer(r.party) ? accLabel(acc(custAcc(r.party)) || { code: '', name: '' }) : '—'))}</span>` }),
       C('party', 'اسم المستفيد / الطرف', { optional: true, full: true, dyn: true, suggest: v => partyOpts(v?.account), render: (v, r) => esc(partyName(r)) }),
       C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', formOnly: true, options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]), when: f => partyKind(accCode(f.account)) === 'c' }),
       C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), '', CHQ_IN, false), C('desc', 'البيان', { full: true, optional: true })],
@@ -689,7 +691,7 @@
       } },
     payments: { title: 'سندات الصرف', sub: 'اختر اسم الحساب ثم المستفيد من قائمته — يُرحّل بعد الاعتماد: من حـ/ الحساب المختار إلى حـ/ الخزينة أو البنك', single: 'سند صرف', key: 'no', cols: [
       C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), boxField(),
-      C('account', 'اسم الحساب', { input: 'select', allowEmpty: '— اختر الحساب —', options: treasAccOpts, full: true, render: (v, r) => `<span class="hint">${esc(v || (isSupplier(r.party) ? accLabel(acc(suppAcc(r.party)) || { code: '', name: '' }) : '—'))}</span>` }),
+      C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— اختر الحساب —', options: treasAccOpts, full: true, render: (v, r) => `<span class="hint">${esc(v || (isSupplier(r.party) ? accLabel(acc(suppAcc(r.party)) || { code: '', name: '' }) : '—'))}</span>` }),
       C('party', 'اسم المستفيد', { optional: true, full: true, dyn: true, suggest: v => partyOpts(v?.account), render: (v, r) => esc(partyName(r)) }),
       C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', formOnly: true, options: () => db.purchaseInvoices.map(i => [i.no, `${i.no} — ${i.supplier}`]), when: f => partyKind(accCode(f.account)) === 's' }),
       C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), '', CHQ_OUT, false), C('desc', 'البيان', { full: true, optional: true })],
@@ -761,7 +763,8 @@
         party: (f, v) => { const e = f.namedItem('expAcc'), h = [...db.supplierAccruals].reverse().find(r => r.party === v && r.expAcc); if (e && h) e.value = h.expAcc; } },
       validate: (d, rec) => {
         const code = accCode(d.account); if (!code) return 'اختر اسم الحساب';
-        if (!partyOpts(d.account).includes(d.party)) return `اختر المورد من موردي "${acc(code)?.name}"`;
+        fixParty(d, partyOpts(d.account)); if (!partyOpts(d.account).includes(d.party)) return `اختر المورد من موردي "${acc(code)?.name}"`;
+        if (!d.month && d.from && d.to) d.periodType = 'من — إلى'; else if (d.month && !d.from) d.periodType = 'شهر';
         if (d.periodType === 'شهر') { if (!d.month) return 'اختر الشهر'; d.from = ''; d.to = ''; }
         else { if (!d.from || !d.to) return 'اكتب الفترة من — إلى'; if (d.to < d.from) return 'تاريخ النهاية قبل البداية'; d.month = ''; }
         if (!accCode(d.expAcc)) return 'اختر حساب المصروف المقابل';
@@ -2333,6 +2336,7 @@
     if (!can(p, 'e')) rm('[data-edit], [data-editacc]');
     if (!can(p, 'd')) rm('[data-del], [data-delacc]');
     if (!canSp('export')) rm('#exportBtn, #bxExport, [onclick="window.print()"]');
+    if (!canSp('import') || !['receipts', 'payments', 'boxTransfers'].some(x => can(x, 'a'))) rm('#bxImport');
     $$('[data-new]', content).forEach(b => { if (!can(b.dataset.new, 'a')) b.remove(); });
     $$('[data-bedit], [data-bchq]', content).forEach(b => { if (!can((b.dataset.bedit || b.dataset.bchq).split('|')[0], 'e')) b.remove(); });
     $$('[data-act]', content).forEach(b => { const a = modules[p]?.actions?.[+b.dataset.act]; if (a?.target && !can(a.target, 'a')) b.remove(); });
@@ -2389,8 +2393,9 @@
     const X = await loadXLSX();
     if (!X) throw new Error('تعذّر تحميل قارئ ملفات Excel — احفظ الملف بصيغة CSV وحاول مرة أخرى');
     const wb = X.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    return X.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' }).filter(r => r.some(c => String(c).trim() !== ''));
+    const sheets = wb.SheetNames.filter(n => n !== 'تعليمات').map(n => ({ name: n, rows: X.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }).filter(r => r.some(c => String(c).trim() !== '')) })).filter(x => x.rows.length);
+    if (!sheets.length) return [];
+    const rows = sheets[0].rows; rows.sheets = sheets; return rows;
   }
 
   // ----- تحويل القيم -----
@@ -2416,7 +2421,9 @@
     }
     if (c.input === 'select') {
       const opts = c.options().map(o => Array.isArray(o) ? o.map(String) : [String(o), String(o)]);
-      const hit = opts.find(([ov, ol]) => ov === v || ol === v) || opts.find(([ov]) => /^\d+\s-\s/.test(ov) && accCode(ov) === accCode(v));
+      const nv = normAr(v), nameOf = x => normAr(String(x).replace(/^\d+\s-\s/, ''));
+      const hit = opts.find(([ov, ol]) => ov === v || ol === v) || opts.find(([ov]) => /^\d+\s-\s/.test(ov) && accCode(ov) === accCode(v))
+        || opts.find(([ov, ol]) => normAr(ov) === nv || normAr(ol) === nv) || opts.find(([ov, ol]) => nameOf(ov) === nameOf(v) || nameOf(ol) === nameOf(v));
       if (!hit) throw new Error(`"${v}" غير موجود في قائمة "${c.label}"`);
       return hit[0];
     }
@@ -2424,11 +2431,15 @@
   }
 
   // ----- تحليل الملف إلى صفوف جاهزة -----
-  function analyze(t, sheet, mode) {
-    const def = importDef(t), fields = importFields(t);
-    const norm = s => String(s ?? '').replace(/\s+/g, ' ').replace(/[*:]/g, '').trim().toLowerCase();
+  function analyze(t, sheet, mode, preset = {}) {
+    const def0 = importDef(t), fields = importFields(t);
+    const def = Object.keys(preset).length ? { ...def0, defaults: () => ({ ...(def0.defaults?.() || {}), ...preset }) } : def0;
+    const norm = s => normAr(String(s ?? '').replace(/[*:]/g, ''));
     const header = (sheet[0] || []).map(norm);
-    const colIdx = Object.fromEntries(fields.map(c => [c.key, header.findIndex(h => h === norm(c.label) || h === norm(c.key))]));
+    const AKA = { 'رقم الحركة': ['رقم السند', 'رقم الإذن', 'رقم المستند', 'الرقم'], 'تاريخ الحركة': ['التاريخ'], 'اسم الحساب': ['الحساب المقابل', 'الحساب'], 'اسم المخزن': ['المخزن'],
+      'اسم المستفيد / الطرف': ['المستلم منه', 'المستفيد', 'الطرف', 'العميل'], 'اسم المستفيد': ['المصروف إليه', 'المستفيد', 'الطرف', 'المورد'], 'رقم فاتورة المردودات': ['رقم المرتجع'], 'المبلغ المستحق': ['المبلغ'] };
+    const names = c => [c.label, c.key, ...(AKA[c.label] || [])].map(norm);
+    const colIdx = Object.fromEntries(fields.map(c => [c.key, header.findIndex(h => names(c).includes(h))]));
     const missingCols = fields.filter(c => !c.optional && colIdx[c.key] < 0 && !(def.defaults && c.key in (def.defaults() || {})));
     const keyIdx = def.key ? colIdx[def.key] : -1;
     const seen = new Set();
@@ -2458,8 +2469,9 @@
   }
 
   // ----- التنفيذ -----
-  function runImport(t, rows) {
-    const def = importDef(t);
+  function runImport(t, rows, preset = {}) {
+    const def0 = importDef(t);
+    const def = Object.keys(preset).length ? { ...def0, defaults: () => ({ ...(def0.defaults?.() || {}), ...preset }) } : def0;
     let added = 0, updated = 0; const fails = [];
     importing = true;
     try {
@@ -2467,7 +2479,7 @@
         const groups = new Map();
         rows.forEach(r => { if (r.status === 'error') { fails.push(r); return; } const k = r.data.no || '#' + r.line; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
         for (const g of groups.values()) {
-          const head = Object.fromEntries(Object.entries(g[0].data).filter(([k]) => !LINE_KEYS.includes(k)));
+          const head = Object.fromEntries(Object.entries(g[0].data).filter(([k, v]) => !LINE_KEYS.includes(k) && !(k in preset && v === '')));
           const data = { ...(def.defaults?.() || {}), ...head, lines: g.map(r => Object.fromEntries(LINE_KEYS.map(k => [k, r.data[k] ?? '']))).filter(l => l.item) };
           if (!data.no) data.no = nextNo(db[t], 'no');
           const err = def.validate?.(data, null);
@@ -2480,13 +2492,15 @@
       for (const r of rows) {
         if (r.status === 'error') { fails.push(r); continue; }
         const cur = r.id ? db[t].find(x => x.id === r.id) : null;
-        const data = { ...r.data };
+        const data = { ...r.data }; Object.keys(preset).forEach(k => { if (data[k] === '') delete data[k]; });
         if (t === 'accounts') { data.parent = data.parent || null; data.balance = +data.balance || 0; }
-        const err = def.validate?.({ ...(cur || def.defaults?.() || {}), ...data }, cur);
+        // التحقق على نفس النسخة التي ستُحفظ (التحقق قد يكمّل حقولاً مثل نوع الفترة أو اسم المستفيد)
+        const merged = { ...(cur || def.defaults?.() || {}), ...data };
+        const err = def.validate?.(merged, cur);
         if (err) { fails.push({ ...r, status: 'error', msg: err }); continue; }
         let rec = cur;
-        if (cur) { Object.assign(cur, data); updated++; }
-        else { rec = { id: genId(), ...(def.defaults?.() || {}), ...data }; db[t].push(rec); added++; }
+        if (cur) { const { id, ...rest } = merged; Object.assign(cur, rest); updated++; }
+        else { rec = { ...merged, id: genId() }; db[t].push(rec); added++; }
         def.afterSave?.(rec);
         submitForApproval(t, rec, true);
         cache = {};
@@ -2518,11 +2532,14 @@
     } else downloadCSV(`نموذج-${def.title}`, head, [ex]);
   }
 
-  function openImport(t0) {
+  function openImport(t0, preset = {}) {
     if (!canSp('import')) return denied();
     const tables = importTables();
     if (!tables.length) return denied();
     let t = tables.includes(t0) ? t0 : tables[0], parsed = null, sheet = null;
+    const presetFor = x => Object.fromEntries(Object.entries(preset).filter(([k]) => importFields(x).some(c => c.key === k)));
+    // اختيار الورقة الأنسب للجدول (باسم الجدول) عند وجود أكثر من ورقة
+    const bestSheet = (sheets, x) => sheets.find(w => normAr(w.name) === normAr(importDef(x).title)) || sheets.find(w => normAr(importDef(x).title).includes(normAr(w.name)) || normAr(w.name).includes(normAr(importDef(x).title))) || sheets[0];
     form.classList.add('wide'); form.classList.remove('info');
     $('#modalTitle').textContent = 'استيراد من Excel / CSV';
     const body = $('#modalBody');
@@ -2541,7 +2558,9 @@
           <button type="button" class="btn ghost" id="impTpl">${icons.export}تنزيل نموذج Excel</button>
           <label class="btn primary imp-file">${icons.plus}اختيار ملف (xlsx / csv)<input type="file" id="impFile" accept=".xlsx,.xls,.csv,.txt" hidden></label>
           <span class="hint" id="impName">${sheet ? esc(sheet.name) : 'لم يتم اختيار ملف'}</span>
+          ${sheet?.sheets?.length > 1 ? `<label class="hint">الورقة: <select class="input" id="impSheet">${sheet.sheets.map((w, i) => `<option value="${i}" ${w.rows === sheet.rows ? 'selected' : ''}>${esc(w.name)} (${w.rows.length - 1} صف)</option>`).join('')}</select></label>` : ''}
         </div>
+        ${Object.keys(presetFor(t)).length ? `<div class="af-note">الأعمدة غير الموجودة في الملف تأخذ: ${Object.entries(presetFor(t)).map(([k, v]) => `<b>${esc(importFields(t).find(c => c.key === k)?.label || k)}</b> = ${esc(v)}`).join('، ')}</div>` : ''}
         ${parsed ? `
           <div class="summary imp-sum"><div><span>صفوف الملف</span><b>${parsed.rows.length}</b></div><div><span>جديد</span><b class="up">${cnt('new')}</b></div>
             <div><span>تحديث</span><b>${cnt('update')}</b></div><div><span>أخطاء (ستُتخطى)</span><b class="${cnt('error') ? 'down' : ''}">${cnt('error')}</b></div></div>
@@ -2556,18 +2575,20 @@
           <div class="imp-help"><p>1. نزّل النموذج وافتحه في Excel واملأ البيانات (يمكن لصق بيانات من برنامجك القديم).</p>
           <p>2. اختر الملف — ستظهر معاينة لكل صف قبل الحفظ، مع توضيح الأخطاء.</p>
           <p>3. اضغط "تنفيذ الاستيراد". كل الحركات تُرحّل تلقائياً كأنها أُدخلت يدوياً.</p></div>`}`;
-      $('#impTable').onchange = e => { t = e.target.value; parsed = null; sheet = null; draw(); };
-      $('#impMode').onchange = () => { if (sheet) { parsed = analyze(t, sheet.rows, $('#impMode').value); draw(); } };
+      $('#impTable').onchange = e => { t = e.target.value; if (sheet) { if (sheet.sheets) sheet.rows = bestSheet(sheet.sheets, t).rows; parsed = analyze(t, sheet.rows, sheet.mode || 'add', presetFor(t)); } draw(); };
+      $('#impMode').onchange = () => { if (sheet) { sheet.mode = $('#impMode').value; parsed = analyze(t, sheet.rows, sheet.mode, presetFor(t)); draw(); } };
+      $('#impSheet') && ($('#impSheet').onchange = e => { sheet.rows = sheet.sheets[+e.target.value].rows; parsed = analyze(t, sheet.rows, sheet.mode || 'add', presetFor(t)); draw(); });
       if (sheet) $('#impMode').value = sheet.mode || 'add';
       $('#impTpl').onclick = () => downloadTemplate(t);
       $('#impFile').onchange = async e => {
         const f = e.target.files[0]; if (!f) return;
         $('#impName').textContent = 'جارٍ قراءة الملف…';
         try {
-          const rows = await readSheet(f);
+          const all = await readSheet(f), sheets = all.sheets;
+          const rows = sheets ? bestSheet(sheets, t).rows : all;
           if (rows.length < 2) throw new Error('الملف فارغ أو لا يحتوي إلا على صف العناوين');
           const mode = $('#impMode').value;
-          sheet = { name: f.name, rows, mode }; parsed = analyze(t, rows, mode); draw();
+          sheet = { name: f.name, rows, sheets, mode }; parsed = analyze(t, rows, mode, presetFor(t)); draw();
         } catch (err) { $('#impName').textContent = err.message; toast(err.message, 4000); }
       };
       $('#saveBtn').textContent = 'تنفيذ الاستيراد';
@@ -2577,7 +2598,7 @@
     modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false');
     onSubmit = () => {
       if (!parsed) return false;
-      const res = runImport(t, parsed.rows);
+      const res = runImport(t, parsed.rows, presetFor(t));
       form.classList.add('info');
       $('#modalTitle').textContent = 'نتيجة الاستيراد';
       body.innerHTML = `<div class="summary imp-sum"><div><span>تمت الإضافة</span><b class="up">${res.added}</b></div><div><span>تم التحديث</span><b>${res.updated}</b></div>
@@ -2592,9 +2613,12 @@
   // صفحة الاستيراد: كل الجداول في مكان واحد
   function renderImport() {
     const tables = importTables();
-    const groups = [['البيانات الأساسية وشجرة الحسابات', ['accounts', 'customers', 'suppliers', 'items', 'warehouses', 'employees', 'workers', 'departments', 'machines', 'cashboxes']],
-      ['الخزينة', ['receipts', 'payments', 'boxTransfers']], ['المبيعات والمشتريات', ['salesInvoices', 'salesReturns', 'salesQuotes', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns']],
-      ['المخازن', ['stockIn', 'stockOut', 'transfers']], ['الحسابات', ['journal']], ['العاملون والعمالة والميكنة', ['attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders', 'maintenancePlan']]];
+    const groups = [['شجرة الحسابات والخزائن', ['accounts', 'cashboxes']],
+      ['قواعد البيانات', ['customers', 'suppliers', 'salesItems', 'items', 'units', 'warehouses', 'branches', 'costCenters', 'crops', 'employees', 'girlsFixed', 'girlsTemp', 'bangladesh', 'workers', 'departments', 'machines']],
+      ['حركات الخزينة والبنوك', ['receipts', 'payments', 'boxTransfers']], ['الموردون والمشتريات', ['supplierAccruals', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns']],
+      ['المبيعات', ['salesInvoices', 'salesReturns', 'salesQuotes']], ['المخازن', ['stockIn', 'stockOut', 'transfers']], ['الحسابات', ['journal']],
+      ['العاملون والعمالة والميكنة', ['attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders', 'maintenancePlan']]];
+    const listed = new Set(groups.flatMap(g => g[1])); const rest = tables.filter(x => !listed.has(x)); if (rest.length) groups.push(['أخرى', rest]);
     content.innerHTML = `
       <div class="card" style="margin-bottom:18px"><div class="card-body imp-help">
         <p><b>استيراد البيانات من Excel أو CSV</b> — لنقل قاعدة بيانات من برنامج آخر، أو إدخال حركات كثيرة مرة واحدة (قبض، صرف، تحويلات، فواتير، أذون مخازن، مرتجعات)، أو تعديل سجلات موجودة.</p>
@@ -2602,7 +2626,7 @@
         <p class="hint">ابدأ بالبيانات الأساسية (العملاء، الموردين، الأصناف، الخزائن) قبل الحركات، لأن الحركات تشير إليها بالاسم.</p></div></div>
       ${groups.map(([g, list]) => { const ok = list.filter(x => tables.includes(x)); return ok.length ? `
         <div class="section-title">${g}</div>
-        <div class="imp-grid">${ok.map(x => `<div class="imp-card"><div><b>${EMO[x] || '📄'} ${esc(importDef(x).title)}</b><small>${db[x].length} سجل · ${importDef(x).key ? 'إضافة وتحديث' : 'إضافة فقط'}</small></div>
+        <div class="imp-grid">${ok.map(x => `<div class="imp-card"><div><b>${EMO[x] || '📄'} ${esc(importDef(x).title)}</b><small>${db[x].length} سجل · ${importDef(x).lineImport ? 'صف لكل صنف — نفس الرقم = مستند واحد' : importDef(x).key ? 'إضافة وتحديث' : 'إضافة فقط'}</small></div>
           <div class="imp-btns"><button class="btn ghost" data-tpl="${x}">نموذج</button><button class="btn primary" data-imp="${x}">استيراد</button></div></div>`).join('')}</div>` : ''; }).join('')}`;
     $$('[data-tpl]', content).forEach(b => b.onclick = () => downloadTemplate(b.dataset.tpl));
     $$('[data-imp]', content).forEach(b => b.onclick = () => openImport(b.dataset.imp));
@@ -3173,6 +3197,7 @@
             <button class="btn primary" data-new="payments">${icons.pay}${lbl.out}</button>
             <button class="btn ghost" data-new="boxTransfers">${icons.swap}${lbl.tr}</button>
             ${box ? `<button class="btn ghost" id="boxLedger">${icons.ledger}كشف الحساب</button>` : ''}
+            <button class="btn ghost" id="bxImport">${icons.receive}استيراد</button>
             <button class="btn ghost" id="bxExport">${icons.export}تصدير</button>
           </div>
         </div>
@@ -3208,6 +3233,7 @@
     $('#bxFrom').onchange = e => { v.from = e.target.value; renderBox(box); };
     $('#bxTo').onchange = e => { v.to = e.target.value; renderBox(box); };
     $('#boxLedger') && ($('#boxLedger').onclick = () => openLedger(box.accountNo));
+    $('#bxImport').onclick = () => openImport('payments', box ? { box: box.name, from: box.name } : {});
     $('#bxExport').onclick = () => downloadCSV(box ? box.name : 'حركات البنوك', ['التاريخ', 'رقم المستند', 'البنك / الخزينة', 'نوع الحركة', 'الطريقة', 'رقم الشيك', 'المستفيد / الطرف', 'رقم حساب المستفيد', 'بنك المستفيد', 'البيان', 'وارد', 'صادر', 'الرصيد'],
       rows.map(r => [r.date, r.no, r.box, r.kind, r.method, r.cheque, r.party, r.benAccount, r.benBank, r.desc, r.in, r.out, r.bal ?? 'معلّق']));
     $$('[data-new]', content).forEach(b => b.onclick = () => {
