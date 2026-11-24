@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '29/11/2026, 10:00';
+  const APP_VERSION = '29/11/2026, 12:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -1498,7 +1498,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   // آخر تعديل: من وإمتى
   async function showAudit(r) {
     const el = document.createElement('div'); el.className = 'audit';
-    const when = new Date(r._at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+    const when = new Date(r._at).toLocaleString((window.UI_LOCALE || 'ar-EG'), { dateStyle: 'medium', timeStyle: 'short' });
     el.textContent = `آخر تعديل: ${when}`;
     $('#modalBody').appendChild(el);
     if (r._u) { const au = db.appUsers.find(x => x.username === r._u); el.textContent = `آخر تعديل: ${au?.name || r._u} — ${when}`; return; }
@@ -1628,7 +1628,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     return { close };
   })();
   // كل قائمة اختيار (select) تتحول إلى كومبوبوكس بحث: يُكتب فيه الاسم أو الكود وتظهر النتائج المطابقة
-  function selLabel(s) { const o = s.options[s.selectedIndex]; return o ? o.textContent.trim() : ''; }
+  function selLabel(s) { const o = s.options[s.selectedIndex], t = o ? o.textContent.trim() : ''; return window.trUI ? window.trUI(t) : t; }
   function enhanceSelect(s) {
     if (s._px || s.closest('.lines-grid') || s.multiple) return;
     const px = document.createElement('input'); px.type = 'text'; px.className = 'input sel-proxy'; px.autocomplete = 'off'; px.dataset.sel = '1';
@@ -2101,7 +2101,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     const tb = db.accounts.filter(a => !hasChildren(a.code) || Math.abs(ownBal(a)) > 0.001).sort(codeSort)
       .map(a => { const b = ownBal(a); const d = isDebitNature(a.code) ? b : -b; return { a, d: d > 0 ? d : 0, c: d < 0 ? -d : 0 }; });
     const dr = sum(tb, r => r.d), cr = sum(tb, r => r.c);
-    const dt = new Date().toLocaleDateString('ar-EG');
+    const dt = new Date().toLocaleDateString((window.UI_LOCALE || 'ar-EG'));
 
     const show = k => !only || only === k;
     content.innerHTML = `
@@ -2184,12 +2184,12 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         ${kpi('السعة المستخدمة', `${pct.toFixed(1)}%`, `من ${num(DB_CAPACITY)} سجل`, '', pct > 80 ? 'red' : 'green', icons.wallet)}
       </div>
       <div class="card" style="margin-bottom:18px">
-        <div class="card-head"><div><h3>الجداول</h3><div class="sub">${cloud ? `آخر مزامنة: ${store.lastSync ? store.lastSync.toLocaleTimeString('ar-EG') : '—'}` : 'وضع محلي'}</div></div>
+        <div class="card-head"><div><h3>الجداول</h3><div class="sub">${cloud ? `آخر مزامنة: ${store.lastSync ? store.lastSync.toLocaleTimeString((window.UI_LOCALE || 'ar-EG')) : '—'}` : 'وضع محلي'}</div></div>
           <div class="spacer"></div><div class="capacity" title="السعة المستخدمة"><span style="width:${pct}%"></span></div></div>
         <div class="table-wrap"><table>
           <thead><tr><th>الجدول</th><th>المسار</th><th>عدد السجلات</th><th>آخر تعديل</th><th>بواسطة</th><th></th></tr></thead>
           <tbody>${rows.map(r => `<tr><td><b>${esc(TABLE_TITLE(r.t))}</b></td><td class="code">${r.t}</td><td class="num">${num(r.n)}</td>
-            <td>${r.last ? new Date(r.last._at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+            <td>${r.last ? new Date(r.last._at).toLocaleString((window.UI_LOCALE || 'ar-EG'), { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
             <td data-uid="${esc(r.last?._by || '')}">${esc(r.last?._u ? (db.appUsers.find(x => x.username === r.last._u)?.name || r.last._u) : '—')}</td>
             <td><a class="link-btn" href="#${r.t}">فتح</a></td></tr>`).join('')}</tbody>
         </table></div>
@@ -2511,7 +2511,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   function renderUsers() {
     const me = curUser();
     const list = db.appUsers.slice().sort((a, b) => (isAdminUser(b) - isAdminUser(a)) || a.name.localeCompare(b.name, 'ar'));
-    const fmt = d => d ? new Date(d).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+    const fmt = d => d ? new Date(d).toLocaleString((window.UI_LOCALE || 'ar-EG'), { dateStyle: 'medium', timeStyle: 'short' }) : '—';
     content.innerHTML = `
       <div class="kpis">
         ${kpi('عدد المستخدمين', num(db.appUsers.length), `${db.appUsers.filter(u => u.active !== false).length} نشط`, '', '', icons.users)}
@@ -3184,9 +3184,9 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
           ${entries.flatMap(e => e.lines.map(l => `<tr><td>${esc(e.no)}</td><td>${esc(nm(l.acc))}</td><td>${l.dr ? money(l.dr) : ''}</td><td>${l.cr ? money(l.cr) : ''}</td></tr>`)).join('')}</tbody></table>`
           : r.appr && r.appr.status !== 'approved' ? '<p class="doc-note">لم يُرحّل القيد بعد — بانتظار اكتمال الاعتمادات</p>' : ''}
         ${r.appr?.steps?.length ? `<h3>سجل الاعتمادات</h3><table class="doc-lines"><thead><tr><th>الإجراء</th><th>المستخدم</th><th>التاريخ</th><th>ملاحظة</th></tr></thead><tbody>
-          ${r.appr.steps.map(st => `<tr><td>${ACTION_TXT[st.action] || st.action}${st.action === 'approve' || st.action === 'reject' ? ` (${esc(apprCfg(t)?.levels?.[st.level]?.title || `المستوى ${st.level + 1}`)})` : ''}</td><td>${esc(userName(st.by))}</td><td>${new Date(st.at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${esc(st.note || '')}</td></tr>`).join('')}</tbody></table>` : ''}
+          ${r.appr.steps.map(st => `<tr><td>${ACTION_TXT[st.action] || st.action}${st.action === 'approve' || st.action === 'reject' ? ` (${esc(apprCfg(t)?.levels?.[st.level]?.title || `المستوى ${st.level + 1}`)})` : ''}</td><td>${esc(userName(st.by))}</td><td>${new Date(st.at).toLocaleString((window.UI_LOCALE || 'ar-EG'), { dateStyle: 'short', timeStyle: 'short' })}</td><td>${esc(st.note || '')}</td></tr>`).join('')}</tbody></table>` : ''}
         <div class="doc-sign">${['المُعِد', 'المراجع', 'المعتمد', 'المستلم'].map(x => `<div><span>${x}</span><i></i></div>`).join('')}</div>
-        <div class="doc-foot">طُبع بواسطة ${esc(curUser()?.name || '')} — ${new Date().toLocaleString('ar-EG')}</div>
+        <div class="doc-foot">طُبع بواسطة ${esc(curUser()?.name || '')} — ${new Date().toLocaleString((window.UI_LOCALE || 'ar-EG'))}</div>
       </div>`;
     if (previewOnly) { openInfo(`${m.single} ${docNo(t, r)}`, `<div class="doc-preview">${html}</div><div style="margin-top:14px"><button type="button" class="btn primary" id="docPrint">${icons.print}طباعة</button></div>`); $('#docPrint').onclick = () => printDoc(t, r); return; }
     const area = $('#printArea'); area.innerHTML = html;
@@ -3468,7 +3468,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       const s = db.settings, area = $('#printArea');
       area.innerHTML = `<div class="doc"><div class="doc-head"><div><h1>${esc(s.company || '')}</h1><p>${esc(s.address || '')}</p></div>
         <div class="doc-title"><h2>${esc(rep.title)}</h2><span>${esc(period)}</span></div></div>${reportTableHTML(rep, res)}
-        <div class="doc-foot">طُبع بواسطة ${esc(curUser()?.name || '')} — ${new Date().toLocaleString('ar-EG')}</div></div>`;
+        <div class="doc-foot">طُبع بواسطة ${esc(curUser()?.name || '')} — ${new Date().toLocaleString((window.UI_LOCALE || 'ar-EG'))}</div></div>`;
       document.body.classList.add('printing');
       const done = () => { document.body.classList.remove('printing'); area.innerHTML = ''; window.removeEventListener('afterprint', done); };
       window.addEventListener('afterprint', done); setTimeout(() => { window.print(); setTimeout(done, 500); }, 50);
@@ -3679,6 +3679,59 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     enforce(); if (r?.then) r.then(enforce);
   };
   const isMobile = () => matchMedia('(max-width: 900px)').matches;
+  // =====================================================================
+  // الإشعارات: جرس أعلى الصفحة — كل مستخدم يرى ما تسمح به صلاحياته فقط
+  // =====================================================================
+  const NOTIF_KEY = () => `acc-erp-notif-seen-${curUser()?.id || 'x'}`;
+  const notifSeen = () => { try { return new Set(JSON.parse(localStorage.getItem(NOTIF_KEY()) || '[]')); } catch { return new Set(); } };
+  const saveSeen = s => { try { localStorage.setItem(NOTIF_KEY(), JSON.stringify([...s].slice(-500))); } catch {} };
+  const lastStep = r => r.appr?.steps?.at(-1);
+  function buildNotifs() {
+    const u = curUser(); if (!u) return [];
+    const out = [], now = Date.now(), week = 7 * 864e5;
+    // مستندات بانتظار اعتمادي
+    myApprovals().slice(0, 30).forEach(({ t, r }) => out.push({ id: `ap:${t}:${r.id}:${r.appr.level}`, icon: '⏳', cls: 'amber', page: 'approvals',
+      title: `${modules[t].single} ${docNo(t, r)} بانتظار اعتمادك`, sub: `${docParty(r) || ''}${amountOf(t, r) ? ' · ' + money(amountOf(t, r)) : ''}`, at: lastStep(r)?.at }));
+    // مستنداتي: رُفضت أو اعتُمدت حديثاً
+    APPR_MODULES.forEach(t => db[t].forEach(r => {
+      if (!r.appr || r.appr.steps?.[0]?.by !== u.id) return; const ls = lastStep(r);
+      if (r.appr.status === 'rejected') out.push({ id: `rej:${t}:${r.id}:${ls?.at}`, icon: '⛔', cls: 'red', page: tbl(t), q: r.no || '', title: `تم رفض ${modules[t].single} ${docNo(t, r)}`, sub: ls?.note ? `السبب: ${ls.note}` : `بواسطة ${userName(ls?.by)}`, at: ls?.at });
+      else if (r.appr.status === 'approved' && ls?.at && now - new Date(ls.at) < week) out.push({ id: `ok:${t}:${r.id}:${ls.at}`, icon: '✅', cls: 'green', page: tbl(t), q: r.no || '', title: `تم اعتماد ${modules[t].single} ${docNo(t, r)}`, sub: `بواسطة ${userName(ls.by)} — تم الترحيل`, at: ls.at });
+    }));
+    const day = today();
+    const agg = (page, icon, cls, n, title, sub) => { if (n && can(page)) out.push({ id: `${page}:${day}:${n}`, icon, cls, page, title, sub, at: `${day}T00:00:00`, n, agg: 1 }); };
+    agg('salesInvoices', '🧾', 'red', db.salesInvoices.filter(r => salesStatus(r) === 'متأخرة').length, 'فواتير مبيعات متأخرة السداد', 'تجاوزت تاريخ الاستحقاق');
+    agg('purchaseInvoices', '🧾', 'amber', db.purchaseInvoices.filter(r => purchStatus(r) === 'متأخرة').length, 'فواتير مشتريات متأخرة السداد', 'مستحقة للموردين');
+    agg('items', '📦', 'amber', db.items.filter(r => itemQty(r.name) < +r.min).length, 'أصناف تحت حد الطلب', 'تحتاج إعادة طلب');
+    agg('rep/chqDue', '💳', 'amber', eff('receipts').filter(r => chqOpen(r) && (r.chequeDate || r.date) <= day).length + eff('payments').filter(r => chqOpen(r) && (r.chequeDate || r.date) <= day).length, 'شيكات مستحقة اليوم أو متأخرة', 'لم تُحصّل أو تُصرف بعد');
+    agg('maintenancePlan', '🔧', 'amber', db.maintenancePlan.filter(r => planStatus(r) === 'متأخرة').length, 'صيانة دورية متأخرة', 'المعدات تحتاج صيانة');
+    agg('maintenanceOrders', '🛠️', '', db.maintenanceOrders.filter(r => r.status !== 'مكتمل').length, 'أوامر صيانة مفتوحة', 'لم تكتمل بعد');
+    return out.filter(n => can(n.page) || n.page === 'approvals').sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+  }
+  const timeAgo = at => { if (!at) return ''; const m = Math.round((Date.now() - new Date(at)) / 6e4), L = window.ACC_LANG || 'ar';
+    const [v, u] = m < 60 ? [m, 0] : m < 1440 ? [Math.round(m / 60), 1] : [Math.round(m / 1440), 2];
+    if (m < 1) return { ar: 'الآن', en: 'now', es: 'ahora' }[L];
+    return L === 'en' ? `${v} ${['min', 'h', 'd'][u]} ago` : L === 'es' ? `hace ${v} ${['min', 'h', 'd'][u]}` : `منذ ${v} ${['دقيقة', 'ساعة', 'يوم'][u]}`; };
+  function renderBell() {
+    const btn = $('#notifBtn'); if (!btn) return;
+    const list = buildNotifs(), seen = notifSeen(), unread = list.filter(n => !seen.has(n.id)).length;
+    btn.querySelector('.notif-n').textContent = unread > 99 ? '99+' : unread || '';
+    btn.classList.toggle('has', unread > 0);
+    const panel = $('#notifPanel');
+    if (!panel.hidden) panel.innerHTML = `<div class="notif-head"><b>الإشعارات</b>${unread ? `<span class="pill amber">${unread} جديد</span>` : ''}<span class="spacer"></span>${list.length ? '<button type="button" class="link-btn" id="notifAll">تعليم الكل كمقروء</button>' : ''}</div>
+      <div class="notif-list">${list.length ? list.map(n => `<button type="button" class="notif-item ${seen.has(n.id) ? '' : 'unread'}" data-nid="${esc(n.id)}" data-npage="${esc(n.page)}" data-nq="${esc(n.q || '')}">
+        <span class="notif-ico ${n.cls}">${n.icon}</span><span class="notif-txt"><b>${esc(n.title)}</b><small>${esc(n.sub || '')}</small></span><time>${n.agg ? `<span class="pill">${n.n}</span>` : esc(timeAgo(n.at))}</time></button>`).join('')
+        : '<div class="notif-empty">لا توجد إشعارات 👍</div>'}</div>`;
+  }
+  $('#notifBtn')?.addEventListener('click', e => { e.stopPropagation(); const p = $('#notifPanel'); p.hidden = !p.hidden; renderBell(); });
+  document.addEventListener('click', e => {
+    const p = $('#notifPanel'); if (!p || p.hidden) return;
+    if (e.target.closest('#notifAll')) { const s = notifSeen(); buildNotifs().forEach(n => s.add(n.id)); saveSeen(s); renderBell(); return; }
+    const it = e.target.closest('[data-nid]');
+    if (it) { const s = notifSeen(); s.add(it.dataset.nid); saveSeen(s); p.hidden = true; renderBell(); goTo(it.dataset.npage, it.dataset.nq); return; }
+    if (!e.target.closest('#notifPanel')) p.hidden = true;
+  });
+
   // ---------- تبويبات الصفحات (مثل المتصفح): كل صفحة تُفتح في تبويب ويبقى ما قبلها مفتوحاً ----------
   const TABS_KEY = 'acc-erp-tabs', MAX_TABS = 14;
   const tabs = { list: [], view: {} };
@@ -3735,7 +3788,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     closeModal();
     renderBrand();
     renderNav();
-    renderTabs();
+    renderTabs(); renderBell();
     renderPage();
     if (!(prefs.pinned && isMobile())) document.body.classList.remove('nav-open');
     if (changed) window.scrollTo(0, back?.y || 0);
@@ -3752,7 +3805,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       sessionStillValid().then(ok => { if (!ok && session) logout('انتهت جلستك أو تم تعديل حسابك — سجّل الدخول مرة أخرى'); });
       const a = document.activeElement, id = a?.id, pos = a?.selectionStart;
       const inContent = a && content.contains(a);
-      renderBrand(); renderNav(); renderTabs();
+      renderBrand(); renderNav(); renderTabs(); renderBell();
       if (!(inContent && !id)) renderPage();
       if (id && inContent) { const el = document.getElementById(id); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } }
     }, 80);
@@ -3852,7 +3905,16 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   $('#overlay').onclick = () => document.body.classList.remove('nav-open');
   $('#pinBtn').onclick = () => { prefs.pinned = !prefs.pinned; savePrefs(); applyPin(); if (!prefs.pinned) document.body.classList.remove('nav-open'); };
   $('#refreshBtn').onclick = () => location.reload();
-  $('#langBtn').onclick = () => toast('الواجهة الإنجليزية ستُضاف في تحديث قادم');
+  // اللغة: العربية / English / Español — تُحفظ لكل متصفح
+  (() => { const b = $('#langBtn'), L = window.ACC_LANG || 'ar', NAMES = { ar: 'العربية', en: 'English', es: 'Español' };
+    b.querySelector('span').textContent = NAMES[L]; b.querySelector('b').textContent = L.toUpperCase();
+    const menu = document.createElement('div'); menu.className = 'user-menu lang-menu'; menu.hidden = true; menu.setAttribute('role', 'menu');
+    menu.innerHTML = Object.entries(NAMES).map(([k, n]) => `<button type="button" role="menuitem" data-lang="${k}" class="${k === L ? 'on' : ''}">${k === L ? '✓ ' : ''}${n}</button>`).join('');
+    b.after(menu);
+    b.onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; };
+    menu.onclick = e => { const x = e.target.closest('[data-lang]'); if (x && x.dataset.lang !== L) window.setLang?.(x.dataset.lang); menu.hidden = true; };
+    document.addEventListener('click', e => { if (!e.target.closest('.lang-menu, #langBtn')) menu.hidden = true; });
+  })();
   $('#versionText').textContent = `الإصدار ${APP_VERSION}`;
   window.addEventListener('hashchange', route);
 
