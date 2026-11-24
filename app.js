@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '24/11/2026, 22:00';
+  const APP_VERSION = '25/11/2026, 10:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -207,7 +207,7 @@
   const leafAccounts = () => db.accounts.filter(a => !hasChildren(a.code)).sort((a, b) => a.code.localeCompare(b.code));
   // الحسابات التي يرحّل عليها النظام تلقائياً
   const SYS = { cash: '121', banks: '122', customers: '123', inventory: '124', empAdvances: '1281', otherDebit: '128', drawings: '214', suppliers: '231',
-    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '1241', expenses: '3', revenue: '4', accruedSal: '236', chqIn: '129', chqOut: '237' };
+    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '124106', expenses: '3', revenue: '4', accruedSal: '236', chqIn: '129', chqOut: '237' };
   // مراكز التكلفة: كل مرتب أو أجر يُحمّل على المصروف التشغيلي أو التسويقي أو الإداري حسب نوع تكلفة الموظف/العامل
   const COST_TYPES = ['تشغيلية', 'تسويقية', 'إدارية'];
   // طبيعة الحساب: من الحساب نفسه أو أقرب أب محدد له طبيعة (مثل مسحوبات الملاك: مدين)، وإلا حسب الرقم الأول
