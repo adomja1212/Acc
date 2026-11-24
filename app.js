@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '24/11/2026, 20:00';
+  const APP_VERSION = '24/11/2026, 22:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -207,7 +207,7 @@
   const leafAccounts = () => db.accounts.filter(a => !hasChildren(a.code)).sort((a, b) => a.code.localeCompare(b.code));
   // الحسابات التي يرحّل عليها النظام تلقائياً
   const SYS = { cash: '121', banks: '122', customers: '123', inventory: '124', empAdvances: '1281', otherDebit: '128', drawings: '214', suppliers: '231',
-    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '1241', expenses: '3', revenue: '4', accruedSal: '236' };
+    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '1241', expenses: '3', revenue: '4', accruedSal: '236', chqIn: '129', chqOut: '237' };
   // مراكز التكلفة: كل مرتب أو أجر يُحمّل على المصروف التشغيلي أو التسويقي أو الإداري حسب نوع تكلفة الموظف/العامل
   const COST_TYPES = ['تشغيلية', 'تسويقية', 'إدارية'];
   // طبيعة الحساب: من الحساب نفسه أو أقرب أب محدد له طبيعة (مثل مسحوبات الملاك: مدين)، وإلا حسب الرقم الأول
@@ -255,7 +255,8 @@
   const invTotal = r => +r.amount + vatOf(r);
 
   // كل القيود: اليدوية + المتولدة من المستندات
-  const isEff = r => !r.appr || r.appr.status === 'approved';
+  const isChq = (r, via) => r.method === 'شيك' && !!acc(via);
+  const isEff = r => (!r.appr || r.appr.status === 'approved') && r.chequeStatus !== 'مرتد';
   const eff = t => memo('eff:' + t, () => db[t].filter(isEff));
   function glEntries() {
     return memo('gl', () => {
@@ -269,14 +270,20 @@
       eff('salesInvoices').forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
         [L(custAcc(r.customer), invTotal(r)), L(salesAcc(r.customer), 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
       eff('salesReturns').forEach(r => add('salesReturns', 'مرتجع مبيعات', r, r.no, r.date, `مرتجع مبيعات - ${r.customer}`, [L(salesAcc(r.customer), r.amount), L(custAcc(r.customer), 0, r.amount)]));
-      eff('receipts').forEach(r => add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${r.party === 'أخرى' && r.beneficiary ? r.beneficiary : r.party}`,
-        [L(boxAcc(r.box), r.amount), L(isCustomer(r.party) ? custAcc(r.party) : accCode(r.account) || SYS.otherRev, 0, r.amount)]));
+      eff('receipts').forEach(r => { const chq = isChq(r, SYS.chqIn);
+        add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${r.party === 'أخرى' && r.beneficiary ? r.beneficiary : r.party}${chq ? ` — شيك ${r.chequeNo}` : ''}`,
+          [L(chq ? SYS.chqIn : boxAcc(r.box), r.amount), L(isCustomer(r.party) ? custAcc(r.party) : accCode(r.account) || SYS.otherRev, 0, r.amount)]);
+        if (chq && r.chequeStatus === 'محصّل') add('receipts', 'تحصيل شيك', r, `${r.no}-ت`, r.clearDate || r.chequeDate || r.date, `تحصيل الشيك ${r.chequeNo} — ${r.party === 'أخرى' ? r.beneficiary || '' : r.party}`,
+          [L(boxAcc(r.box), r.amount), L(SYS.chqIn, 0, r.amount)]); });
       eff('purchaseInvoices').forEach(r => add('purchaseInvoices', 'فاتورة مشتريات', r, r.no, r.date, `فاتورة مشتريات آجلة - ${r.supplier}`,
         [L(accCode(r.account) || SYS.defPurchase, r.amount), L(suppAcc(r.supplier), 0, r.amount)]));
       eff('purchaseReturns').forEach(r => add('purchaseReturns', 'مرتجع مشتريات', r, r.no, r.date, `مرتجع مشتريات - ${r.supplier}`,
         [L(suppAcc(r.supplier), r.amount), L(accCode(r.account) || SYS.defPurchase, 0, r.amount)]));
-      eff('payments').forEach(r => add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${r.party === 'أخرى' && r.beneficiary ? r.beneficiary : r.party}`,
-        [L(isSupplier(r.party) ? suppAcc(r.party) : ownerAcc(r.party) || accCode(r.account) || SYS.accrued, r.amount), L(boxAcc(r.box), 0, r.amount)]));
+      eff('payments').forEach(r => { const chq = isChq(r, SYS.chqOut);
+        add('payments', 'سند صرف', r, r.no, r.date, r.desc || `صرف إلى ${r.party === 'أخرى' && r.beneficiary ? r.beneficiary : r.party}${chq ? ` — شيك ${r.chequeNo}` : ''}`,
+          [L(isSupplier(r.party) ? suppAcc(r.party) : ownerAcc(r.party) || accCode(r.account) || SYS.accrued, r.amount), L(chq ? SYS.chqOut : boxAcc(r.box), 0, r.amount)]);
+        if (chq && r.chequeStatus === 'مصروف') add('payments', 'صرف شيك', r, `${r.no}-ص`, r.clearDate || r.chequeDate || r.date, `صرف الشيك ${r.chequeNo} — ${r.beneficiary || r.party}`,
+          [L(SYS.chqOut, r.amount), L(boxAcc(r.box), 0, r.amount)]); });
       // الاستحقاق: من حـ/ المصروف إلى حـ/ المرتبات المستحقة (والتأمينات)، ثم الصرف: من حـ/ المستحقة إلى حـ/ الخزينة
       eff('boxTransfers').forEach(r => add('boxTransfers', 'تحويل خزائن وبنوك', r, r.no, r.date, r.desc || `تحويل من ${r.from} إلى ${r.to}`,
         [L(boxAcc(r.to), r.amount), L(boxAcc(r.from), 0, r.amount)]));
@@ -403,17 +410,25 @@
   const PAY_METHODS = ['نقدي', 'شيك', 'تحويل بنكي'];
   const isBankBox = b => (typeof b === 'string' ? db.cashboxes.find(x => x.name === b) : b)?.type === 'بنك';
   const bankSide = (...keys) => f => keys.some(k => isBankBox(f[k]));
-  const bankFields = (side, who) => [
+  // حالات الشيك: الوارد (سند قبض) والصادر (سند صرف)
+  const CHQ_IN = ['تحت التحصيل', 'محصّل', 'مرتد'], CHQ_OUT = ['لم يُصرف', 'مصروف', 'مرتد'];
+  const chqOpen = r => r.method === 'شيك' && (r.chequeStatus || CHQ_IN[0]) !== 'مرتد' && !['محصّل', 'مصروف'].includes(r.chequeStatus);
+  const bankFields = (side, who, statuses = CHQ_IN) => [
     C('method', 'طريقة الإيداع / الصرف', { input: 'select', options: () => PAY_METHODS, formOnly: true, when: side }),
     C('chequeNo', 'رقم الشيك', { optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' }),
     C('chequeDate', 'تاريخ استحقاق الشيك', { input: 'date', optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' }),
+    C('chequeStatus', 'حالة الشيك', { input: 'select', options: () => statuses, optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' }),
+    C('clearDate', 'تاريخ التحصيل / الصرف', { input: 'date', optional: true, formOnly: true, when: f => side(f) && f.method === 'شيك' && ['محصّل', 'مصروف'].includes(f.chequeStatus) }),
     C('beneficiary', who, { optional: true, formOnly: true, when: side }),
     C('benAccount', 'رقم حساب المستفيد', { optional: true, formOnly: true, when: f => side(f) && f.method !== 'نقدي' }),
     C('benBank', 'بنك المستفيد', { optional: true, formOnly: true, when: f => side(f) && f.method !== 'نقدي' })];
-  const bankCheck = (d, side, needBen) => {
-    if (!side(d)) { ['method', 'chequeNo', 'chequeDate', 'beneficiary', 'benAccount', 'benBank'].forEach(k => { d[k] = ''; }); return ''; }
+  const bankCheck = (d, side, needBen, statuses = CHQ_IN) => {
+    if (!side(d)) { ['method', 'chequeNo', 'chequeDate', 'chequeStatus', 'clearDate', 'beneficiary', 'benAccount', 'benBank'].forEach(k => { d[k] = ''; }); return ''; }
     if (d.method === 'شيك' && !d.chequeNo) return 'اكتب رقم الشيك';
-    if (d.method !== 'شيك') { d.chequeNo = ''; d.chequeDate = ''; }
+    if (d.method === 'شيك' && !d.chequeDate) return 'اكتب تاريخ استحقاق الشيك';
+    if (d.method === 'شيك' && !statuses.includes(d.chequeStatus)) d.chequeStatus = statuses[0];
+    if (['محصّل', 'مصروف'].includes(d.chequeStatus)) d.clearDate ||= today(); else d.clearDate = '';
+    if (d.method !== 'شيك') { d.chequeNo = ''; d.chequeDate = ''; d.chequeStatus = ''; d.clearDate = ''; }
     if (d.method === 'نقدي') { d.benAccount = ''; d.benBank = ''; }
     if (needBen && d.method === 'تحويل بنكي' && (!d.beneficiary || !d.benAccount || !d.benBank)) return 'التحويل البنكي يحتاج اسم المستفيد ورقم حسابه واسم البنك الخاص به';
     return '';
@@ -498,10 +513,10 @@
       C('party', 'المصروف إليه', { input: 'select', options: () => [...db.suppliers.map(c => [c.name, `مورد: ${c.name}`]), ...childrenOf(SYS.drawings).map(a => [a.name, `مسحوبات: ${a.name}`]), ['أخرى', 'أخرى (حدد الحساب)']] }),
       C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.purchaseInvoices.map(i => [i.no, `${i.no} — ${i.supplier}`]) }),
       C('account', 'الحساب المقابل', { input: 'select', optional: true, allowEmpty: '— (لغير الموردين) —', options: leafOpts('3', '1', '2'), formOnly: true, full: true }),
-      C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), 'اسم المستفيد'), C('desc', 'البيان', { full: true, optional: true })],
+      C('amount', 'المبلغ', { ...M, total: true }), ...bankFields(bankSide('box'), 'اسم المستفيد', CHQ_OUT), C('desc', 'البيان', { full: true, optional: true })],
       defaults: () => ({ method: 'نقدي' }),
       validate: (d, rec) => {
-        const be = bankCheck(d, bankSide('box'), true); if (be) return be;
+        const be = bankCheck(d, bankSide('box'), true, CHQ_OUT); if (be) return be;
         if (d.party === 'أخرى' && !d.account) return 'اختر الحساب المقابل (نوع المصروف)';
         const inv = db.purchaseInvoices.find(i => i.no === d.invoice);
         if (inv && inv.supplier !== d.party) return `الفاتورة ${inv.no} تخص ${inv.supplier}`;
@@ -1498,7 +1513,7 @@
   const VIEW_ONLY = ['dashboard', 'ledger', 'reports', 'stockBalances', 'database'];
   const SPECIAL_PAGES = { users: 'users', import: 'import', approvals: 'approvalsSetup', reportCenter: '_all' };
   const actsOf = p => SPECIAL_PAGES[p] ? [] : VIEW_ONLY.includes(p) ? ['v'] : p === 'settings' ? ['v', 'e'] : ['v', 'a', 'e', 'd'];
-  const permPages = () => Object.keys(pagePath).filter(p => !SPECIAL_PAGES[p]);
+  const permPages = () => Object.keys(pagePath).filter(p => !SPECIAL_PAGES[p] && p !== 'bankMoves' && !p.startsWith('box/'));
   const grant = (list, acts) => Object.fromEntries(list.map(p => [p, actsOf(p).filter(a => acts.includes(a)).join('')]));
   const ROLES = {
     admin: { title: 'مدير النظام', build: () => ({ perms: grant(permPages(), 'vaed'), special: SPECIALS.map(s => s[0]) }) },
@@ -1841,8 +1856,8 @@
       ? `<td><label class="pchk"><input type="checkbox" name="p:${p}:${a}" ${locked || String(perms[p] || '').includes(a) ? 'checked' : ''} ${dis}><i>${IC.check}</i></label></td>` : '<td class="na">—</td>').join('')}</tr>`;
     const groups = [];
     const walk = (items, titles) => items.forEach(it => {
-      if (typeof it === 'string') { if (SPECIAL_PAGES[it]) return; let g = groups.find(x => x.t === titles.join(' › ')); if (!g) groups.push(g = { t: titles.join(' › '), p: [] }); g.p.push(it); }
-      else walk(it.items, [...titles, it.title]);
+      if (typeof it === 'string') { if (SPECIAL_PAGES[it] || it === 'bankMoves' || it.startsWith('box/')) return; let g = groups.find(x => x.t === titles.join(' › ')); if (!g) groups.push(g = { t: titles.join(' › '), p: [] }); g.p.push(it); }
+      else walk(itemsOf(it), [...titles, it.title]);
     });
     walk(nav, []);
     return `
@@ -1918,7 +1933,7 @@
     if (!can(p, 'd')) rm('[data-del], [data-delacc]');
     if (!canSp('export')) rm('#exportBtn, #bxExport, [onclick="window.print()"]');
     $$('[data-new]', content).forEach(b => { if (!can(b.dataset.new, 'a')) b.remove(); });
-    $$('[data-bedit]', content).forEach(b => { if (!can(b.dataset.bedit.split('|')[0], 'e')) b.remove(); });
+    $$('[data-bedit], [data-bchq]', content).forEach(b => { if (!can((b.dataset.bedit || b.dataset.bchq).split('|')[0], 'e')) b.remove(); });
     $$('[data-act]', content).forEach(b => { const a = modules[p]?.actions?.[+b.dataset.act]; if (a?.target && !can(a.target, 'a')) b.remove(); });
     $$('[data-go], [data-src], .link-btn[href]', content).forEach(b => { const g = b.dataset.go || b.dataset.src || b.getAttribute('href')?.slice(1); if (g && pageInfo(g) && !can(g)) b.replaceWith(document.createTextNode(b.textContent)); });
   }
@@ -2477,6 +2492,26 @@
       const m = sumBy(eff('payments').filter(r => inRange(r.date, f, t)), r => r.party === 'أخرى' ? `أخرى: ${r.account || ''}` : r.party, r => r.amount);
       return { cols: [col('المستفيد'), col('المبلغ', M$)], rows: [...m].sort((a, b) => b[1] - a[1]) };
     } },
+    // ===== البنوك والشيكات =====
+    { id: 'chqCollect', group: 'البنوك والشيكات', title: 'الشيكات تحت التحصيل', need: 'receipts', dateOnly: true, run: (f, t) => {
+      const asOf = t || today();
+      const rows = eff('receipts').filter(r => chqOpen(r) && r.date <= asOf).sort((a, b) => String(a.chequeDate).localeCompare(String(b.chequeDate))).map(r => {
+        const d = dayDiff(r.chequeDate || r.date, asOf);
+        return { cells: [r.chequeNo, r.no, r.date, r.party === 'أخرى' ? r.beneficiary || 'أخرى' : r.party, r.benBank || '', r.box, r.chequeDate, d > 0 ? `يستحق بعد ${d} يوم` : d === 0 ? 'مستحق اليوم' : `متأخر ${-d} يوم`, r.amount], cls: d < 0 ? 'warn' : '' };
+      });
+      return { cols: [col('رقم الشيك'), col('رقم السند'), col('تاريخ الاستلام'), col('العميل / المودِع'), col('بنك الشيك'), col('مودَع في'), col('تاريخ الاستحقاق'), col('الموقف'), col('المبلغ', M$)], rows,
+        note: `الشيكات الواردة التي لم تُحصّل حتى ${asOf} — بعد التحصيل اضغط ✓ في صفحة البنك أو غيّر حالة الشيك في السند` };
+    } },
+    { id: 'chqDue', group: 'البنوك والشيكات', title: 'الشيكات المستحقة (الواردة والصادرة)', need: 'receipts', run: (f, t) => {
+      const to = t || today(), ref = today();
+      const pick = (tb, kind) => eff(tb).filter(r => chqOpen(r) && inRange(r.chequeDate || r.date, f, to)).map(r => ({ r, kind }));
+      const list = [...pick('receipts', 'وارد — للتحصيل'), ...(can('payments') ? pick('payments', 'صادر — للصرف') : [])].sort((a, b) => String(a.r.chequeDate).localeCompare(String(b.r.chequeDate)));
+      const rows = list.map(({ r, kind }) => { const d = dayDiff(ref, r.chequeDate || r.date), inc = kind.startsWith('وارد');
+        return { cells: [r.chequeDate, kind, r.chequeNo, r.no, r.party === 'أخرى' ? r.beneficiary || 'أخرى' : r.beneficiary || r.party, r.box, r.benBank || '', d > 0 ? `متأخر ${d} يوم` : d === 0 ? 'اليوم' : `بعد ${-d} يوم`, inc ? +r.amount : 0, inc ? 0 : +r.amount], cls: d > 0 ? 'warn' : '' }; });
+      const inc = sum(list.filter(x => x.kind.startsWith('وارد')), x => +x.r.amount), out = sum(list.filter(x => !x.kind.startsWith('وارد')), x => +x.r.amount);
+      return { cols: [col('تاريخ الاستحقاق'), col('النوع'), col('رقم الشيك'), col('رقم السند'), col('الطرف / المستفيد'), col('البنك'), col('بنك الشيك / المستفيد'), col('الموقف'), col('وارد', M$), col('صادر', M$)], rows,
+        note: `الشيكات التي يحل استحقاقها ${f ? `من ${f} ` : ''}حتى ${to} ولم تُحصّل أو تُصرف بعد — صافي: ${money(inc - out)}` };
+    } },
     // ===== المبيعات =====
     { id: 'salesCust', group: 'المبيعات', title: 'المبيعات حسب العميل', need: 'salesInvoices', run: (f, t) => {
       const inv = eff('salesInvoices').filter(r => inRange(r.date, f, t)), ret = eff('salesReturns').filter(r => inRange(r.date, f, t)), rec = eff('receipts').filter(r => inRange(r.date, f, t));
@@ -2574,7 +2609,7 @@
   function runReport(rep) {
     const out = rep.run(state.rFrom || '', state.rTo || '');
     const rows = out.rows.map(r => Array.isArray(r) ? { cells: r } : r);
-    const totals = out.noTotal ? null : out.cols.map((c, i) => (c.type === M$ || c.type === N$) && !c.noSum ? sum(rows.filter(r => !r.cls), r => r.cells[i]) : null);
+    const totals = out.noTotal ? null : out.cols.map((c, i) => (c.type === M$ || c.type === N$) && !c.noSum ? sum(rows.filter(r => !r.cls || r.cls === 'warn'), r => r.cells[i]) : null);
     return { ...out, rows, totals };
   }
   function reportTableHTML(rep, res) {
@@ -2651,11 +2686,12 @@
     }));
     // المستندات المعلّقة على الاعتماد تظهر ولا تدخل في الرصيد
     TREAS_MODS.forEach(t => db[t].forEach(r => {
-      if (isEff(r)) return;
+      const wait = isEff(r) && t !== 'boxTransfers' && chqOpen(r) && isChq(r, t === 'payments' ? SYS.chqOut : SYS.chqIn);
+      if (r.appr?.status !== 'pending' && r.chequeStatus !== 'مرتد' && !wait) return;
       [t === 'boxTransfers' ? [r.from, 'out'] : null, t === 'boxTransfers' ? [r.to, 'in'] : [r.box, t === 'receipts' ? 'in' : 'out']].filter(Boolean).forEach(([bn, dir]) => {
         if (!names.has(bn)) return;
         const box = boxes.find(b => b.name === bn);
-        rows.push({ ...boxRow(t, r, box, { date: r.date, no: r.no, desc: r.desc || '' }, dir === 'in' ? +r.amount : 0, dir === 'out' ? +r.amount : 0), pending: true });
+        rows.push({ ...boxRow(t, r, box, { date: r.date, no: r.no, desc: r.desc || '' }, dir === 'in' ? +r.amount : 0, dir === 'out' ? +r.amount : 0), pending: true, bounced: r.chequeStatus === 'مرتد', wait });
       });
     }));
     return rows.sort((a, b) => byDate(a, b) || String(a.no).localeCompare(String(b.no)));
@@ -2667,6 +2703,7 @@
     else if (mod === 'payments') { kind = bank ? 'صرف' : 'صرف'; party = doc?.beneficiary || (doc?.party === 'أخرى' ? accCode(doc.account) && (acc(accCode(doc.account))?.name || '') : doc?.party); }
     else if (mod === 'boxTransfers') { const incoming = dr > 0; kind = incoming ? 'تحويل وارد' : 'تحويل صادر'; party = doc?.beneficiary || (incoming ? doc?.from : doc?.to); }
     return { mod, doc, id: doc?.id || e.id, box: box?.name, date: e.date, no: e.no, kind, party: party || '',
+      chqStatus: doc?.method === 'شيك' ? doc.chequeStatus || (mod === 'payments' ? CHQ_OUT[0] : CHQ_IN[0]) : '', chqOpen: doc ? chqOpen(doc) : false,
       method: doc ? methodOf(mod, doc) : '', cheque: doc?.chequeNo ? `${doc.chequeNo}${doc.chequeDate ? ` · ${doc.chequeDate}` : ''}` : '',
       benAccount: doc?.benAccount || '', benBank: doc?.benBank || '', desc: e.desc || doc?.desc || '', in: dr, out: cr };
   }
@@ -2684,7 +2721,7 @@
     const rows = all.filter(r => (!v.from || r.date >= v.from) && (!v.to || r.date <= v.to) && (!v.kind || r.kind === v.kind) && (!v.method || r.method === v.method)
       && (!q || [r.no, r.party, r.desc, r.benAccount, r.benBank, r.cheque, r.box].some(x => String(x || '').toLowerCase().includes(q))));
     const cur = sum(boxes, b => acc(b.accountNo) ? ownBal(acc(b.accountNo)) : 0);
-    const eff = rows.filter(r => !r.pending), pend = all.filter(r => r.pending).length;
+    const eff = rows.filter(r => !r.pending), pend = all.filter(r => r.pending && !r.bounced && !r.wait).length, waitR = all.filter(r => r.wait);
     const kinds = [...new Set(all.map(r => r.kind))];
     const opt = (list, sel, lbl) => `<option value="">${lbl}: الكل</option>${list.map(o => `<option ${o === sel ? 'selected' : ''}>${esc(o)}</option>`).join('')}`;
     const lbl = bank ? { in: 'إيداع', out: 'صرف / سحب', tr: 'تحويل' } : { in: 'قبض', out: 'صرف', tr: 'تحويل' };
@@ -2693,7 +2730,7 @@
         ${kpi('الرصيد الحالي', money(cur), box ? esc(acc(box.accountNo) ? accLabel(acc(box.accountNo)) : '') : `${boxes.length} بنك`, cur >= 0 ? 'up' : 'down', 'blue', icons.cash)}
         ${kpi(bank ? 'إجمالي الإيداعات' : 'إجمالي المقبوضات', money(sum(eff, r => r.in)), `${eff.filter(r => r.in).length} حركة`, 'up', 'green', icons.receive)}
         ${kpi(bank ? 'إجمالي المسحوبات' : 'إجمالي المدفوعات', money(sum(eff, r => r.out)), `${eff.filter(r => r.out).length} حركة`, 'down', 'red', icons.pay)}
-        ${kpi('بانتظار الاعتماد', num(pend), 'لا تدخل في الرصيد', '', 'amber', icons.shield)}
+        ${kpi('شيكات لم تُحصّل / تُصرف', money(sum(waitR, r => r.in - r.out)), `${waitR.length} شيك · ${pend} مستند بانتظار الاعتماد`, '', 'amber', icons.shield)}
       </div>
       <div class="card">
         <div class="card-head">
@@ -2720,13 +2757,13 @@
             <tr class="open-row"><td colspan="${(box ? 5 : 6) + (bank ? 2 : 0)}">رصيد ${v.from ? `أول الفترة (${v.from})` : 'افتتاحي'}</td><td class="num"><b>${money(openFor)}</b></td><td></td></tr>
             ${rows.length ? rows.map(r => `<tr class="${r.pending ? 'pending' : ''}">
               <td>${esc(r.date)}</td><td class="code">${esc(r.no)}</td>${box ? '' : `<td>${esc(r.box)}</td>`}
-              <td><span class="pill ${r.in ? 'green' : 'red'}">${esc(r.kind)}</span>${r.pending ? ' <span class="pill amber">بانتظار الاعتماد</span>' : ''}</td>
-              ${bank ? `<td class="bx-meth">${r.method ? `<span class="pill ${r.method === 'شيك' ? 'amber' : r.method === 'تحويل بنكي' ? 'blue' : 'gray'}">${esc(r.method)}</span>${r.cheque ? `<small class="bx-sub">شيك ${esc(r.cheque)}</small>` : ''}` : '—'}</td>` : ''}
+              <td class="bx-kind"><span class="pill ${r.in ? 'green' : 'red'}">${esc(r.kind)}</span>${r.bounced ? ' <span class="pill red">شيك مرتد</span>' : r.wait ? ` <span class="pill amber">${esc(r.chqStatus)}</span>` : r.pending ? ' <span class="pill amber">بانتظار الاعتماد</span>' : ''}</td>
+              ${bank ? `<td class="bx-meth">${r.method ? `<span class="pill ${r.method === 'شيك' ? 'amber' : r.method === 'تحويل بنكي' ? 'blue' : 'gray'}">${esc(r.method)}</span>${r.cheque ? `<small class="bx-sub">شيك ${esc(r.cheque)}${r.chqStatus && !r.bounced ? ` · ${esc(r.chqStatus)}` : ''}</small>` : ''}` : '—'}</td>` : ''}
               <td class="bx-party">${esc(r.party || r.desc) || '—'}${r.party && r.desc ? `<small class="bx-sub">${esc(r.desc)}</small>` : ''}</td>
               ${bank ? `<td class="bx-ben">${r.benAccount || r.benBank ? `<span class="code">${esc(r.benAccount)}</span><small class="bx-sub">${esc(r.benBank)}</small>` : '—'}</td>` : ''}
               <td class="num">${r.in ? money(r.in) : ''}</td><td class="num">${r.out ? money(r.out) : ''}</td>
               <td class="num">${r.bal == null ? '—' : `<b>${money(r.bal)}</b>`}</td>
-              <td><div class="row-actions">${r.doc ? `<button data-bprint="${r.mod}|${r.id}" title="طباعة المستند">${icons.print}</button><button data-bedit="${r.mod}|${r.id}" title="تعديل">${icons.edit}</button>` : r.mod ? `<button data-bgo="${r.mod}|${esc(r.no)}" title="فتح المستند">${icons.list}</button>` : ''}</div></td>
+              <td><div class="row-actions">${r.chqOpen && (!r.pending || r.wait) ? `<button class="ok" data-bchq="${r.mod}|${r.id}" title="${r.mod === 'payments' ? 'تم صرف الشيك' : 'تم تحصيل الشيك'}">✓</button>` : ''}${r.doc ? `<button data-bprint="${r.mod}|${r.id}" title="طباعة المستند">${icons.print}</button><button data-bedit="${r.mod}|${r.id}" title="تعديل">${icons.edit}</button>` : r.mod ? `<button data-bgo="${r.mod}|${esc(r.no)}" title="فتح المستند">${icons.list}</button>` : ''}</div></td>
             </tr>`).join('') : `<tr><td colspan="${(box ? 8 : 9) + (bank ? 2 : 0)}" class="empty">لا توجد حركات</td></tr>`}
           </tbody>
         </table></div>
@@ -2748,6 +2785,8 @@
     const parse = s => { const [t, id] = s.split('|'); return [t, db[t]?.find(r => r.id === id)]; };
     $$('[data-bprint]', content).forEach(b => b.onclick = () => { const [t, r] = parse(b.dataset.bprint); printDoc(t, r, true); });
     $$('[data-bedit]', content).forEach(b => b.onclick = () => { const [t, r] = parse(b.dataset.bedit); openRecordForm(t, r); });
+    $$('[data-bchq]', content).forEach(b => b.onclick = () => { const [t, r] = parse(b.dataset.bchq); if (!r || !can(t, 'e')) return denied();
+      r.chequeStatus = t === 'payments' ? 'مصروف' : 'محصّل'; r.clearDate = today(); save(); renderPage(); renderNav(); toast(`الشيك ${r.chequeNo} — ${r.chequeStatus}`); });
     $$('[data-bgo]', content).forEach(b => b.onclick = () => { const [t, no] = b.dataset.bgo.split('|'); goTo(t, ['payroll', 'dailyLabor', 'advances'].includes(t) ? '' : no); });
   }
 

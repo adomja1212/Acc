@@ -310,6 +310,13 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
+   "id": "acc129",
+   "code": "129",
+   "name": "شيكات تحت التحصيل (أوراق قبض)",
+   "parent": "12",
+   "balance": 0
+  },
+  {
    "id": "acc2",
    "code": "2",
    "name": "الخصوم وحقوق الملكية",
@@ -574,6 +581,13 @@ window.ACC_SEED = {
    "code": "2369",
    "name": "إيجار محل مستحق",
    "parent": "236",
+   "balance": 0
+  },
+  {
+   "id": "acc237",
+   "code": "237",
+   "name": "شيكات صادرة لم تُصرف (أوراق دفع)",
+   "parent": "23",
    "balance": 0
   },
   {

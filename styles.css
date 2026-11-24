@@ -651,3 +651,6 @@ input[type="date"].input, input[type="month"].input, input[type="time"].input { 
 .box-table td.bx-ben { white-space: normal; word-break: break-all; max-width: 170px; }
 .box-table td.bx-meth { white-space: normal; max-width: 120px; }
 .box-table td.num { font-size: 13px; }
+.rep-table tr.warn td { background: #fff4f2; color: #b42318; }
+.box-table td.bx-kind { white-space: normal; max-width: 120px; }
+.box-table td.bx-kind .pill + .pill { margin-top: 4px; }
