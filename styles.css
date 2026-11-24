@@ -678,3 +678,4 @@ input[type="date"].input, input[type="month"].input, input[type="time"].input { 
 .lg-sum { margin-inline-start: auto; display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
 .lg-sum b { color: var(--navy-800); }
 .lg-sum .net { color: var(--navy-800); font-size: 14.5px; }
+.lg-empty { padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; background: var(--amber-soft); color: var(--amber); font-size: 13px; }

@@ -2809,6 +2809,13 @@ window.ACC_SEED = {
    "name": "صينية شتلات 84",
    "base": "شتلة",
    "factor": 84
+  },
+  {
+   "id": "units-017",
+   "code": "U-17",
+   "name": "رأس",
+   "base": "",
+   "factor": 1
   }
  ],
  "costCenters": [
@@ -3060,6 +3067,89 @@ window.ACC_SEED = {
    "address": "القاهرة",
    "manager": "",
    "phone": ""
+  }
+ ],
+ "salesItems": [
+  {
+   "id": "salesItems-001",
+   "code": "SI-001",
+   "account": "411",
+   "name": "مانجو عويس",
+   "unit": "كجم",
+   "price": 45,
+   "stockItem": ""
+  },
+  {
+   "id": "salesItems-002",
+   "code": "SI-002",
+   "account": "411",
+   "name": "برتقال بسرة",
+   "unit": "كجم",
+   "price": 18,
+   "stockItem": ""
+  },
+  {
+   "id": "salesItems-003",
+   "code": "SI-003",
+   "account": "411",
+   "name": "بلوك أسمنتي 20 سم",
+   "unit": "قطعة",
+   "price": 10,
+   "stockItem": "بلوك أسمنتي 20 سم"
+  },
+  {
+   "id": "salesItems-004",
+   "code": "SI-004",
+   "account": "412",
+   "name": "شتلة مانجو مطعومة",
+   "unit": "شتلة",
+   "price": 120,
+   "stockItem": ""
+  },
+  {
+   "id": "salesItems-005",
+   "code": "SI-005",
+   "account": "412",
+   "name": "صينية شتلات طماطم",
+   "unit": "صينية شتلات 84",
+   "price": 250,
+   "stockItem": ""
+  },
+  {
+   "id": "salesItems-006",
+   "code": "SI-006",
+   "account": "413",
+   "name": "خردة حديد",
+   "unit": "كجم",
+   "price": 22,
+   "stockItem": ""
+  },
+  {
+   "id": "salesItems-007",
+   "code": "SI-007",
+   "account": "413",
+   "name": "خردة بلاستيك",
+   "unit": "كجم",
+   "price": 9,
+   "stockItem": ""
+  },
+  {
+   "id": "salesItems-008",
+   "code": "SI-008",
+   "account": "414",
+   "name": "عجل تسمين",
+   "unit": "رأس",
+   "price": 45000,
+   "stockItem": ""
+  },
+  {
+   "id": "salesItems-009",
+   "code": "SI-009",
+   "account": "414",
+   "name": "لبن خام",
+   "unit": "لتر",
+   "price": 25,
+   "stockItem": ""
   }
  ]
 };

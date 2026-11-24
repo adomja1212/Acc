@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 21:00';
+  const APP_VERSION = '26/11/2026, 10:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -33,7 +33,7 @@
   const TABLES = ['appUsers', 'accounts', 'customers', 'suppliers', 'items', 'warehouses', 'departments', 'employees', 'attendance', 'payroll', 'leaves',
     'workers', 'dailyLabor', 'advances', 'cashboxes', 'receipts', 'payments', 'boxTransfers', 'journal', 'salesInvoices', 'salesQuotes', 'salesReturns',
     'purchaseOrders', 'purchaseInvoices', 'purchaseReturns', 'stockIn', 'stockOut', 'transfers', 'machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan',
-    'units', 'costCenters', 'crops', 'girlsFixed', 'girlsTemp', 'bangladesh', 'branches'];
+    'units', 'costCenters', 'crops', 'girlsFixed', 'girlsTemp', 'bangladesh', 'branches', 'salesItems'];
   const TX_TABLES = ['journal', 'receipts', 'payments', 'boxTransfers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'purchaseOrders', 'purchaseInvoices', 'purchaseReturns',
     'stockIn', 'stockOut', 'transfers', 'attendance', 'payroll', 'leaves', 'dailyLabor', 'advances', 'machineOps', 'maintenanceOrders'];
   const DEFAULT_SETTINGS = { company: 'نظام المحاسب', taxNo: '', commercialReg: '', currency: 'ج.م', vat: 14, fiscalStart: `${new Date().getFullYear()}-01-01`, address: '' };
@@ -210,7 +210,7 @@
   const leafAccounts = () => db.accounts.filter(a => !hasChildren(a.code)).sort((a, b) => a.code.localeCompare(b.code));
   // الحسابات التي يرحّل عليها النظام تلقائياً
   const SYS = { cash: '121', banks: '122', customers: '123', inventory: '124', empAdvances: '1281', otherDebit: '128', drawings: '214', suppliers: '231',
-    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '124106', expenses: '3', revenue: '4', accruedSal: '236', chqIn: '129', chqOut: '237', wht: '238' };
+    accrued: '233', vat: '234', socialIns: '235', sales: '411', otherRev: '423', salaries: '34101', labor: '32105', maint: '32402', defPurchase: '124106', expenses: '3', revenue: '4', accruedSal: '236', chqIn: '129', chqOut: '237', wht: '238', cogs: '311' };
   // مراكز التكلفة: كل مرتب أو أجر يُحمّل على المصروف التشغيلي أو التسويقي أو الإداري حسب نوع تكلفة الموظف/العامل
   const COST_TYPES = ['تشغيلية', 'تسويقية', 'إدارية'];
   // طبيعة الحساب: من الحساب نفسه أو أقرب أب محدد له طبيعة (مثل مسحوبات الملاك: مدين)، وإلا حسب الرقم الأول
@@ -280,6 +280,12 @@
       eff('journal').forEach(r => add('journal', 'قيد يدوي', r, r.no, r.date, r.desc, [L(accCode(r.debit), r.amount), L(accCode(r.credit), 0, r.amount)]));
       eff('salesInvoices').forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
         [L(custAcc(r.customer), invTotal(r)), L(salesAccR(r), 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
+      // تكلفة المبيعات: عند الصرف من المخزن — من حـ/ تكلفة البضاعة المباعة إلى حـ/ مخزون كل صنف (بالتكلفة)، والمردودات بالعكس
+      const cogsLines = r => { const inv = {}; if (!r.warehouse || !Array.isArray(r.lines)) return [];
+        r.lines.map(stockLine).filter(Boolean).forEach(l => { const it = db.items.find(i => i.name === l.item); const v = baseQty(l) * (+it?.cost || 0); if (!v) return; const a = itemStore(l.item) || SYS.defPurchase; inv[a] = (inv[a] || 0) + v; });
+        return Object.entries(inv); };
+      eff('salesInvoices').forEach(r => { const c = cogsLines(r); if (c.length) add('salesInvoices', 'تكلفة المبيعات', r, `${r.no}-ت`, r.date, `تكلفة مبيعات الفاتورة ${r.no} — ${linesSummary(r)}`, [L(SYS.cogs, sum(c, x => x[1])), ...c.map(([a, v]) => L(a, 0, v))]); });
+      eff('salesReturns').forEach(r => { const c = cogsLines(r); if (c.length) add('salesReturns', 'إعادة للمخزون', r, `${r.no}-ت`, r.date, `إعادة أصناف المردودات ${r.no} للمخزون`, [...c.map(([a, v]) => L(a, v)), L(SYS.cogs, 0, sum(c, x => x[1]))]); });
       eff('salesReturns').forEach(r => add('salesReturns', 'مردودات مبيعات', r, r.no, r.date, `مردودات مبيعات ${saleType(r)} - ${r.customer}`, [L(salesAccR(r), r.amount), L(custAcc(r.customer), 0, r.amount)]));
       eff('receipts').forEach(r => { const chq = isChq(r, SYS.chqIn);
         add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${partyName(r)}${chq ? ` — شيك ${r.chequeNo}` : ''}`,
@@ -359,7 +365,9 @@
   const lineVat = l => lineVal(l) * (+l.vatRate || 0) / 100, lineWht = l => lineVal(l) * (+l.whtRate || 0) / 100;
   const docTotals = r => { const ls = linesOf(r), sub = sum(ls, lineVal), vat = sum(ls, lineVat), wht = sum(ls, lineWht); return { sub, vat, wht, net: sub + vat - wht, n: ls.length, qty: sum(ls, l => +l.qty || 0) }; };
   const linesSummary = r => { const ls = linesOf(r); return ls.length ? ls.slice(0, 2).map(l => l.item).join('، ') + (ls.length > 2 ? ` و${ls.length - 2} أخرى` : '') : ''; };
-  const stockRows = t => memo('sr:' + t, () => eff(t).flatMap(r => linesOf(r).map(l => ({ ...l, date: r.date, no: r.no, warehouse: r.warehouse, doc: r }))));
+  const SALES_T = ['salesInvoices', 'salesReturns'];
+  const stockRows = t => memo('sr:' + t, () => eff(t).filter(r => !SALES_T.includes(t) || (r.warehouse && Array.isArray(r.lines)))
+    .flatMap(r => linesOf(r).map(l => SALES_T.includes(t) ? stockLine(l) : l).filter(Boolean).map(l => ({ ...l, date: r.date, no: r.no, warehouse: r.warehouse, doc: r }))));
   const itemStore = n => { const s = db.items.find(i => i.name === n)?.store; return s && acc(s) && !hasChildren(s) ? s : ''; };
   const stockMap = () => memo('stock', () => {
     const m = {}; const k = (i, w) => `${i}|${w}`;
@@ -367,6 +375,8 @@
     db.items.forEach(i => addQ(i.name, i.warehouse, i.opening));
     stockRows('stockIn').forEach(l => addQ(l.item, l.warehouse, baseQty(l)));
     stockRows('stockOut').forEach(l => addQ(l.item, l.warehouse, -baseQty(l)));
+    stockRows('salesInvoices').forEach(l => addQ(l.item, l.warehouse, -baseQty(l)));
+    stockRows('salesReturns').forEach(l => addQ(l.item, l.warehouse, baseQty(l)));
     eff('transfers').forEach(r => { addQ(r.item, r.from, -baseQty(r)); addQ(r.item, r.to, baseQty(r)); });
     return m;
   });
@@ -495,6 +505,32 @@
   };
 
   const itemUnit = n => db.items.find(i => i.name === n)?.unit || '';
+  // فاتورة البيع / المردودات: الصافي = مجموع الأصناف، والمخزن اختياري
+  function salesLinesCheck(d, rec, dir) {
+    const ls = (Array.isArray(d.lines) ? d.lines : []).filter(l => l.item);
+    for (const l of ls) {
+      const si = salesItemOf(l.item);
+      if (!si && !db.items.some(i => i.name === l.item)) return `الصنف "${l.item}" غير موجود في قاعدة بيانات أصناف المبيعات`;
+      if (si && d.stype && si.account !== salesAccOfType(d.stype)) return `الصنف "${l.item}" ليس من أصناف ${d.stype}`;
+      if (!(+l.qty > 0)) return `اكتب كمية "${l.item}"`;
+      if (!l.unit) l.unit = si?.unit || itemUnit(l.item);
+      const sl = stockLine(l); if (sl) { const ue = unitErr(sl); if (ue) return ue; }
+      ['qty', 'price'].forEach(k => { l[k] = +l[k] || 0; }); l.vatRate = 0; l.whtRate = 0;
+    }
+    d.lines = ls;
+    if (ls.length) d.amount = +sum(ls, lineVal).toFixed(2);
+    else d.warehouse = '';
+    if (!(+d.amount > 0)) return 'أضف الأصناف أو اكتب المبلغ';
+    if (dir === 'out' && d.warehouse) {
+      const need = {}; ls.map(stockLine).filter(Boolean).forEach(l => { need[l.item] = (need[l.item] || 0) + baseQty(l); });
+      for (const [it, q] of Object.entries(need)) {
+        const mine = rec && rec.warehouse === d.warehouse && isEff(rec) ? sum(linesOf(rec).map(stockLine).filter(l => l && l.item === it), baseQty) : 0;
+        const avail = stockAt(it, d.warehouse) + mine;
+        if (q > avail + 1e-9) return `الرصيد المتاح من "${it}" في ${d.warehouse} هو ${num(avail)} ${itemUnit(it)} فقط`;
+      }
+    }
+    return '';
+  }
   // التحقق من إذن متعدد الأصناف: الأصناف موجودة، الكميات، الوحدات، والرصيد عند الصرف
   function stockDocCheck(d, rec, dir) {
     const ls = (Array.isArray(d.lines) ? d.lines : []).filter(l => l.item);
@@ -568,6 +604,15 @@
       defaults: () => ({ factor: 1 }),
       validate: d => { if (d.base && d.base !== d.name && !(+d.factor > 0)) return 'اكتب معامل التحويل (أكبر من صفر)'; if (!d.base || d.base === d.name) { d.base = ''; d.factor = 1; }
         let u = d.base, seen = new Set([d.name]); while (u) { if (seen.has(u)) return 'التحويل يرجع لنفس الوحدة — راجع الوحدة الأساسية'; seen.add(u); u = unitOf(u)?.base; } } },
+    salesItems: { title: 'أصناف المبيعات', sub: 'نوع الحساب (مبيعات السوق المحلي / الشتلات / الخردة / الثروة الحيوانية) › الصنف › الوحدة — تظهر في فاتورة نوعها فقط', single: 'صنف مبيعات', key: 'name', filter: 'account', cols: [
+      C('code', 'الكود', CODE),
+      C('account', 'نوع الحساب', { input: 'select', options: () => leafAccounts().filter(a => a.code.startsWith('41')).map(a => [a.code, a.name]), render: v => `<span class="pill">${esc(acc(v)?.name || v)}</span>` }),
+      C('name', 'اسم الصنف'), C('unit', 'الوحدة', { input: 'select', options: () => { const l = db.units.map(u => u.name); return l.length ? l : ['قطعة']; } }),
+      C('price', 'سعر البيع', { ...M, optional: true }),
+      C('stockItem', 'الصنف المخزني المرتبط', { input: 'select', optional: true, allowEmpty: '— بدون (لا يُصرف من المخزن) —', options: names('items'), render: v => v ? esc(v) : '<span class="hint">—</span>' }),
+      C('sold', 'الكمية المباعة', { cls: 'num', compute: r => sum(eff('salesInvoices').flatMap(i => Array.isArray(i.lines) ? i.lines : []).filter(l => l.item === r.name), l => +l.qty || 0) - sum(eff('salesReturns').flatMap(i => Array.isArray(i.lines) ? i.lines : []).filter(l => l.item === r.name), l => +l.qty || 0), render: num }),
+      C('value', 'قيمة المبيعات', computed(r => sum(eff('salesInvoices').flatMap(i => Array.isArray(i.lines) ? i.lines : []).filter(l => l.item === r.name), lineVal), { total: true }))],
+      validate: d => { if (d.stockItem && d.unit && isNaN(convertQty(1, d.unit, itemUnit(d.stockItem)))) return `وحدة "${d.unit}" لا تتحول لوحدة الصنف المخزني "${itemUnit(d.stockItem)}"`; } },
     branches: { title: 'الفروع', sub: 'الفروع ومراكز التكلفة التابعة لكل فرع', single: 'فرع', key: 'name', cols: [
       C('code', 'الكود', CODE), C('name', 'اسم الفرع'), C('address', 'العنوان', { optional: true }), C('manager', 'المسئول', { optional: true }), C('phone', 'الهاتف', { optional: true }),
       C('ccCount', 'مراكز التكلفة', { cls: 'num', compute: r => db.costCenters.filter(c => c.branch === r.name).length }),
@@ -652,14 +697,19 @@
     salesInvoices: { title: 'كل فواتير المبيعات', sub: 'تُرحّل تلقائياً: من حـ/ فئة العميل إلى حـ/ مبيعات نفس الفئة و حـ/ الضرائب', single: 'فاتورة بيع', key: 'no', filter: 'status', cols: [
       C('no', 'رقم الفاتورة', CODE), C('customer', 'العميل', { input: 'select', options: names('customers'), full: true }),
       C('revAcc', 'حساب الإيراد', { compute: r => accLabel(acc(salesAccR(r)) || { code: '', name: '' }), render: v => `<span class="hint">${esc(v)}</span>` }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
-      C('amount', 'الصافي', { ...M, total: true }), C('vatRate', 'نسبة الضريبة %', { ...N, formOnly: true }),
+      C('warehouse', 'المخزن (للصرف من المخزون)', { input: 'select', optional: true, allowEmpty: '— بدون صرف من المخزن —', options: names('warehouses'), formOnly: true }),
+      C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true, priceFrom: 'price', optionalLines: true }),
+      C('itemsSum', 'الأصناف', { compute: r => linesSummary(r) || '—', render: (v, r) => Array.isArray(r.lines) && r.lines.length ? `${esc(v)} <span class="hint">(${r.lines.length})</span>` : '<span class="hint">—</span>' }),
+      C('amount', 'الصافي', { ...M, total: true, optional: true }), C('vatRate', 'نسبة الضريبة %', { ...N, formOnly: true }),
       C('total', 'الإجمالي شامل الضريبة', computed(invTotal, { total: true })),
       C('remaining', 'المتبقي', computed(r => invTotal(r) - salesPaid(r), { total: true })),
       C('status', 'الحالة', statusOf(salesStatus, 'معلقة', 'مدفوعة جزئياً', 'مدفوعة', 'متأخرة'))],
       defaults: () => ({ vatRate: db.settings.vat, due: addDays(today(), 30) }),
       actions: [{ icon: 'receive', title: 'تحصيل (سند قبض)', write: true, target: 'receipts', show: r => salesStatus(r) !== 'مدفوعة',
-        fn: r => openRecordForm('receipts', null, { party: r.customer, invoice: r.no, amount: +(invTotal(r) - salesPaid(r)).toFixed(2), desc: `سداد فاتورة ${r.no}` }) }],
+        fn: r => openRecordForm('receipts', null, { account: acc(custAcc(r.customer)) ? accLabel(acc(custAcc(r.customer))) : '', party: r.customer, invoice: r.no, amount: +(invTotal(r) - salesPaid(r)).toFixed(2), desc: `سداد فاتورة ${r.no}` }) }],
+      wide: true,
       validate: (d, rec) => {
+        const le = salesLinesCheck(d, rec, 'out'); if (le) return le;
         const c = db.customers.find(x => x.name === d.customer); if (!c || !+c.limit) return;
         const after = custBal(c.name) - (rec && rec.customer === c.name ? invTotal(rec) : 0) + +d.amount * (1 + (+d.vatRate || 0) / 100);
         if (after > +c.limit && !ask(`رصيد العميل سيصبح ${nf.format(after)} ويتجاوز حد الائتمان (${nf.format(c.limit)}). متابعة؟`)) return 'تم الإلغاء';
@@ -672,8 +722,15 @@
     salesReturns: { title: 'كل فواتير المردودات', sub: 'تُرحّل: من حـ/ مبيعات النوع إلى حـ/ العميل', single: 'فاتورة مردودات', key: 'no', cols: [
       C('no', 'رقم فاتورة المردودات', CODE), C('customer', 'العميل', { input: 'select', options: names('customers') }),
       C('invoice', 'الفاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]) }),
-      C('date', 'التاريخ', D), C('amount', 'القيمة', { ...M, total: true }), C('reason', 'السبب', { full: true })],
-      validate: d => { const inv = db.salesInvoices.find(i => i.no === d.invoice); if (inv && inv.customer !== d.customer) return `الفاتورة ${inv.no} تخص ${inv.customer}`; } },
+      C('date', 'التاريخ', D),
+      C('warehouse', 'المخزن (لإعادة الأصناف للمخزون)', { input: 'select', optional: true, allowEmpty: '— بدون إعادة للمخزن —', options: names('warehouses'), formOnly: true }),
+      C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true, priceFrom: 'price', optionalLines: true }),
+      C('itemsSum', 'الأصناف', { compute: r => linesSummary(r) || '—', render: (v, r) => Array.isArray(r.lines) && r.lines.length ? `${esc(v)} <span class="hint">(${r.lines.length})</span>` : '<span class="hint">—</span>' }),
+      C('amount', 'القيمة', { ...M, total: true, optional: true }), C('reason', 'السبب', { full: true })],
+      wide: true,
+      onSelect: { invoice: (f, v) => { const inv = db.salesInvoices.find(i => i.no === v); if (!inv) return; const c = f.namedItem('customer'); if (c && [...c.options].some(o => o.value === inv.customer)) c.value = inv.customer;
+        if (f.namedItem('warehouse') && !f.namedItem('warehouse').value) f.namedItem('warehouse').value = inv.warehouse || ''; } },
+      validate: (d, rec) => { const le = salesLinesCheck(d, rec, 'in'); if (le) return le; const inv = db.salesInvoices.find(i => i.no === d.invoice); if (inv && inv.customer !== d.customer) return `الفاتورة ${inv.no} تخص ${inv.customer}`; } },
 
     // ===== المشتريات =====
     purchaseOrders: { title: 'أوامر الشراء', sub: 'طلبات الشراء (لا تُرحّل حتى تصدر الفاتورة)', single: 'أمر شراء', key: 'no', filter: 'status', cols: [
@@ -813,14 +870,15 @@
   const refs = {
     customers: [['salesInvoices', 'customer'], ['salesQuotes', 'customer'], ['salesReturns', 'customer'], ['receipts', 'party']],
     suppliers: [['purchaseOrders', 'supplier'], ['purchaseInvoices', 'supplier'], ['purchaseReturns', 'supplier'], ['payments', 'party'], ['stockIn', 'supplier']],
-    items: [['stockIn', 'item'], ['stockOut', 'item'], ['transfers', 'item']],
+    items: [['stockIn', 'item'], ['stockOut', 'item'], ['transfers', 'item'], ['salesItems', 'stockItem']],
     warehouses: [['items', 'warehouse'], ['stockIn', 'warehouse'], ['stockOut', 'warehouse'], ['transfers', 'from'], ['transfers', 'to']],
     departments: [['employees', 'department']],
     employees: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee'], ['maintenanceOrders', 'technician']],
     girlsFixed: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee']],
     girlsTemp: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee']],
     bangladesh: [['attendance', 'employee'], ['payroll', 'employee'], ['leaves', 'employee']],
-    units: [['items', 'unit'], ['units', 'base'], ['stockIn', 'unit'], ['stockOut', 'unit'], ['transfers', 'unit']],
+    salesItems: [['salesInvoices', 'item'], ['salesReturns', 'item']],
+    units: [['items', 'unit'], ['salesItems', 'unit'], ['units', 'base'], ['stockIn', 'unit'], ['stockOut', 'unit'], ['transfers', 'unit']],
     costCenters: [['employees', 'costCenter'], ['girlsFixed', 'costCenter'], ['girlsTemp', 'costCenter'], ['bangladesh', 'costCenter'], ['stockOut', 'costCenter']],
     branches: [['costCenters', 'branch'], ['stockIn', 'branch'], ['stockOut', 'branch']],
     workers: [['dailyLabor', 'worker'], ['advances', 'worker'], ['machineOps', 'operator'], ['maintenanceOrders', 'technician']],
@@ -857,6 +915,13 @@
       sub: `من حـ/ مبيعات ${ty} إلى حـ/ عملاء ${ty} — بعد الاعتماد`, cols: modules.salesReturns.cols.map(custCol) };
   });
   const tbl = n => modules[n]?.table || n;
+  // أصناف المبيعات حسب نوع الفاتورة (حساب المبيعات)
+  const salesAccOfType = ty => leafByName(SYS.revenue, 'مبيعات ' + ty);
+  const salesItemsFor = ty => db.salesItems.filter(i => !ty || i.account === salesAccOfType(ty));
+  const salesItemOf = n => db.salesItems.find(i => i.name === n);
+  // سطر البيع بما يقابله في المخزن: صنف مبيعات مربوط بصنف مخزني، أو صنف مخزني مباشرة
+  const stockLine = l => { const si = salesItemOf(l.item); if (si) return si.stockItem && db.items.some(i => i.name === si.stockItem) ? { ...l, item: si.stockItem, unit: l.unit || si.unit } : null;
+    return db.items.some(i => i.name === l.item) ? l : null; };
   const rowsOf = n => { const m = modules[n]; return m?.view ? db[m.table].filter(m.view) : db[n]; };
   const pageInfo = id => pages[id] || modules[id] || boxPageInfo(id);
 
@@ -877,7 +942,7 @@
     { title: 'التقارير', icon: 'trend', items: ['reportCenter', 'reports'] },
     { title: 'قواعد البيانات', icon: 'db', items: [
       { title: 'العملاء والموردون', icon: 'users', items: ['customers', 'suppliers'] },
-      { title: 'الأصناف والمخازن', icon: 'box', items: ['items', 'units', 'warehouses'] },
+      { title: 'الأصناف والمخازن', icon: 'box', items: ['salesItems', 'items', 'units', 'warehouses'] },
       { title: 'العاملون', icon: 'users', items: ['employees', 'girlsFixed', 'girlsTemp', 'bangladesh', 'workers', 'departments'] },
       { title: 'الفروع ومراكز التكلفة', icon: 'list', items: ['branches', 'costCenters', 'crops'] },
       'machines'] },
@@ -888,7 +953,7 @@
     cashboxes: '🗃️', bankMoves: '🧾', receipts: '📥', payments: '📤', boxTransfers: '🔄', import: '📥', salesInvoices: '🧾', salesQuotes: '💬', salesReturns: '↩️', si_local: '🏪', si_seedlings: '🌱', si_scrap: '♻️', si_livestock: '🐄', sr_local: '↩️', sr_seedlings: '↩️', sr_scrap: '↩️', sr_livestock: '↩️',
     purchaseOrders: '📝', purchaseInvoices: '🧾', purchaseReturns: '↪️', stockBalances: '📦', stockIn: '➕', stockOut: '➖', transfers: '🔁',
     attendance: '🕘', payroll: '💰', leaves: '🌴', dailyLabor: '👷', advances: '💵', machineOps: '⛽', maintenanceOrders: '🔧', maintenancePlan: '🗓️',
-    customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', units: '⚖️', branches: '📍', costCenters: '🎯', crops: '🌱', girlsFixed: '👩‍🌾', girlsTemp: '👩', bangladesh: '🧑‍🔧', workers: '🦺', departments: '🏢', machines: '🚜',
+    customers: '🤝', suppliers: '🚚', items: '🏷️', warehouses: '🏬', employees: '👔', units: '⚖️', salesItems: '🧺', branches: '📍', costCenters: '🎯', crops: '🌱', girlsFixed: '👩‍🌾', girlsTemp: '👩', bangladesh: '🧑‍🔧', workers: '🦺', departments: '🏢', machines: '🚜',
   };
   // مسار كل صفحة داخل القائمة (لفتح المجموعات التي تحتويها)
   let pagePath = {};
@@ -1202,6 +1267,7 @@
       if (recId && !cur) { toast('هذا السجل حذفه مستخدم آخر'); return; }
       fields.forEach(c => { if (c.input === 'number') data[c.key] = +data[c.key] || 0; if (c.input === 'lines') { try { data[c.key] = JSON.parse(data[c.key] || '[]'); } catch { data[c.key] = []; } } });
       if (m.key && db[T].some(r => r !== cur && r[m.key] === data[m.key])) { toast(`"${data[m.key]}" مسجل من قبل`); return false; }
+      if (m.fixed && !cur) Object.assign(data, m.fixed);
       const err = m.validate?.(data, cur);
       if (err) { toast(err, 3500); return false; }
       const sv = v => v && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '');
@@ -1219,12 +1285,17 @@
       submitForApproval(T, saved, changed);
       save(); renderPage(); renderNav();
       if (saved.appr?.status === 'pending') return toast(`تم الحفظ — ${apprText(T, saved)} · لن يُرحّل قبل الاعتماد`, 4000);
-      const posted = glEntries().find(e => e.module === T && e.id === saved.id);
+      const mine = glEntries().filter(e => e.module === T && e.id === saved.id), posted = mine.find(e => e.no === saved.no) || mine[0];
       toast(posted ? `تم الحفظ والترحيل — قيد ${posted.no}` : cur ? 'تم حفظ التعديلات' : 'تمت الإضافة بنجاح');
     });
     if (record?._at) showAudit(record);
     if (m.wide) form.classList.add('wide');
-    $$('#modalBody .lines-box').forEach(box => initLines(box, form.elements.namedItem(box.dataset.lines), { tax: !!box.dataset.tax, priceOf: it => +it.cost || 0 }));
+    $$('#modalBody .lines-box').forEach(box => { const lc = fields.find(c => c.key === box.dataset.lines);
+      const sales = lc?.priceFrom === 'price';
+      initLines(box, form.elements.namedItem(box.dataset.lines), { tax: !!box.dataset.tax, priceOf: it => +(sales ? it.price : it.cost) || 0,
+        items: sales ? () => salesItemsFor(m.fixed?.stype).map(i => ({ ...i, category: acc(i.account)?.name || '' })) : null,
+        empty: sales ? `لا توجد أصناف ${m.fixed?.stype ? 'لـ ' + m.fixed.stype : 'مبيعات'} — أضفها من قواعد البيانات › أصناف المبيعات` : '',
+        onTotal: lc?.priceFrom === 'price' ? sub => { const a = form.elements.namedItem('amount'); if (a) { a.readOnly = sub > 0; if (sub > 0) a.value = +sub.toFixed(2); } } : null }); });
     // قوائم اقتراحات تتغير حسب حقل آخر (اسم المستفيد حسب اسم الحساب)
     const dyns = fields.filter(c => c.dyn);
     // حقول تظهر حسب الاختيار (مثل بيانات الشيك والتحويل البنكي عند اختيار بنك)
@@ -1247,14 +1318,17 @@
   }
 
   // ---------- محرر الأصناف (مثل Excel): صف لكل صنف، يجلب بيانات الصنف تلقائياً ----------
-  function initLines(box, hidden, { tax, priceOf }) {
+  function initLines(box, hidden, { tax, priceOf, onTotal, items, empty }) {
+    const ITEMS = items ? items() : db.items;
     let rows = []; try { rows = JSON.parse(hidden.value || '[]'); } catch {}
-    rows = rows.map(l => ({ ...l }));
+    rows = rows.map(l => ({ ...l, _it: l.item }));
     const blank = () => ({ item: '', unit: '', qty: '', price: '', vatRate: tax ? db.settings.vat ?? 14 : 0, whtRate: tax ? 1 : 0 });
     rows.push(blank());
     const wh = () => form.elements.namedItem('warehouse')?.value || '';
-    const itemOf = n => db.items.find(i => i.name === n);
-    const unitOpts = l => { const it = itemOf(l.item); const list = it ? unitsFor(l.item) : db.units.map(u => u.name);
+    const itemOf = n => ITEMS.find(i => i.name === n);
+    const stockOf = l => items ? stockLine({ ...l, unit: l.unit || itemOf(l.item)?.unit }) : l;
+    const balOf = l => { const sl = stockOf(l); return sl && db.items.some(i => i.name === sl.item) ? num(stockAt(sl.item, wh())) + (sl.item !== l.item ? ` ${itemUnit(sl.item)}` : '') : '—'; };
+    const unitOpts = l => { const it = itemOf(l.item); const list = it ? db.units.filter(x => !it.unit || sameFamily(x.name, it.unit)).map(x => x.name).concat(unitOf(it.unit) || !it.unit ? [] : [it.unit]) : db.units.map(u => u.name);
       return list.map(u => `<option ${u === (l.unit || it?.unit) ? 'selected' : ''}>${esc(u)}</option>`).join(''); };
     const cell = (k, v, cls = '', type = 'number') => `<td><input class="lg-in ${cls}" data-k="${k}" type="${type}" ${type === 'number' ? 'step="any" min="0"' : ''} value="${esc(v ?? '')}"></td>`;
     const rowHTML = (l, i) => { const it = itemOf(l.item);
@@ -1262,7 +1336,7 @@
         <td class="lg-item"><input class="lg-in" data-k="item" list="dl-lg-items" autocomplete="off" placeholder="اكتب اسم أو كود الصنف" value="${esc(l.item)}"></td>
         <td class="lg-ro code" data-c="code">${esc(it?.code || '')}</td>
         <td><select class="lg-in" data-k="unit">${unitOpts(l)}</select></td>
-        <td class="lg-ro num" data-c="bal">${it ? num(stockAt(l.item, wh())) : ''}</td>
+        <td class="lg-ro num" data-c="bal">${it ? balOf(l) : ''}</td>
         ${cell('qty', l.qty)}${cell('price', l.price)}
         ${tax ? cell('vatRate', l.vatRate, 'pct') + cell('whtRate', l.whtRate, 'pct') : ''}
         <td class="lg-ro num" data-c="val"></td>${tax ? '<td class="lg-ro num" data-c="net"></td>' : ''}
@@ -1273,30 +1347,30 @@
       $$('tbody tr', box).forEach(tr => { const l = rows[+tr.dataset.i]; if (!l) return;
         tr.querySelector('[data-c="val"]').textContent = l.item ? money(lineVal(l)) : '';
         const n = tr.querySelector('[data-c="net"]'); if (n) n.textContent = l.item ? money(lineVal(l) + lineVat(l) - lineWht(l)) : ''; });
-      const t = docTotals({ lines: clean });
+      const t = docTotals({ lines: clean }); onTotal?.(clean.length ? t.sub : 0);
       box.querySelector('tfoot').innerHTML = `<tr><td colspan="5">${clean.length} صنف · إجمالي الكميات ${num(t.qty)}</td><td colspan="2"></td>${tax ? '<td colspan="2"></td>' : ''}<td class="num"><b>${money(t.sub)}</b></td>${tax ? `<td class="num"><b>${money(t.net)}</b></td>` : ''}<td></td></tr>`;
       const sm = box.querySelector('.lg-sum');
       if (sm) sm.innerHTML = tax ? `<span>القيمة <b>${money(t.sub)}</b></span><span>+ ضريبة القيمة المضافة <b>${money(t.vat)}</b></span><span>− ضريبة الخصم والإضافة <b>${money(t.wht)}</b></span><span class="net">صافي الفاتورة <b>${money(t.net)}</b></span>`
-        : `<span class="net">إجمالي الإذن بالتكلفة <b>${money(t.sub)}</b></span>`;
+        : `<span class="net">${items ? 'إجمالي الأصناف (قبل الضريبة)' : 'إجمالي الإذن بالتكلفة'} <b>${money(t.sub)}</b></span>`;
     };
     const draw = () => {
-      box.innerHTML = `<datalist id="dl-lg-items">${db.items.map(i => `<option value="${esc(i.name)}">${esc([i.code, i.category, i.unit].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
+      box.innerHTML = `${!ITEMS.length && empty ? `<div class="lg-empty">${esc(empty)}</div>` : ''}<datalist id="dl-lg-items">${ITEMS.map(i => `<option value="${esc(i.name)}">${esc([i.code, i.category, i.unit].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
         <div class="lg-wrap"><table class="lines-grid"><thead><tr><th>#</th><th>الصنف</th><th>الكود</th><th>الوحدة</th><th>الرصيد</th><th>الكمية</th><th>السعر</th>${tax ? '<th>ض.ق.م %</th><th>خصم وإضافة %</th>' : ''}<th>القيمة</th>${tax ? '<th>الصافي</th>' : ''}<th></th></tr></thead>
         <tbody>${rows.map(rowHTML).join('')}</tbody><tfoot></tfoot></table></div>
         <div class="lg-bar"><button type="button" class="btn ghost" data-addline>＋ صنف جديد</button><span class="hint">Enter للانتقال للخانة التالية — الصف الجديد يُضاف تلقائياً</span><div class="lg-sum"></div></div>`;
       sync();
     };
     const addRow = () => { rows.push(blank()); const tb = box.querySelector('tbody'); tb.insertAdjacentHTML('beforeend', rowHTML(rows.at(-1), rows.length - 1)); };
-    const findItem = v => { const q = String(v || '').trim(); return db.items.find(i => i.name === q) || db.items.find(i => i.code && i.code.toLowerCase() === q.toLowerCase()); };
+    const findItem = v => { const q = String(v || '').trim(); return ITEMS.find(i => i.name === q) || ITEMS.find(i => i.code && i.code.toLowerCase() === q.toLowerCase()); };
     box.addEventListener('input', e => {
       const inp = e.target.closest('[data-k]'), tr = e.target.closest('tr[data-i]'); if (!inp || !tr) return;
       const i = +tr.dataset.i, k = inp.dataset.k, l = rows[i];
       l[k] = inp.value;
       if (k === 'item') {
         const it = findItem(inp.value);
-        if (it) { if (inp.value !== it.name) inp.value = it.name; l.item = it.name; l.unit = it.unit || ''; if (!+l.price) l.price = priceOf(it);
+        if (it) { if (inp.value !== it.name) inp.value = it.name; const changedIt = l._it !== it.name; l.item = it.name; if (changedIt || !l.unit) l.unit = it.unit || ''; if (changedIt || !+l.price) l.price = priceOf(it); l._it = it.name;
           tr.querySelector('[data-k="unit"]').innerHTML = unitOpts(l); tr.querySelector('[data-k="price"]').value = l.price;
-          tr.querySelector('[data-c="code"]').textContent = it.code || ''; tr.querySelector('[data-c="bal"]').textContent = num(stockAt(it.name, wh())); }
+          tr.querySelector('[data-c="code"]').textContent = it.code || ''; tr.querySelector('[data-c="bal"]').textContent = balOf(l); }
         else { tr.querySelector('[data-c="code"]').textContent = ''; tr.querySelector('[data-c="bal"]').textContent = ''; }
         if (i === rows.length - 1 && inp.value) addRow();
       }
@@ -1316,7 +1390,7 @@
       (all[idx + 1] || all[0]).focus(); all[idx + 1]?.select?.();
     });
     // تحديث عمود الرصيد عند تغيير المخزن
-    form.elements.namedItem('warehouse')?.addEventListener('change', () => $$('tbody tr', box).forEach(tr => { const l = rows[+tr.dataset.i]; if (l?.item) tr.querySelector('[data-c="bal"]').textContent = num(stockAt(l.item, wh())); }));
+    form.elements.namedItem('warehouse')?.addEventListener('change', () => $$('tbody tr', box).forEach(tr => { const l = rows[+tr.dataset.i]; if (l?.item) tr.querySelector('[data-c="bal"]').textContent = balOf(l); }));
     draw();
   }
 
@@ -1358,6 +1432,8 @@
   function itemCard(it) {
     const rows = [
       ...stockRows('stockIn').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `إضافة إلى ${r.warehouse} — من ${r.doc.supplier || r.doc.source || ''}${qtyNote(r)}`, a: baseQty(r), go: 'stockIn' })),
+      ...stockRows('salesInvoices').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `بيع من ${r.warehouse} — ${r.doc.customer}${qtyNote(r)}`, b: baseQty(r), go: 'salesInvoices' })),
+      ...stockRows('salesReturns').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `مردودات إلى ${r.warehouse} — ${r.doc.customer}${qtyNote(r)}`, a: baseQty(r), go: 'salesReturns' })),
       ...stockRows('stockOut').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `صرف من ${r.warehouse} — إلى ${r.doc.costCenter || r.doc.to || ''}${qtyNote(r)}`, b: baseQty(r), go: 'stockOut' })),
       ...eff('transfers').filter(r => r.item === it.name).map(r => ({ date: r.date, ref: r.no, desc: `تحويل من ${r.from} إلى ${r.to} (${num(r.qty)} ${r.unit || it.unit || ''})`, go: 'transfers' })),
     ];
@@ -1769,7 +1845,7 @@
     admin: { title: 'مدير النظام', build: () => ({ perms: grant(permPages(), 'vaed'), special: SPECIALS.map(s => s[0]) }) },
     accountant: { title: 'محاسب', build: () => ({ perms: { ...grant(permPages(), 'v'), ...grant(['accounts', 'journal', 'cashboxes', 'receipts', 'payments', 'salesInvoices', 'salesReturns', 'purchaseInvoices', 'purchaseReturns', 'payroll', 'customers', 'suppliers'], 'vae') }, special: ['export'] }) },
     storekeeper: { title: 'أمين مخزن', build: () => ({ perms: { ...grant(['dashboard', 'suppliers', 'purchaseOrders'], 'v'), ...grant(['items', 'units', 'warehouses', 'stockBalances', 'stockIn', 'stockOut', 'transfers'], 'vae'), ...grant(['branches', 'costCenters'], 'v') }, special: ['export'] }) },
-    sales: { title: 'مندوب مبيعات', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['customers', 'salesInvoices', 'salesQuotes', 'salesReturns', 'receipts'], 'vae') }, special: [] }) },
+    sales: { title: 'مندوب مبيعات', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['customers', 'salesItems', 'salesInvoices', 'salesQuotes', 'salesReturns', 'receipts'], 'vae') }, special: [] }) },
     hr: { title: 'شئون العاملين', build: () => ({ perms: { ...grant(['dashboard'], 'v'), ...grant(['employees', 'girlsFixed', 'girlsTemp', 'bangladesh', 'costCenters', 'attendance', 'payroll', 'leaves', 'departments', 'workers', 'dailyLabor', 'advances'], 'vae') }, special: ['export'] }) },
     maint: { title: 'الميكنة والصيانة', build: () => ({ perms: { ...grant(['dashboard', 'items', 'stockBalances'], 'v'), ...grant(['machines', 'machineOps', 'maintenanceOrders', 'maintenancePlan', 'stockOut'], 'vae') }, special: [] }) },
     viewer: { title: 'مشاهد', build: () => ({ perms: grant(permPages(), 'v'), special: [] }) },
@@ -2209,10 +2285,10 @@
     C('balance', 'الرصيد الافتتاحي', { input: 'number', optional: true })],
     validate: d => { if (d.parent && !acc(d.parent)) return `الحساب الأب ${d.parent} غير موجود`; if (d.parent === d.code) return 'الحساب لا يكون أباً لنفسه'; } };
   const LINE_KEYS = ['item', 'unit', 'qty', 'price', 'vatRate', 'whtRate'];
-  const lineImportCols = tax => [C('item', 'الصنف'), C('unit', 'الوحدة', { optional: true }), C('qty', 'الكمية', N), C('price', 'السعر', { ...M, optional: true }),
+  const lineImportCols = (tax, opt) => [C('item', 'الصنف', { optional: !!opt }), C('unit', 'الوحدة', { optional: true }), C('qty', 'الكمية', { ...N, optional: !!opt }), C('price', 'السعر', { ...M, optional: true }),
     ...(tax ? [C('vatRate', 'ض.ق.م %', { ...N, optional: true }), C('whtRate', 'خصم وإضافة %', { ...N, optional: true })] : [])];
   const importDef = t => t === 'accounts' ? ACC_IMPORT : modules[t]?.cols.some(c => c.input === 'lines')
-    ? { ...modules[t], lineImport: true, cols: [...modules[t].cols.filter(c => c.input !== 'lines'), ...lineImportCols(modules[t].cols.some(c => c.tax))] } : modules[t];
+    ? { ...modules[t], lineImport: true, cols: [...modules[t].cols.filter(c => c.input !== 'lines'), ...lineImportCols(modules[t].cols.some(c => c.tax), modules[t].cols.some(c => c.optionalLines))] } : modules[t];
   const importFields = t => importDef(t).cols.filter(c => !c.compute && c.input !== 'lines');
   const importTables = () => ['accounts', ...Object.keys(modules).filter(t => !modules[t].table)].filter(t => t === 'accounts' ? store.canAdmin && can('accounts', 'a') : can(t, 'a'));
 
@@ -2318,7 +2394,7 @@
         rows.forEach(r => { if (r.status === 'error') { fails.push(r); return; } const k = r.data.no || '#' + r.line; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
         for (const g of groups.values()) {
           const head = Object.fromEntries(Object.entries(g[0].data).filter(([k]) => !LINE_KEYS.includes(k)));
-          const data = { ...(def.defaults?.() || {}), ...head, lines: g.map(r => Object.fromEntries(LINE_KEYS.map(k => [k, r.data[k] ?? '']))) };
+          const data = { ...(def.defaults?.() || {}), ...head, lines: g.map(r => Object.fromEntries(LINE_KEYS.map(k => [k, r.data[k] ?? '']))).filter(l => l.item) };
           if (!data.no) data.no = nextNo(db[t], 'no');
           const err = def.validate?.(data, null);
           if (err) { g.forEach(r => fails.push({ ...r, status: 'error', msg: err })); continue; }
@@ -2824,8 +2900,9 @@
       const q = (list, it, sign, fieldWh) => sum(list.filter(r => r.item === it), r => baseQty(r) * sign);
       const rows = db.items.map(it => {
         const before = r => f && r.date < f, within = r => inRange(r.date, f, t);
-        const open = +it.opening + q(stockRows('stockIn').filter(before), it.name, 1) - q(stockRows('stockOut').filter(before), it.name, 1);
-        const inn = q(stockRows('stockIn').filter(within), it.name, 1), out = q(stockRows('stockOut').filter(within), it.name, 1);
+        const IN = [...stockRows('stockIn'), ...stockRows('salesReturns')], OUT = [...stockRows('stockOut'), ...stockRows('salesInvoices')];
+        const open = +it.opening + q(IN.filter(before), it.name, 1) - q(OUT.filter(before), it.name, 1);
+        const inn = q(IN.filter(within), it.name, 1), out = q(OUT.filter(within), it.name, 1);
         const close = open + inn - out;
         return [it.code, it.name, it.unit, open, inn, out, close, close * it.cost];
       });
