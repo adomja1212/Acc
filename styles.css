@@ -850,3 +850,7 @@ select.sel-hidden { position: absolute !important; opacity: 0 !important; pointe
 .tab-closeall:hover { background: #e2e8f4; color: var(--navy-800); }
 @media (max-width: 900px) { .tabbar { margin: 0 -16px; padding: 0 10px; } .tab { min-width: 96px; } }
 @media print { .tabbar { display: none !important; } }
+.jlines-grid .jl-acc { min-width: 260px; }
+.jlines-grid .jl-note { min-width: 180px; }
+.jlines-grid .num-in { min-width: 110px; direction: ltr; text-align: right; }
+.jlines-grid tfoot td { white-space: nowrap; }

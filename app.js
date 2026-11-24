@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '27/11/2026, 16:00';
+  const APP_VERSION = '27/11/2026, 18:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -255,6 +255,9 @@
   const subtree = code => memo('sub:' + code, () => { const s = new Set([code]); const w = c => childrenOf(c).forEach(x => { s.add(x.code); w(x.code); }); w(code); return s; });
 
   const boxAcc = name => db.cashboxes.find(b => b.name === name)?.accountNo;
+  // أطراف القيد اليدوي: [{acc, dr, cr, note}] — والقيود القديمة (من حساب / إلى حساب / مبلغ) تُقرأ كطرفين
+  const jLinesOf = r => Array.isArray(r.jlines) && r.jlines.length ? r.jlines : r.debit || r.credit ? [{ acc: r.debit, dr: +r.amount || 0, cr: 0 }, { acc: r.credit, dr: 0, cr: +r.amount || 0 }] : [];
+  const jTotal = r => sum(jLinesOf(r), l => +l.dr || 0);
   const isCustomer = n => db.customers.some(c => c.name === n);
   // الرصيد الافتتاحي: نوعه يحدد الحساب، وطبيعة الحساب تحدد هل هو مدين أو دائن
   const OPEN_TYPES = ['خزينة / بنك', 'صنف في مخزن', 'عميل', 'مورد', 'حساب (مرتبات مستحقة، سلف، أصول، التزامات…)'];
@@ -285,7 +288,7 @@
         lines = lines.filter(l => l.acc && (l.dr || l.cr));
         if (lines.length) E.push({ module, src, id: r.id, no, date, desc, lines, manual: module === 'journal' });
       };
-      eff('journal').forEach(r => add('journal', 'قيد يدوي', r, r.no, r.date, r.desc, [L(accCode(r.debit), r.amount), L(accCode(r.credit), 0, r.amount)]));
+      eff('journal').forEach(r => add('journal', 'قيد يدوي', r, r.no, r.date, r.desc, jLinesOf(r).map(l => ({ ...L(accCode(l.acc), l.dr, l.cr), note: l.note || '' }))));
       eff('salesInvoices').forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
         [L(custAcc(r.customer), invTotal(r)), L(salesAccR(r), 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
       // تكلفة المبيعات: عند الصرف من المخزن — من حـ/ تكلفة البضاعة المباعة إلى حـ/ مخزون كل صنف (بالتكلفة)، والمردودات بالعكس
@@ -663,10 +666,26 @@
     // ===== الحسابات =====
     journal: { title: 'القيود اليومية', sub: 'دفتر اليومية العامة', single: 'قيد يدوي', key: 'no', cols: [
       C('no', 'رقم القيد', CODE), C('date', 'التاريخ', D), C('desc', 'البيان', { full: true }),
-      C('debit', 'من حـ/ (مدين)', { input: 'select', options: leafOpts(), full: true }),
-      C('credit', 'إلى حـ/ (دائن)', { input: 'select', options: leafOpts(), full: true }),
-      C('amount', 'المبلغ', { ...M, total: true })],
-      validate: d => accCode(d.debit) === accCode(d.credit) ? 'لا يمكن أن يكون الحساب المدين هو نفسه الدائن' : '' },
+      C('jlines', 'أطراف القيد', { input: 'jlines', formOnly: true, full: true }),
+      C('amount', 'المبلغ', { ...M, total: true, compute: jTotal })],
+      wide: true,
+      validate: d => {
+        const ls = (Array.isArray(d.jlines) ? d.jlines : []).filter(l => l.acc || +l.dr || +l.cr);
+        for (const [i, l] of ls.entries()) {
+          const code = accCode(l.acc); l.dr = +(+l.dr || 0).toFixed(2); l.cr = +(+l.cr || 0).toFixed(2);
+          if (!code || !acc(code)) return `اختر الحساب في السطر ${i + 1}`;
+          if (hasChildren(code)) return `الحساب "${acc(code).name}" رئيسي — اختر حساباً فرعياً (السطر ${i + 1})`;
+          if (l.dr && l.cr) return `السطر ${i + 1}: اكتب مبلغاً مديناً أو دائناً وليس الاثنين`;
+          if (!l.dr && !l.cr) return `السطر ${i + 1}: اكتب المبلغ المدين أو الدائن`;
+          if (l.dr < 0 || l.cr < 0) return `السطر ${i + 1}: المبلغ لا يكون سالباً`;
+          l.acc = accLabel(acc(code));
+        }
+        if (ls.length < 2) return 'القيد يحتاج طرفين على الأقل (مدين ودائن)';
+        const dr = sum(ls, l => l.dr), cr = sum(ls, l => l.cr);
+        if (!ls.some(l => l.dr) || !ls.some(l => l.cr)) return 'القيد يحتاج طرفاً مديناً وطرفاً دائناً';
+        if (Math.abs(dr - cr) > 0.005) return `القيد غير متوازن: المدين ${nf.format(dr)} والدائن ${nf.format(cr)} — الفرق ${nf.format(Math.abs(dr - cr))}`;
+        d.jlines = ls; d.amount = +dr.toFixed(2); d.debit = ''; d.credit = '';
+      } },
 
     // ===== الخزينة =====
     cashboxes: { title: 'الخزائن والبنوك', sub: 'النقدية (حـ/ 121) والبنوك (حـ/ 122) — الرصيد من شجرة الحسابات', single: 'خزينة / بنك', key: 'name', filter: 'type', cols: [
@@ -1294,6 +1313,7 @@
   const modal = $('#modal'), form = $('#modalForm');
   let onSubmit = null, condUpd = null;
   const field = (c, v, vals = {}) => {
+    if (c.input === 'jlines') return `<div class="field full" data-f="${c.key}"><label>${c.label}</label><div class="jlines-box" data-jlines="${c.key}"></div><input type="hidden" name="${c.key}" value="${esc(JSON.stringify(Array.isArray(v) ? v : jLinesOf(vals)))}"></div>`;
     if (c.input === 'lines') return `<div class="field full" data-f="${c.key}"><label>${c.label}</label><div class="lines-box" data-lines="${c.key}" data-tax="${c.tax ? 1 : ''}"></div><input type="hidden" name="${c.key}" value="${esc(JSON.stringify(Array.isArray(v) ? v : []))}"></div>`;
     if (c.input === 'checks') return `<div class="field full"><label>${c.label}</label><div class="checks">${c.options().map(o => `<label class="check"><input type="checkbox" name="${c.key}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div></div>`;
     const input = c.input === 'select'
@@ -1360,7 +1380,7 @@
       const cur = recId ? db[T].find(r => r.id === recId) : null;
       if (recId && !cur) { toast('هذا السجل حذفه مستخدم آخر'); return; }
       locks.forEach(k => { data[k] = prefill[k]; });
-      fields.forEach(c => { if (c.input === 'number') data[c.key] = +data[c.key] || 0; if (c.input === 'lines') { try { data[c.key] = JSON.parse(data[c.key] || '[]'); } catch { data[c.key] = []; } } });
+      fields.forEach(c => { if (c.input === 'number') data[c.key] = +data[c.key] || 0; if (c.input === 'lines' || c.input === 'jlines') { try { data[c.key] = JSON.parse(data[c.key] || '[]'); } catch { data[c.key] = []; } } });
       if (m.key && db[T].some(r => r !== cur && r[m.key] === data[m.key])) { toast(`"${data[m.key]}" مسجل من قبل`); return false; }
       if (m.fixed && !cur) Object.assign(data, m.fixed);
       const err = m.validate?.(data, cur);
@@ -1388,6 +1408,7 @@
     locks.forEach(k => { const el = form.elements.namedItem(k); if (!el) return;
       if (el.tagName === 'SELECT') { el.dataset.locked = '1'; el._px || enhanceSelect(el); syncSelect(el); } else { el.readOnly = true; el.classList.add('locked'); el.title = 'مقفل على هذه الشاشة'; }
       el.closest('.field')?.classList.add('field-locked'); });
+    $$('#modalBody .jlines-box').forEach(box => initJLines(box, form.elements.namedItem(box.dataset.jlines)));
     $$('#modalBody .lines-box').forEach(box => { const lc = fields.find(c => c.key === box.dataset.lines);
       const sales = lc?.priceFrom === 'price';
       initLines(box, form.elements.namedItem(box.dataset.lines), { tax: !!box.dataset.tax, priceOf: it => +(sales ? it.price : it.cost) || 0,
@@ -1476,6 +1497,66 @@
     if (any) syncAllSelects(); }).observe(document.body, { childList: true, subtree: true });
   document.addEventListener('change', () => syncAllSelects());
   $$('select.input').forEach(enhanceSelect);
+
+  // ---------- محرر أطراف القيد: الحساب (بحث) · مدين · دائن · بيان السطر ----------
+  function initJLines(box, hidden) {
+    let rows = []; try { rows = JSON.parse(hidden.value || '[]'); } catch {}
+    rows = rows.map(l => ({ acc: l.acc || '', dr: +l.dr || '', cr: +l.cr || '', note: l.note || '' }));
+    while (rows.length < 2) rows.push({ acc: '', dr: '', cr: '', note: '' });
+    rows.push({ acc: '', dr: '', cr: '', note: '' });
+    const ACCS = leafAccounts();
+    const rowHTML = (l, i) => `<tr data-i="${i}"><td class="lg-n">${i + 1}</td>
+      <td class="jl-acc"><input class="lg-in" data-k="acc" data-dl="dl-jl-accs" autocomplete="off" placeholder="اكتب اسم أو كود الحساب" value="${esc(l.acc)}"></td>
+      <td><input class="lg-in num-in" data-k="dr" type="number" step="any" min="0" value="${esc(l.dr)}" placeholder="0"></td>
+      <td><input class="lg-in num-in" data-k="cr" type="number" step="any" min="0" value="${esc(l.cr)}" placeholder="0"></td>
+      <td class="jl-note"><input class="lg-in" data-k="note" value="${esc(l.note)}" placeholder="بيان السطر (اختياري)"></td>
+      <td><button type="button" class="lg-del" data-del title="حذف السطر">✕</button></td></tr>`;
+    const sync = () => {
+      const clean = rows.filter(l => l.acc || +l.dr || +l.cr).map(l => ({ acc: l.acc, dr: +l.dr || 0, cr: +l.cr || 0, note: l.note || '' }));
+      hidden.value = JSON.stringify(clean);
+      const dr = sum(clean, l => l.dr), cr = sum(clean, l => l.cr), diff = +(dr - cr).toFixed(2);
+      box.querySelector('tfoot').innerHTML = `<tr><td colspan="2">الإجمالي — ${clean.length} طرف</td><td class="num"><b>${money(dr)}</b></td><td class="num"><b>${money(cr)}</b></td>
+        <td colspan="2">${!clean.length ? '' : diff === 0 && dr > 0 ? '<span class="pill green">القيد متوازن</span>' : `<span class="pill red">غير متوازن — الفرق ${money(Math.abs(diff))} ${diff > 0 ? '(المدين أكبر)' : '(الدائن أكبر)'}</span>`}</td></tr>`;
+    };
+    const draw = () => {
+      box.innerHTML = `<datalist id="dl-jl-accs">${ACCS.map(a => `<option value="${esc(accLabel(a))}">${esc(accType(a.code))} · ${nature(a.code)}</option>`).join('')}</datalist>
+        <div class="lg-wrap"><table class="lines-grid jlines-grid"><thead><tr><th>#</th><th>الحساب</th><th>مدين</th><th>دائن</th><th>بيان السطر</th><th></th></tr></thead>
+        <tbody>${rows.map(rowHTML).join('')}</tbody><tfoot></tfoot></table></div>
+        <div class="lg-bar"><button type="button" class="btn ghost" data-addline>＋ طرف جديد</button><button type="button" class="btn ghost" data-balance>⚖ موازنة آخر سطر</button>
+        <span class="hint">اكتب المبلغ في خانة المدين أو الدائن لكل حساب — يجب أن يتساوى المجموعان</span></div>`;
+      sync();
+    };
+    const addRow = () => { rows.push({ acc: '', dr: '', cr: '', note: '' }); box.querySelector('tbody').insertAdjacentHTML('beforeend', rowHTML(rows.at(-1), rows.length - 1)); };
+    box.addEventListener('input', e => {
+      const inp = e.target.closest('[data-k]'), tr = e.target.closest('tr[data-i]'); if (!inp || !tr) return;
+      const i = +tr.dataset.i, k = inp.dataset.k, l = rows[i]; l[k] = inp.value;
+      // مبلغ في جانب واحد فقط
+      if (k === 'dr' && +inp.value) { l.cr = ''; tr.querySelector('[data-k="cr"]').value = ''; }
+      if (k === 'cr' && +inp.value) { l.dr = ''; tr.querySelector('[data-k="dr"]').value = ''; }
+      if (k === 'acc') { const q = normAr(inp.value), a = ACCS.find(x => normAr(accLabel(x)) === q || x.code === inp.value.trim() || normAr(x.name) === q); if (a && inp.value !== accLabel(a)) { inp.value = accLabel(a); l.acc = inp.value; } }
+      if (i === rows.length - 1 && (l.acc || +l.dr || +l.cr)) addRow();
+      sync();
+    });
+    box.addEventListener('click', e => {
+      if (e.target.closest('[data-addline]')) { addRow(); box.querySelector('tbody tr:last-child [data-k="acc"]').focus(); return; }
+      if (e.target.closest('[data-balance]')) { // يكمل الفرق في آخر سطر مستخدم
+        const used = rows.filter(l => l.acc || +l.dr || +l.cr), dr = sum(used, l => +l.dr || 0), cr = sum(used, l => +l.cr || 0), diff = +(dr - cr).toFixed(2);
+        if (!diff) return toast('القيد متوازن بالفعل');
+        let t = rows.find(l => l.acc && !+l.dr && !+l.cr) || rows.find(l => !l.acc && !+l.dr && !+l.cr);
+        if (!t) { addRow(); t = rows.at(-1); }
+        if (diff > 0) { t.cr = diff; t.dr = ''; } else { t.dr = -diff; t.cr = ''; }
+        if (rows.at(-1) === t) rows.push({ acc: '', dr: '', cr: '', note: '' });
+        draw(); return;
+      }
+      const del = e.target.closest('[data-del]'); if (!del) return;
+      rows.splice(+del.closest('tr').dataset.i, 1); if (!rows.length || rows.at(-1).acc || +rows.at(-1).dr || +rows.at(-1).cr) rows.push({ acc: '', dr: '', cr: '', note: '' }); draw();
+    });
+    box.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || !e.target.matches('.lg-in')) return;
+      e.preventDefault(); const all = $$('.lg-in', box), idx = all.indexOf(e.target); (all[idx + 1] || all[0]).focus(); all[idx + 1]?.select?.();
+    });
+    draw();
+  }
 
   // ---------- محرر الأصناف (مثل Excel): صف لكل صنف، يجلب بيانات الصنف تلقائياً ----------
   function initLines(box, hidden, { tax, priceOf, onTotal, items, empty }) {
@@ -1614,6 +1695,7 @@
     const srcs = [...new Set(glEntries().map(e => e.src))];
     const dr = sum(entries, e => sum(e.lines, l => l.dr)), cr = sum(entries, e => sum(e.lines, l => l.cr));
     const noSearch = mod => ['payroll', 'dailyLabor', 'advances'].includes(mod);
+    const pend = db.journal.filter(r => !isEff(r) && r.appr?.status !== 'rejected');
 
     content.innerHTML = `
       <div class="card">
@@ -1633,6 +1715,7 @@
           <div><span>إجمالي الدائن</span><b>${money(cr)}</b></div>
           <div><span>التوازن</span><b>${Math.abs(dr - cr) < 0.01 ? '<span class="pill green">متوازن</span>' : `<span class="pill red">${money(dr - cr)}</span>`}</b></div>
         </div>
+        ${pend.length ? `<div class="af-note warn" style="margin:10px 14px 0">قيود يدوية لم تُرحّل بعد: ${pend.map(r => `<b>${esc(r.no)}</b> (${esc(apprText('journal', r))}${canApprove('journal', r) ? ` <button type="button" class="link-btn" data-japr="${r.id}">اعتماد</button>` : ''} · <button type="button" class="link-btn" data-edit="${r.id}">فتح</button>)`).join('، ')}</div>` : ''}
         <div class="table-wrap"><table class="journal">
           <thead><tr><th>رقم القيد</th><th>التاريخ</th><th>البيان / الحساب</th><th>المصدر</th><th>مدين</th><th>دائن</th><th></th></tr></thead>
           <tbody>${entries.slice(0, 200).map(e => `
@@ -1641,7 +1724,7 @@
                 ? `<button data-edit="${e.id}" title="تعديل">${icons.edit}</button><button class="del" data-del="${e.id}" title="حذف">${icons.del}</button>`
                 : `<button data-src="${e.module}" data-q="${esc(noSearch(e.module) ? '' : e.no)}" title="فتح المستند الأصلي">${icons.open}</button>`}</div></td></tr>
             ${e.lines.map((l, i) => `<tr class="entry-line ${l.cr ? 'cr' : ''} ${i === e.lines.length - 1 ? 'last' : ''}"><td></td><td></td>
-              <td class="acc">${l.cr ? 'إلى حـ/ ' : 'من حـ/ '}<button class="link-btn" data-ledger="${esc(l.acc)}">${esc(name(l.acc))}</button></td><td></td>
+              <td class="acc">${l.cr ? 'إلى حـ/ ' : 'من حـ/ '}<button class="link-btn" data-ledger="${esc(l.acc)}">${esc(name(l.acc))}</button>${l.note ? ` <span class="hint">— ${esc(l.note)}</span>` : ''}</td><td></td>
               <td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td><td></td></tr>`).join('')}`).join('')
             || '<tr><td colspan="7" class="empty">لا توجد قيود مطابقة</td></tr>'}</tbody>
         </table></div>
@@ -1649,12 +1732,13 @@
     $('#tblSearch').addEventListener('input', e => { state.q = e.target.value; renderJournal(); const el = $('#tblSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); });
     $('#tblFilter').addEventListener('change', e => { state.filter = e.target.value; renderJournal(); });
     $('#addBtn').onclick = () => openRecordForm('journal');
-    $('#exportBtn').onclick = () => downloadCSV('journal', ['رقم القيد', 'التاريخ', 'البيان', 'المصدر', 'الحساب', 'مدين', 'دائن'],
-      entries.flatMap(e => e.lines.map(l => [e.no, e.date, e.desc, e.src, name(l.acc), l.dr, l.cr])));
+    $('#exportBtn').onclick = () => downloadCSV('journal', ['رقم القيد', 'التاريخ', 'البيان', 'المصدر', 'الحساب', 'مدين', 'دائن', 'بيان السطر'],
+      entries.flatMap(e => e.lines.map(l => [e.no, e.date, e.desc, e.src, name(l.acc), l.dr, l.cr, l.note || ''])));
     $$('[data-edit]', content).forEach(b => b.onclick = () => openRecordForm('journal', db.journal.find(r => r.id === b.dataset.edit)));
     $$('[data-del]', content).forEach(b => b.onclick = () => deleteRecord('journal', db.journal.find(r => r.id === b.dataset.del)));
     $$('[data-src]', content).forEach(b => b.onclick = () => goTo(b.dataset.src, b.dataset.q));
     $$('[data-ledger]', content).forEach(b => b.onclick = () => openLedger(b.dataset.ledger));
+    $$('[data-japr]', content).forEach(b => b.onclick = () => { if (decide('journal', b.dataset.japr, true)) { save(); renderNav(); renderJournal(); toast(afterDecideMsg('journal', b.dataset.japr)); } });
   }
 
   // ---------- كشف الحساب (دفتر الأستاذ) ----------
@@ -2466,9 +2550,12 @@
   const LINE_KEYS = ['item', 'unit', 'qty', 'price', 'vatRate', 'whtRate'];
   const lineImportCols = (tax, opt) => [C('item', 'الصنف', { optional: !!opt }), C('unit', 'الوحدة', { optional: true }), C('qty', 'الكمية', { ...N, optional: !!opt }), C('price', 'السعر', { ...M, optional: true }),
     ...(tax ? [C('vatRate', 'ض.ق.م %', { ...N, optional: true }), C('whtRate', 'خصم وإضافة %', { ...N, optional: true })] : [])];
-  const importDef = t => t === 'accounts' ? ACC_IMPORT : modules[t]?.cols.some(c => c.input === 'lines')
+  const JL_KEYS = ['acc', 'dr', 'cr', 'note'];
+  const importDef = t => t === 'accounts' ? ACC_IMPORT : t === 'journal' ? { ...modules.journal, lineImport: true, lineKey: 'jlines', lineKeys: JL_KEYS,
+      cols: [...modules.journal.cols.filter(c => !['jlines', 'amount'].includes(c.key)), C('acc', 'الحساب', { input: 'select', options: leafOpts() }), C('dr', 'مدين', { ...M, optional: true }), C('cr', 'دائن', { ...M, optional: true }), C('note', 'بيان السطر', { optional: true })] }
+    : modules[t]?.cols.some(c => c.input === 'lines')
     ? { ...modules[t], lineImport: true, cols: [...modules[t].cols.filter(c => c.input !== 'lines'), ...lineImportCols(modules[t].cols.some(c => c.tax), modules[t].cols.some(c => c.optionalLines))] } : modules[t];
-  const importFields = t => importDef(t).cols.filter(c => !c.compute && c.input !== 'lines');
+  const importFields = t => importDef(t).cols.filter(c => !c.compute && c.input !== 'lines' && c.input !== 'jlines');
   const importTables = () => ['accounts', ...Object.keys(modules).filter(t => !modules[t].table)].filter(t => t === 'accounts' ? store.canAdmin && can('accounts', 'a') : can(t, 'a'));
 
   // ----- قراءة الملف -----
@@ -2580,8 +2667,9 @@
         const groups = new Map();
         rows.forEach(r => { if (r.status === 'error') { fails.push(r); return; } const k = r.data.no || '#' + r.line; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
         for (const g of groups.values()) {
-          const head = Object.fromEntries(Object.entries(g[0].data).filter(([k, v]) => !LINE_KEYS.includes(k) && !(k in preset && v === '')));
-          const data = { ...(def.defaults?.() || {}), ...head, lines: g.map(r => Object.fromEntries(LINE_KEYS.map(k => [k, r.data[k] ?? '']))).filter(l => l.item) };
+          const LK = def.lineKeys || LINE_KEYS, key = def.lineKey || 'lines';
+          const head = Object.fromEntries(Object.entries(g[0].data).filter(([k, v]) => !LK.includes(k) && !(k in preset && v === '')));
+          const data = { ...(def.defaults?.() || {}), ...head, [key]: g.map(r => Object.fromEntries(LK.map(k => [k, r.data[k] ?? '']))).filter(l => l[LK[0]]) };
           if (!data.no) data.no = nextNo(db[t], 'no');
           const err = def.validate?.(data, null);
           if (err) { g.forEach(r => fails.push({ ...r, status: 'error', msg: err })); continue; }
@@ -2922,6 +3010,9 @@
           <div class="doc-title"><h2>${esc(t === 'salesInvoices' && saleType(r) ? `فاتورة مبيعات ${saleType(r)}` : t === 'salesReturns' && saleType(r) ? `فاتورة مردودات ${saleType(r)}` : m.single)}</h2><b>${esc(docNo(t, r))}</b><span>${esc(r.date || r.month || '')}</span></div></div>
         <div class="doc-status">${r.appr ? `حالة الاعتماد: <b>${esc(apprText(t, r))}</b>` : 'مستند مرحّل'}</div>
         <table class="doc-fields">${fieldRows.map(([l, v]) => `<tr><th>${esc(l)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
+        ${t === 'journal' && jLinesOf(r).length ? `<h3>أطراف القيد</h3><table class="doc-lines"><thead><tr><th>#</th><th>الحساب</th><th>بيان السطر</th><th>مدين</th><th>دائن</th></tr></thead><tbody>
+          ${jLinesOf(r).map((l, i) => `<tr><td>${i + 1}</td><td>${esc(l.acc)}</td><td>${esc(l.note || '')}</td><td>${+l.dr ? money(l.dr) : ''}</td><td>${+l.cr ? money(l.cr) : ''}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td colspan="3">الإجمالي</td><td><b>${money(sum(jLinesOf(r), l => +l.dr || 0))}</b></td><td><b>${money(sum(jLinesOf(r), l => +l.cr || 0))}</b></td></tr></tfoot></table>` : ''}
         ${Array.isArray(r.lines) && r.lines.length ? (() => { const tx = m.cols.some(c => c.tax), tt = docTotals(r); return `<h3>الأصناف</h3><table class="doc-lines"><thead><tr><th>#</th><th>الصنف</th><th>الوحدة</th><th>الكمية</th><th>السعر</th>${tx ? '<th>ض.ق.م</th><th>خصم وإضافة</th>' : ''}<th>القيمة</th></tr></thead><tbody>
           ${r.lines.map((l, i) => `<tr><td>${i + 1}</td><td>${esc(l.item)}</td><td>${esc(l.unit || itemUnit(l.item))}</td><td>${num(l.qty)}</td><td>${money(l.price)}</td>${tx ? `<td>${money(lineVat(l))}</td><td>${money(lineWht(l))}</td>` : ''}<td>${money(lineVal(l) + (tx ? lineVat(l) - lineWht(l) : 0))}</td></tr>`).join('')}</tbody>
           <tfoot><tr><td colspan="${tx ? 7 : 5}">${tx ? `القيمة ${money(tt.sub)} + ض.ق.م ${money(tt.vat)} − ض. خصم وإضافة ${money(tt.wht)} = صافي الفاتورة` : 'الإجمالي بالتكلفة'}</td><td><b>${money(tx ? tt.net : tt.sub)}</b></td></tr></tfoot></table>`; })() : ''}
