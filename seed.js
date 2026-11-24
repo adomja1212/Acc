@@ -458,6 +458,13 @@ window.ACC_SEED = {
    "balance": 0
   },
   {
+   "id": "acc215",
+   "code": "215",
+   "name": "أرصدة افتتاحية (حساب وسيط)",
+   "parent": "21",
+   "balance": 0
+  },
+  {
    "id": "acc22",
    "code": "22",
    "name": "الخصوم طويلة الأجل",
@@ -3215,5 +3222,6 @@ window.ACC_SEED = {
    "stockItem": ""
   }
  ],
- "supplierAccruals": []
+ "supplierAccruals": [],
+ "openingBalances": []
 };
