@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 22:00';
+  const APP_VERSION = '25/11/2026, 22:15';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -4229,7 +4229,12 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
 
   $('#menuBtn').onclick = () => document.body.classList.toggle('nav-open');
   $('#overlay').onclick = () => document.body.classList.remove('nav-open');
-  $('#pinBtn').onclick = () => { prefs.pinned = !prefs.pinned; savePrefs(); applyPin(); if (!prefs.pinned) document.body.classList.remove('nav-open'); };
+  $('#pinBtn').onclick = () => { prefs.pinned = !prefs.pinned; savePrefs(); applyPin(); if (!prefs.pinned) document.body.classList.remove('nav-open');
+    toast(prefs.pinned ? '📌 تم تثبيت القائمة' : 'القائمة غير مثبتة — مرّر الماوس على حافة الشاشة أو اضغط ☰ لفتحها'); };
+  // غير مثبتة: المرور على حافة الشاشة يفتح القائمة، والخروج منها يغلقها
+  let hoverOpen = false;
+  $('#edgeHot').addEventListener('mouseenter', () => { if (prefs.pinned || isMobile()) return; hoverOpen = true; document.body.classList.add('nav-open'); });
+  $('#sidebar').addEventListener('mouseleave', () => { if (!hoverOpen || prefs.pinned) return; hoverOpen = false; if (!document.querySelector('.user-menu:not([hidden])')) document.body.classList.remove('nav-open'); });
   $('#refreshBtn').onclick = () => location.reload();
   // اللغة: العربية / English / Español — تُحفظ لكل متصفح
   (() => { const b = $('#langBtn'), L = window.ACC_LANG || 'ar', NAMES = { ar: 'العربية', en: 'English', es: 'Español' };

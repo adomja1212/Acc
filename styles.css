@@ -1242,3 +1242,61 @@ tbody tr:hover td { background: #f7f9fc; }
 .lang { background: #fff; border-color: #fff; }
 .lang:hover { background: #eef3fb; }
 .user-menu, .lang-menu { color: #333; }
+
+/* ===== القائمة الجانبية: الحجم المدمج (168px) ===== */
+:root { --sidebar-w: 168px; }
+.brand { padding: 7px 8px; gap: 6px; }
+.brand-logo { width: 26px; height: 26px; font-size: 13px; border-radius: 4px; }
+.brand-name { font-size: 11.5px; }
+.brand-sub { font-size: 9.5px; }
+.side-quick { padding: 5px 2px; }
+.sq { height: 32px; }
+.sq svg { width: 21px; height: 21px; }
+.sq-n { min-width: 17px; height: 16px; padding: 0 4px; font-size: 9.5px; line-height: 12px; border-width: 2px; top: -1px; inset-inline-end: calc(50% - 20px); }
+.nav-tabs { margin: 7px 6px 0; }
+.nav-tabs button { padding: 5px 2px; font-size: 11.5px; }
+.nav-tabs button.on { padding-top: 3px; border-top-width: 3px; }
+.nav-search { margin: 0 6px; padding: 7px 0 5px; }
+.nav-search input { padding: 4px 6px; font-size: 11.5px; }
+.nav-search-ico { width: 26px; }
+.nav-search-ico svg { width: 13px; height: 13px; }
+.side-scroll { margin: 0 6px 6px; }
+.nav-head { gap: 7px; padding: 6px 6px; font-size: 12.5px; }
+.nav-ico { width: 26px; height: 26px; border-radius: 4px; }
+.nav-ico svg { width: 15px; height: 15px; }
+.nav-head .chev { width: 12px; height: 12px; }
+.nav-group.lvl1 > .nav-head { padding: 5px 6px; padding-inline-start: 10px; font-size: 12px; }
+.nav-group.lvl1 .nav-ico { width: 22px; height: 22px; }
+.nav-group.lvl1 .nav-ico svg { width: 13px; height: 13px; }
+.nav-group.lvl1 > .nav-sub .nav-leaf a { padding-inline-start: 14px; }
+.nav-leaf a { gap: 6px; padding: 4px 6px; padding-inline-start: 10px; font-size: 11.5px; line-height: 1.4; }
+.nav > .nav-leaf a { padding-inline-start: 6px; }
+.emo { width: 22px; height: 22px; font-size: 12px; border-radius: 4px; }
+.nav-title small { font-size: 9.5px; }
+.star { font-size: 11px; padding: 3px 5px; }
+.badge { font-size: 9.5px; line-height: 15px; padding: 0 5px; }
+.nav-empty { font-size: 11px; padding: 14px 6px; }
+.admin-tools { padding: 10px 6px 4px; gap: 6px; }
+.danger-btn { font-size: 10.5px; padding: 5px; }
+.version { font-size: 9.5px; }
+.sidebar-footer { padding: 5px 6px; gap: 5px; }
+.avatar { width: 24px; height: 24px; font-size: 11px; }
+.user-name { font-size: 11.5px; }
+.user-role { font-size: 9.5px; }
+.lang { height: 26px; padding: 0 4px; gap: 3px; }
+.lang svg { width: 14px; height: 14px; }
+.lang b { font-size: 10px; }
+.online { width: 7px; height: 7px; }
+
+/* زر التثبيت: واضح — ممتلئ عند التثبيت، ومائل عند الإلغاء */
+.pin-btn { width: 26px; height: 26px; border-radius: 4px; flex-shrink: 0; }
+.pin-btn svg { width: 14px; height: 14px; transition: transform .2s; }
+.pin-btn.on { background: #fff; color: #1c51ae; border-color: #fff; }
+.pin-btn:not(.on) svg { transform: rotate(0deg); }
+.pin-btn.on svg { transform: rotate(-45deg); }
+/* عند إلغاء التثبيت: شريط رفيع على حافة الشاشة يفتح القائمة عند المرور عليه */
+.edge-hot { display: none; }
+@media (min-width: 901px) {
+  body.unpinned .edge-hot { display: block; position: fixed; inset-block: 0; inset-inline-start: 0; width: 10px; z-index: 35; background: linear-gradient(90deg, rgba(33,96,200,.35), transparent); }
+  [dir="rtl"] body.unpinned .edge-hot { background: linear-gradient(270deg, rgba(33,96,200,.35), transparent); }
+}
