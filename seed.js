@@ -3157,7 +3157,8 @@ window.ACC_SEED = {
   },
   {"id":"branches-004","code":"BR-04","name":"ريجوا","address":"","manager":"","phone":""},
   {"id":"branches-005","code":"BR-05","name":"النموذجيه","address":"","manager":"","phone":""},
-  {"id":"branches-006","code":"BR-06","name":"الفيوم","address":"","manager":"","phone":""}
+  {"id":"branches-006","code":"BR-06","name":"الفيوم","address":"","manager":"","phone":""},
+  {"id":"branches-007","code":"BR-07","name":"محطه موردين","address":"","manager":"","phone":""}
  
  ],
  "salesItems": [
