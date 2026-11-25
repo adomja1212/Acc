@@ -1001,3 +1001,181 @@ body.bi-focus::after { content: ''; position: fixed; inset: 0; background: rgba(
 .bi-dr-box tr.clk:hover td { background: #f3f6fc; }
 .bi-dr-box tfoot td { font-weight: 800; background: #f4f7fd; position: sticky; bottom: 0; }
 .dash-card:not(.wide):not(.focus) .dc-b span { display: none; }
+
+/* =====================================================================
+   الثيم الكلاسيكي (ERP): رمادي فاتح، مربعات أيقونات ملونة، فواصل منقطة،
+   تبويبات صندوقية، خط Segoe UI بحجم مريح — لكل الصفحات والقائمة الجانبية
+   ===================================================================== */
+:root {
+  --navy-900: #2b2b2b; --navy-800: #333333; --navy-700: #3f4a56; --navy-600: #4b6f93;
+  --accent: #4b6f93; --accent-soft: #e6edf5; --gold: #f0ad4e;
+  --bg: #efefef; --surface: #ffffff; --border: #d6d6d6; --text: #333333; --muted: #777777;
+  --green: #4cae4c; --green-soft: #e8f5e5; --red: #d9534f; --red-soft: #fbeaea; --amber: #c88a12; --amber-soft: #fdf3dd;
+  --radius: 4px; --shadow: none;
+  --sidebar-w: 290px; --field-h: 38px; --field-r: 3px;
+  --steel: #5b7fa6; --dash: #c9c9c9; --tile: #e8e8e8;
+}
+body, button, input, select, textarea { font-family: "Segoe UI", "Helvetica Neue", Tahoma, Arial, sans-serif; }
+body { font-size: 15px; line-height: 1.55; background: var(--bg); color: var(--text); }
+svg { width: 18px; height: 18px; }
+
+/* ---------- القائمة الجانبية ---------- */
+.sidebar { --sb-line: var(--dash); --sb-text: #333; --sb-muted: #888; --sb-tab: var(--steel);
+  background: #f7f7f7; color: #333; border-inline-end: 1px solid #d4d4d4; box-shadow: none; }
+.brand { padding: 10px 14px; gap: 10px; border-bottom: 1px solid #e0e0e0; background: #fff; }
+.brand-logo { width: 34px; height: 34px; border-radius: 4px; background: #4cae4c; font-size: 16px; }
+.brand-name { color: #333; font-size: 14.5px; font-weight: 700; }
+.brand-sub { color: #888; font-size: 12px; font-weight: 400; }
+.pin-btn { width: 30px; height: 30px; border-radius: 3px; border: 1px solid #ccc; background: #fff; color: #777; }
+.pin-btn.on { color: var(--steel); border-color: var(--steel); }
+.pin-btn svg { width: 14px; height: 14px; }
+
+/* شريط الأيقونات العلوي */
+.side-quick { display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; padding: 10px 6px; background: #f4f4f4; border-bottom: 1px solid #d4d4d4; }
+.sq { position: relative; height: 46px; border: 0; background: none; display: grid; place-items: center; cursor: pointer; border-radius: 4px; color: #8a8a8a; }
+.sq:hover { background: #e9e9e9; }
+.sq svg { width: 34px; height: 34px; fill: currentColor; stroke: none; }
+.sq-home { color: #4cae4c; }
+.sq-n { position: absolute; top: -2px; inset-inline-end: calc(50% - 30px); min-width: 24px; height: 22px; padding: 0 6px; border-radius: 99px; background: #e8572a; color: #fff;
+  border: 2px solid #fff; font-style: normal; font-size: 12px; font-weight: 700; line-height: 18px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.sq-n[hidden] { display: none; }
+
+/* التبويبات: كل القوائم / المفضلة */
+.nav-tabs { margin: 12px 10px 0; border: 0; border-radius: 0; background: none; gap: 0; overflow: visible; }
+.nav-tabs button { padding: 10px 6px; font-size: 15px; font-weight: 400; color: #333; background: #f3f3f3; border: 1px solid #cfcfcf; border-radius: 0; }
+.nav-tabs button + button { border-inline-start: 0; }
+.nav-tabs button.on { background: #fff; color: #333; font-weight: 700; border-top: 3px solid var(--steel); border-bottom-color: #fff; padding-top: 8px; }
+.nav-tabs button:not(.on) { box-shadow: inset 0 -1px 0 #cfcfcf; }
+
+/* البحث: مربع بزر ملتصق */
+.nav-search { margin: 0 10px; padding: 12px 12px 6px; border: 1px solid #cfcfcf; border-top: 0; border-bottom: 0; border-radius: 0; background: #fff; }
+.nav-search input { border: 1px solid #c8c8c8; border-inline-end: 0; border-radius: 2px 0 0 2px; padding: 8px 12px; font-size: 15px; color: #333; background: #fff; }
+.nav-search input::placeholder { color: #999; }
+.nav-search-ico { width: 42px; border: 1px solid #c8c8c8; border-radius: 0; background: #f3f3f3; color: #444; }
+.nav-search-ico svg { width: 18px; height: 18px; color: #444; stroke-width: 2.4; }
+.nav-search:focus-within input { border-color: var(--steel); }
+.side-scroll { margin: 0 10px; background: #fff; border: 1px solid #cfcfcf; border-top: 0; }
+
+/* عناصر القائمة: مربع أيقونة رمادي + عنوان + فاصل منقط */
+.nav-group { border-bottom: 1px dashed var(--dash); }
+.nav-head { gap: 14px; padding: 11px 14px; font-size: 15.5px; font-weight: 400; color: #333; }
+.nav-head:hover, .nav-leaf a:hover { background: #f6f8fb; }
+.nav-ico { width: 44px; height: 44px; border-radius: 4px; background: var(--tile); box-shadow: inset 0 0 0 1px #dedede; }
+.nav-ico svg { width: 24px; height: 24px; color: var(--ic, var(--steel)); stroke-width: 2; }
+.nav-head .chev { width: 16px; height: 16px; color: #999; }
+.nav-group.current > .nav-head { color: #222; font-weight: 600; }
+.nav-group.current > .nav-head .nav-ico { background: #e1e8f0; box-shadow: inset 0 0 0 1px #c5d3e2; }
+.nav-group.open > .nav-sub { border-top: 1px dashed var(--dash); background: #fcfcfc; }
+.nav-group.lvl1 { border-top: 1px dashed var(--dash); }
+.nav-group.lvl1 > .nav-head { padding: 8px 14px; padding-inline-start: 26px; font-size: 14.5px; }
+.nav-group.lvl1 .nav-ico { width: 34px; height: 34px; }
+.nav-group.lvl1 .nav-ico svg { width: 19px; height: 19px; }
+.nav-group.lvl1 > .nav-sub .nav-leaf a { padding-inline-start: 40px; }
+.nav-leaf { border-bottom: 1px dashed #e0e0e0; }
+.nav-leaf a { gap: 12px; padding: 7px 14px; padding-inline-start: 26px; font-size: 14.5px; font-weight: 400; color: #333; line-height: 1.45; }
+.nav > .nav-leaf a { padding-inline-start: 14px; }
+.emo { width: 32px; height: 32px; border-radius: 4px; background: var(--tile); box-shadow: inset 0 0 0 1px #dedede; display: grid; place-items: center; font-size: 17px; }
+.nav-leaf.active { background: #eef3f8; box-shadow: inset -3px 0 0 var(--steel); }
+[dir="ltr"] .nav-leaf.active { box-shadow: inset 3px 0 0 var(--steel); }
+.nav-leaf.active a { color: #222; font-weight: 600; }
+.nav-title small { font-size: 11.5px; color: #888; }
+.star { font-size: 15px; color: #c4c4c4; padding: 6px 10px; }
+.star.on { color: #f0ad4e; }
+.badge { background: #e8572a; color: #fff; font-size: 11px; line-height: 18px; padding: 0 6px; border-radius: 99px; }
+.nav-empty { color: #888; font-size: 14px; padding: 22px 12px; }
+.admin-tools { padding: 12px 10px 4px; }
+.danger-btn { border: 1px solid #e3b3b1; color: #c9302c; background: #fff; border-radius: 3px; padding: 7px; font-size: 13px; }
+.danger-btn:hover { background: #fbeaea; }
+.version { color: #888; font-size: 12px; }
+.ver-link { color: var(--steel); }
+.sidebar-footer { border-top: 1px solid #d4d4d4; background: #f4f4f4; padding: 8px 10px; gap: 8px; }
+.user-btn:hover { background: #e9e9e9; }
+.avatar { width: 34px; height: 34px; font-size: 14px; border-radius: 4px; background: var(--steel); color: #fff; }
+.user-name { color: #333; font-size: 14px; font-weight: 600; }
+.user-role { color: #888; font-size: 12px; }
+.user-menu { border-radius: 4px; border: 1px solid #ccc; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+.user-menu button { color: #333; border-radius: 2px; }
+.user-menu button:hover { background: #f1f4f8; }
+/* أيقونة اللغة: مربع رمادي بأيقونة الكرة الأرضية ورمز اللغة */
+.lang { height: 38px; padding: 0 8px; gap: 6px; border: 1px solid #d0d0d0; border-radius: 4px; background: var(--tile); color: #2f86d6; font-size: 13px; }
+.lang:hover { background: #e0e0e0; }
+.lang svg { width: 22px; height: 22px; stroke-width: 1.8; color: #2f86d6; }
+.lang span { display: none; }
+.lang b { background: none; color: #444; font-size: 13px; font-weight: 700; padding: 0; }
+.lang-menu { min-width: 150px; }
+.lang-menu button { font-size: 14px; padding: 9px 12px; }
+.online { width: 9px; height: 9px; }
+@media (max-width: 900px) { .sidebar { width: min(92vw, 360px); } }
+
+/* ---------- الشريط العلوي ---------- */
+.topbar { background: #f7f7f7; backdrop-filter: none; border-bottom: 1px solid #d4d4d4; padding: 8px 20px; }
+.topbar h1 { font-size: 19px; font-weight: 600; color: #333; }
+.crumbs { font-size: 12.5px; color: #888; }
+.search { border: 1px solid #c8c8c8; border-radius: 3px; background: #fff; width: 260px; }
+.search input { font-size: 14.5px; }
+.icon-btn { border: 1px solid #d0d0d0; border-radius: 4px; background: #fff; color: #777; width: 38px; height: 38px; }
+.icon-btn:hover { background: #f0f0f0; }
+.notif-btn svg { width: 22px; height: 22px; }
+.notif-btn .notif-n { background: #e8572a; border: 2px solid #fff; min-width: 24px; height: 22px; line-height: 18px; font-size: 11.5px; top: -9px; inset-inline-end: -10px; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.sync { border-radius: 3px; }
+.tabbar { border-top: 1px solid #e2e2e2; }
+.tab { border-radius: 0; border: 1px solid #cfcfcf; border-bottom: 0; background: #ececec; color: #555; font-size: 14px; }
+.tab.on { background: #fff; color: #333; font-weight: 700; box-shadow: inset 0 3px 0 var(--steel); }
+/* لوحة الإشعارات */
+.notif-panel { border-radius: 4px; border: 1px solid #ccc; box-shadow: 0 8px 26px rgba(0,0,0,.18); }
+.notif-head { background: #f7f7f7; }
+.notif-item { border-bottom: 1px dashed var(--dash); }
+.notif-item.unread { background: #f3f7fb; }
+.notif-ico { width: 38px; height: 38px; border-radius: 4px; background: var(--tile); box-shadow: inset 0 0 0 1px #dedede; font-size: 17px; }
+.notif-ico.red, .notif-ico.amber, .notif-ico.green { background: var(--tile); }
+.notif-txt b { color: #333; font-size: 14px; font-weight: 600; }
+.notif-txt small { font-size: 12.5px; }
+
+/* ---------- الصفحات ---------- */
+.content { padding: 18px 20px 36px; }
+.card, .kpi, .tile, .bi-slicers { border-radius: 4px; border: 1px solid var(--border); box-shadow: none; }
+.card-head { background: #fafafa; border-bottom: 1px solid #e2e2e2; padding: 10px 14px; }
+.card-head h3 { font-size: 16px; font-weight: 600; color: #333; }
+.card-head .sub, .sub { font-size: 13px; color: #888; }
+.kpi { padding: 14px; }
+.kpi-icon, .tile-icon, .a-ico { border-radius: 4px; }
+.kpi-label { font-size: 13.5px; color: #777; }
+.kpi-value { font-size: 21px; font-weight: 600; color: #333; }
+.kpi-trend { font-size: 12.5px; }
+.tile h4 { font-size: 15px; font-weight: 600; color: #333; }
+.tile-icon { background: var(--tile); color: var(--steel); box-shadow: inset 0 0 0 1px #dedede; }
+.section-title { font-size: 16px; font-weight: 600; color: #333; }
+table { font-size: 14px; }
+th { background: #f3f3f3; color: #555; font-size: 13px; font-weight: 600; border-bottom: 1px solid #d6d6d6; }
+td { border-bottom: 1px dashed #dddddd; }
+tbody tr:hover td { background: #f7f9fc; }
+.btn { border-radius: 3px; font-weight: 600; font-size: 14px; box-shadow: none; }
+.btn.primary { background: var(--steel); border-color: var(--steel); color: #fff; }
+.btn.primary:hover { background: #4b6f93; }
+.btn.ghost { background: #fff; border: 1px solid #c8c8c8; color: #333; }
+.btn.ghost:hover { background: #f2f2f2; }
+.input, select.input, textarea.input, .sel-proxy { border-radius: var(--field-r); border-color: #c8c8c8; font-size: 14.5px; }
+.input:focus, .sel-proxy:focus { border-color: var(--steel); box-shadow: 0 0 0 2px rgba(91,127,166,.18); }
+.pill { border-radius: 3px; }
+.row-actions button { border-radius: 3px; }
+.modal-box { border-radius: 4px; }
+.modal-head { background: #f7f7f7; border-bottom: 1px solid #ddd; }
+.modal-head h3 { font-weight: 600; color: #333; }
+.field label { font-size: 13.5px; color: #555; font-weight: 600; }
+.toolbar .search, .toolbar input[type=search] { border-radius: 3px; }
+.link-btn { color: var(--steel); }
+/* الداش بورد */
+.dash-filters .df-b { border-radius: 3px; border-color: #c8c8c8; background: #f7f7f7; font-size: 13.5px; }
+.dash-filters .df-b.on { background: var(--steel); border-color: var(--steel); }
+.dash-filters .df-br .input { border-radius: 3px; }
+.bi-chip { border-radius: 3px; background: #eef3f8; border-color: #c5d3e2; }
+.dc-b { border-radius: 3px; border-color: #d0d0d0; color: #444; }
+.hb-row { border-radius: 2px; }
+.dash-tip { border-radius: 4px; }
+.bi-dr-head { background: #f7f7f7; }
+.side-scroll { margin-bottom: 10px; }
+.tabbar { background: #ececec; }
+.tab { border-radius: 0; }
+.tab-btn { border-radius: 0; border: 1px solid #cfcfcf; background: #f3f3f3; color: #333; font-weight: 400; }
+.tab-btn.on { background: #fff; color: #333; font-weight: 700; border-color: #cfcfcf; box-shadow: inset 0 3px 0 var(--steel); }
+.tab-btn.on em { background: #eef3f8; }

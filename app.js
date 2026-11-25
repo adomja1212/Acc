@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 15:00';
+  const APP_VERSION = '25/11/2026, 21:30';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -1207,10 +1207,13 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     if (!leaves.length) return '';
     const total = sum(leaves, p => badges[p]?.() || 0);
     return `<div class="nav-group lvl${lvl} ${open ? 'open' : ''} ${leaves.includes(state.page) ? 'current' : ''}">
-      <button class="nav-head" data-toggle="${key}" aria-expanded="${open}"><span class="nav-ico">${icons[g.icon]}</span><span class="nav-title">${g.title}</span>${open ? '' : badge(total)}${icons.chevDown}</button>
+      <button class="nav-head" data-toggle="${key}" aria-expanded="${open}"><span class="nav-ico" style="--ic:${ICON_TINT[g.icon] || '#5b7fa6'}">${icons[g.icon]}</span><span class="nav-title">${g.title}</span>${open ? '' : badge(total)}${icons.chevDown}</button>
       <div class="nav-sub">${itemsOf(g).map((it, j) => typeof it === 'string' ? leafHTML(it) : groupHTML(it, `${key}.${j}`, lvl + 1)).join('')}</div>
     </div>`;
   }
+  // ألوان أيقونات مجموعات القائمة (أيقونات مسطحة ملونة داخل مربع رمادي)
+  const ICON_TINT = { list: '#2f86d6', ledger: '#2f86d6', box: '#e5892b', cash: '#2f9e5b', bank: '#2b7bbf', sales: '#e0533d', users: '#7b5cc4', cart: '#e3a21a',
+    hardhat: '#d98b1f', truck: '#4f7fb8', wrench: '#6c7a89', trend: '#22a3a3', db: '#5d6d7e', shield: '#8a5cc4' };
   function renderNav() {
     buildPaths();
     const q = state.navQ.trim().toLowerCase();
@@ -4034,12 +4037,18 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     const list = buildNotifs(), seen = notifSeen(), unread = list.filter(n => !seen.has(n.id)).length;
     btn.querySelector('.notif-n').textContent = unread > 99 ? '99+' : unread || '';
     btn.classList.toggle('has', unread > 0);
+    const sqN = $('#sqNotif'), sqA = $('#sqAppr'), ap = myApprovals().length;
+    if (sqN) { sqN.textContent = unread > 99 ? '99+' : unread || ''; sqN.hidden = !unread; }
+    if (sqA) { sqA.textContent = ap > 99 ? '99+' : ap || ''; sqA.hidden = !ap; }
     const panel = $('#notifPanel');
     if (!panel.hidden) panel.innerHTML = `<div class="notif-head"><b>الإشعارات</b>${unread ? `<span class="pill amber">${unread} جديد</span>` : ''}<span class="spacer"></span>${list.length ? '<button type="button" class="link-btn" id="notifAll">تعليم الكل كمقروء</button>' : ''}</div>
       <div class="notif-list">${list.length ? list.map(n => `<button type="button" class="notif-item ${seen.has(n.id) ? '' : 'unread'}" data-nid="${esc(n.id)}" data-npage="${esc(n.page)}" data-nq="${esc(n.q || '')}">
         <span class="notif-ico ${n.cls}">${n.icon}</span><span class="notif-txt"><b>${esc(n.title)}</b><small>${esc(n.sub || '')}</small></span><time>${n.agg ? `<span class="pill">${n.n}</span>` : esc(timeAgo(n.at))}</time></button>`).join('')
         : '<div class="notif-empty">لا توجد إشعارات 👍</div>'}</div>`;
   }
+  $$('.side-quick [data-sq]').forEach(b => b.addEventListener('click', e => { const k = b.dataset.sq;
+    if (k === 'notif') { e.stopPropagation(); document.body.classList.remove('nav-open'); $('#notifBtn')?.click(); return; }
+    if (can(k)) goTo(k); else toast('ليست لديك صلاحية لهذه الشاشة'); }));
   $('#notifBtn')?.addEventListener('click', e => { e.stopPropagation(); const p = $('#notifPanel'); p.hidden = !p.hidden; renderBell(); });
   document.addEventListener('click', e => {
     const p = $('#notifPanel'); if (!p || p.hidden) return;
