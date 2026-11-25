@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 03:30';
+  const APP_VERSION = '26/11/2026, 04:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -83,16 +83,23 @@
 
   // الكتابة للسحابة: عدة عمليات متوازية (أسرع كثيراً عند الاستيراد)، مع إعادة المحاولة عند الضغط أو الانقطاع المؤقت،
   // ولا تُكتب وثيقتان لنفس المسار في نفس الوقت حتى يبقى الترتيب صحيحاً
-  const PUMP_WORKERS = 4;
+  const PUMP_WORKERS = 4, WRITE_GAP = 220; // حد السرعة: حوالي 4.5 عملية في الثانية حتى لا نتجاوز حد السحابة
   store.inflight = new Map(); // عمليات قيد الإرسال الآن: تُعامل كتعديلات لم تُحفظ بعد حتى لا ترجعها لقطة أقدم من السحابة
+  let nextSlot = 0, pauseUntil = 0, pauseStep = 0;
+  const waitSlot = async () => { for (;;) { const now = Date.now(), at = Math.max(nextSlot, pauseUntil); if (at <= now) { nextSlot = now + WRITE_GAP; return; } await sleep(at - now); } };
+  // النتيجة: 'ok' أو 'requeue' (تجاوز حد السرعة: تعود للطابور ويتوقف الحفظ مؤقتاً ثم يُستأنف تلقائياً) أو 'failed'
   async function writeOp(op) {
     const run = () => op.del ? store.cloud.doc(op.path).delete() : store.cloud.doc(op.path).set(op.body);
     for (let i = 0; ; i++) {
-      try { await run(); return; }
+      await waitSlot();
+      try { await run(); pauseStep = 0; return 'ok'; }
       catch (e) {
-        const retry = (e?.code === 'unavailable' || e?.code === 'resource_exhausted') && i < 6;
-        if (!retry) { writeFailed(e, op); return; }
-        await sleep(Math.min(8000, 500 * 2 ** i) + Math.random() * 500);
+        if (e?.code === 'resource_exhausted') {
+          pauseStep = Math.min(pauseStep + 1, 6); pauseUntil = Date.now() + Math.min(60000, 2500 * 2 ** (pauseStep - 1)) + Math.random() * 1000;
+          setSync('paused'); return 'requeue';
+        }
+        if (e?.code === 'unavailable' && i < 5) { await sleep(Math.min(8000, 500 * 2 ** i) + Math.random() * 500); continue; }
+        writeFailed(e, op); return 'failed';
       }
     }
   }
@@ -105,8 +112,10 @@
         const ix = store.queue.findIndex(o => !busy.has(o.path));
         if (ix < 0) { await sleep(50); continue; }
         const [op] = store.queue.splice(ix, 1); busy.add(op.path); store.inflight.set(op.path, op);
-        try { await writeOp(op); } finally { busy.delete(op.path); if (store.inflight.get(op.path) === op) store.inflight.delete(op.path); }
-        setSync('saving');
+        let res = 'ok';
+        try { res = await writeOp(op); } finally { busy.delete(op.path); if (store.inflight.get(op.path) === op) store.inflight.delete(op.path); }
+        if (res === 'requeue') store.queue.unshift(op); // لم تُحفظ بعد: تعود أول الطابور بنفس ترتيبها
+        setSync(Date.now() < pauseUntil ? 'paused' : 'saving');
       }
     };
     await Promise.all(Array.from({ length: PUMP_WORKERS }, worker));
@@ -4374,9 +4383,14 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
 
   // إعادة الرسم عند وصول تحديثات من مستخدمين آخرين (مع الحفاظ على مكان الكتابة)
   let renderTimer;
+  // أثناء حفظ كمية كبيرة (استيراد/اعتماد جماعي) كل سجل يصل يطلب إعادة رسم: نحدّها بمرة كل 3 ثوانٍ حتى تبقى الصفحة قابلة للاستخدام
+  let lastRenderAt = 0;
   function scheduleRender() {
+    const busySync = store.pumping || store.queue.length > 0;
+    if (busySync && renderTimer) return;
     clearTimeout(renderTimer);
     renderTimer = setTimeout(() => {
+      renderTimer = null; lastRenderAt = Date.now();
       if (!store.ready) return;
       if (document.body.classList.contains('locked')) { const want = db.appUsers.length ? 'login' : 'setup'; if (state.authMode !== want) showAuth(want); return; }
       if (!state.page) return;
@@ -4386,7 +4400,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       renderBrand(); renderNav(); renderTabs(); renderBell();
       if (!(inContent && !id)) renderPage();
       if (id && inContent) { const el = document.getElementById(id); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } }
-    }, 80);
+    }, busySync ? Math.max(80, 3000 - (Date.now() - lastRenderAt)) : 80);
   }
 
   // ---------- رأس القائمة وتذييلها ----------
@@ -4417,6 +4431,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       error: ['انقطع الاتصال بقاعدة البيانات', 'err'], local: ['قاعدة بيانات محلية', 'local'], offline: ['قاعدة البيانات غير متاحة — حفظ مؤقت في المتصفح', 'warn'] };
     let [txt, cls] = map[s] || map.connecting;
     if (s === 'saving' && store.queue?.length > 5) txt = `جارٍ الحفظ… متبقي ${nf.format(store.queue.length)} سجل — لا تغلق الصفحة`;
+    if (s === 'paused') { txt = `الحفظ متوقف لحظياً (حد سرعة قاعدة البيانات) ويُستأنف تلقائياً — متبقي ${nf.format(store.queue?.length || 0)} سجل، لا تغلق الصفحة`; cls = 'warn'; }
     const pill = $('#syncPill'); pill.className = `sync ${cls}`; pill.querySelector('span').textContent = txt;
     $('#onlineDot').className = `online ${cls}`;
     $('#onlineDot').title = txt;
