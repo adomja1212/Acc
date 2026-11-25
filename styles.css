@@ -1376,3 +1376,9 @@ tbody tr:hover td { background: #f7f9fc; }
 .sales-grid [data-c="itype"] { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .sales-grid .lg-tot { font-weight: 700; color: var(--text); background: #f4f7fb; }
 .sales-grid .lg-val::placeholder { color: #333; opacity: .75; }
+/* معاينة الاستيراد */
+.imp-view { display: flex; gap: 0; margin: 10px 0 6px; }
+.imp-pager { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 13px; color: var(--muted); }
+.imp-decide b { display: block; margin-bottom: 4px; }
+.imp-decide-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0 4px; }
+.imp-decide .check { background: #fff; }

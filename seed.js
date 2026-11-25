@@ -3154,7 +3154,11 @@ window.ACC_SEED = {
    "address": "القاهرة",
    "manager": "",
    "phone": ""
-  }
+  },
+  {"id":"branches-004","code":"BR-04","name":"ريجوا","address":"","manager":"","phone":""},
+  {"id":"branches-005","code":"BR-05","name":"النموذجيه","address":"","manager":"","phone":""},
+  {"id":"branches-006","code":"BR-06","name":"الفيوم","address":"","manager":"","phone":""}
+ 
  ],
  "salesItems": [
   {

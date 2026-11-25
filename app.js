@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 01:30';
+  const APP_VERSION = '26/11/2026, 02:15';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -3303,7 +3303,29 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       } catch (e) { out.status = 'error'; out.msg = e.message; }
       return out;
     });
-    return { rows, unknown: (sheet[0] || []).filter((h, i) => h !== '' && !Object.values(colIdx).includes(i)), missingCols };
+    const made = def.lineImport ? simulateGroups(t, def, rows, preset) : null;
+    return { rows, made, unknown: (sheet[0] || []).filter((h, i) => h !== '' && !Object.values(colIdx).includes(i)), missingCols };
+  }
+  // نفس خطوات التنفيذ على نسخة مؤقتة: تظهر أخطاء كل مستند (العميل، الصنف، إجمالي مدين…) في المعاينة، ثم تُستعاد البيانات كما كانت
+  function simulateGroups(t, def, rows, preset) {
+    const made = { cust: [], items: [], types: [] };
+    const bc = db.customers, bs = db.salesItems, bt = db[t], wasImp = importing;
+    db.customers = bc.slice(); db.salesItems = bs.map(x => ({ ...x })); db[t] = bt.slice(); importing = true; cache = {};
+    try {
+      const groups = new Map();
+      rows.forEach(r => { if (r.status === 'error') return; const k = r.data.no || '#' + r.line; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
+      const LK = def.lineKeys || LINE_KEYS, key = def.lineKey || 'lines';
+      for (const g of groups.values()) {
+        const head = Object.fromEntries(Object.entries(g[0].data).filter(([k, v]) => !LK.includes(k) && !(k in preset && v === '')));
+        const data = JSON.parse(JSON.stringify({ ...(def.defaults?.() || {}), ...head, [key]: g.map(r => Object.fromEntries(LK.map(k => [k, r.data[k] ?? '']))).map(l => def.lineFix ? def.lineFix(l) : l).filter(l => l[LK[0]]) }));
+        if (!data.no) data.no = nextNo(db[t], 'no');
+        let err = '';
+        try { def.prepare?.(data, made); err = def.validate?.(data, null) || ''; } catch (e) { err = e.message; }
+        if (err) g.forEach(r => { r.status = 'error'; r.msg = `${data.no ? `مستند ${data.no}: ` : ''}${err}`; });
+        else { db[t].push({ id: '__sim', ...data }); cache = {}; }
+      }
+    } finally { db.customers = bc; db.salesItems = bs; db[t] = bt; importing = wasImp; cache = {}; }
+    return made;
   }
 
   // ----- التنفيذ -----
@@ -3376,7 +3398,9 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     if (!canSp('import')) return denied();
     const tables = importTables();
     if (!tables.length) return denied();
-    let t = tables.includes(t0) ? t0 : tables[0], parsed = null, sheet = null;
+    let t = tables.includes(t0) ? t0 : tables[0], parsed = null, sheet = null, view = 'all', page = 0, ignoreErr = false;
+    const PAGE = 200;
+    const reparse = () => { parsed = analyze(t, sheet.rows, sheet.mode || 'add', presetFor(t)); view = 'all'; page = 0; ignoreErr = false; };
     const presetFor = x => Object.fromEntries(Object.entries(preset).filter(([k]) => importFields(x).some(c => c.key === k)));
     // اختيار الورقة الأنسب للجدول (باسم الجدول) عند وجود أكثر من ورقة
     const bestSheet = (sheets, x) => sheets.find(w => normAr(w.name) === normAr(importDef(x).title)) || sheets.find(w => normAr(importDef(x).title).includes(normAr(w.name)) || normAr(w.name).includes(normAr(importDef(x).title))) || sheets[0];
@@ -3405,19 +3429,33 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
           <div class="summary imp-sum"><div><span>صفوف الملف</span><b>${parsed.rows.length}</b></div><div><span>جديد</span><b class="up">${cnt('new')}</b></div>
             <div><span>تحديث</span><b>${cnt('update')}</b></div><div><span>أخطاء (ستُتخطى)</span><b class="${cnt('error') ? 'down' : ''}">${cnt('error')}</b></div></div>
           ${parsed.unknown.length ? `<div class="af-note warn">أعمدة غير معروفة سيتم تجاهلها: ${parsed.unknown.map(esc).join('، ')}</div>` : ''}
+          ${(() => { const mk = parsed.made; const parts = mk ? [mk.cust.length ? `${mk.cust.length} عميل جديد` : '', mk.items.length ? `${mk.items.length} صنف جديد` : '', mk.types.length ? `${mk.types.length} نوع صنف جديد` : ''].filter(Boolean) : [];
+            return parts.length ? `<div class="af-note">سيتم تكويد تلقائياً: ${parts.join('، ')}${mk.cust.length ? `<br><small>العملاء: ${mk.cust.slice(0, 12).map(esc).join('، ')}${mk.cust.length > 12 ? ' …' : ''}</small>` : ''}${mk.items.length ? `<br><small>الأصناف: ${mk.items.map(esc).join('، ')}</small>` : ''}</div>` : ''; })()}
+          ${cnt('error') ? `<div class="af-note warn imp-decide"><b>يوجد ${cnt('error')} صف بها أخطاء ولن يتم استيرادها.</b> راجع السبب في عمود "سبب الخطأ" (اضغط "الأخطاء فقط").
+            <div class="imp-decide-row"><label class="check"><input type="checkbox" id="impIgnore" ${ignoreErr ? 'checked' : ''}> تجاهل الصفوف الخاطئة واستيراد الباقي (${cnt('new') + cnt('update')} صف)</label>
+            <button type="button" class="btn ghost" id="impErrXlsx">${icons.export}تنزيل الصفوف الخاطئة (Excel)</button></div>
+            <small>أو صحّح الملف واختره من جديد.</small></div>` : ''}
+          ${(() => { const list = view === 'err' ? parsed.rows.filter(r => r.status === 'error') : parsed.rows, pages = Math.max(1, Math.ceil(list.length / PAGE)); page = Math.min(page, pages - 1);
+            const pager = pages > 1 ? `<div class="imp-pager">${page > 0 ? `<button type="button" class="btn ghost" data-ipg="${page - 1}">→ السابق</button>` : ''}<span>صفحة ${page + 1} من ${pages} (الصفوف ${page * PAGE + 1}–${Math.min(list.length, (page + 1) * PAGE)} من ${list.length})</span>${page < pages - 1 ? `<button type="button" class="btn ghost" data-ipg="${page + 1}">التالي ←</button>` : ''}</div>` : '';
+            return `<div class="imp-view"><button type="button" class="tab-btn ${view === 'all' ? 'on' : ''}" data-iv="all">كل الصفوف <em>${parsed.rows.length}</em></button>
+              <button type="button" class="tab-btn ${view === 'err' ? 'on' : ''}" data-iv="err">الأخطاء فقط <em>${cnt('error')}</em></button></div>${pager}
           <div class="table-wrap imp-prev"><table>
             <thead><tr><th>الصف</th><th>الحالة</th><th>سبب الخطأ</th>${fields.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead>
-            <tbody>${parsed.rows.slice(0, 200).map(r => `<tr class="${r.status === 'error' ? 'bad' : ''}"><td class="num">${r.line}</td>
+            <tbody>${list.slice(page * PAGE, (page + 1) * PAGE).map(r => `<tr class="${r.status === 'error' ? 'bad' : ''}"><td class="num">${r.line}</td>
               <td>${r.status === 'new' ? '<span class="pill green">جديد</span>' : r.status === 'update' ? '<span class="pill">تحديث</span>' : '<span class="pill red">خطأ</span>'}</td>
-              <td class="err-msg">${esc(r.msg)}</td>${fields.map(c => `<td>${esc(r.data[c.key] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody>
-          </table></div>
-          ${parsed.rows.length > 200 ? `<div class="hint">يتم عرض أول 200 صف فقط</div>` : ''}` : `
+              <td class="err-msg">${esc(r.msg)}</td>${fields.map(c => `<td>${esc(r.data[c.key] ?? '')}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${fields.length + 3}" class="hint">لا توجد صفوف</td></tr>`}</tbody>
+          </table></div>${pager}`; })()}` : `
           <div class="imp-help"><p>1. نزّل النموذج وافتحه في Excel واملأ البيانات (يمكن لصق بيانات من برنامجك القديم).</p>
           <p>2. اختر الملف — ستظهر معاينة لكل صف قبل الحفظ، مع توضيح الأخطاء.</p>
           <p>3. اضغط "تنفيذ الاستيراد". كل الحركات تُرحّل تلقائياً كأنها أُدخلت يدوياً.</p></div>`}`;
-      $('#impTable').onchange = e => { t = e.target.value; if (sheet) { if (sheet.sheets) sheet.rows = bestSheet(sheet.sheets, t).rows; parsed = analyze(t, sheet.rows, sheet.mode || 'add', presetFor(t)); } draw(); };
-      $('#impMode').onchange = () => { if (sheet) { sheet.mode = $('#impMode').value; parsed = analyze(t, sheet.rows, sheet.mode, presetFor(t)); draw(); } };
-      $('#impSheet') && ($('#impSheet').onchange = e => { sheet.rows = sheet.sheets[+e.target.value].rows; parsed = analyze(t, sheet.rows, sheet.mode || 'add', presetFor(t)); draw(); });
+      $('#impTable').onchange = e => { t = e.target.value; if (sheet) { if (sheet.sheets) sheet.rows = bestSheet(sheet.sheets, t).rows; reparse(); } draw(); };
+      $('#impMode').onchange = () => { if (sheet) { sheet.mode = $('#impMode').value; reparse(); draw(); } };
+      $('#impSheet') && ($('#impSheet').onchange = e => { sheet.rows = sheet.sheets[+e.target.value].rows; reparse(); draw(); });
+      $$('[data-iv]', body).forEach(b => b.onclick = () => { view = b.dataset.iv; page = 0; draw(); });
+      $$('[data-ipg]', body).forEach(b => b.onclick = () => { page = +b.dataset.ipg; draw(); body.querySelector('.imp-prev')?.scrollTo(0, 0); });
+      const ig = $('#impIgnore'); if (ig) ig.onchange = () => { ignoreErr = ig.checked; $('#saveBtn').disabled = !canRun(); };
+      $('#impErrXlsx') && ($('#impErrXlsx').onclick = () => exportGrid(`أخطاء استيراد ${importDef(t).title}`, ['الصف', 'سبب الخطأ', ...fields.map(c => c.label)],
+        parsed.rows.filter(r => r.status === 'error').map(r => [r.line, r.msg, ...fields.map(c => r.data[c.key] ?? '')])));
       if (sheet) $('#impMode').value = sheet.mode || 'add';
       $('#impTpl').onclick = () => downloadTemplate(t);
       $('#impFile').onchange = async e => {
@@ -3428,12 +3466,14 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
           const rows = sheets ? bestSheet(sheets, t).rows : all;
           if (rows.length < 2) throw new Error('الملف فارغ أو لا يحتوي إلا على صف العناوين');
           const mode = $('#impMode').value;
-          sheet = { name: f.name, rows, sheets, mode }; parsed = analyze(t, rows, mode, presetFor(t)); draw();
+          sheet = { name: f.name, rows, sheets, mode }; reparse(); draw();
         } catch (err) { $('#impName').textContent = err.message; toast(err.message, 4000); }
       };
       $('#saveBtn').textContent = 'تنفيذ الاستيراد';
-      $('#saveBtn').disabled = !parsed || !parsed.rows.some(r => r.status !== 'error');
+      $('#saveBtn').disabled = !canRun();
     };
+    // بها أخطاء: لا يُنفذ الاستيراد إلا بعد اختيار تجاهلها صراحةً
+    const canRun = () => !!parsed && parsed.rows.some(r => r.status !== 'error') && (!parsed.rows.some(r => r.status === 'error') || ignoreErr);
     draw();
     modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false');
     onSubmit = () => {
