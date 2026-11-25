@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 00:15';
+  const APP_VERSION = '26/11/2026, 00:45';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -3156,6 +3156,28 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   const salesLineCols = () => [C('code', 'كود الصنف', { optional: true, aka: ['الكود'] }), C('item', 'اسم الصنف', { optional: true, aka: ['الصنف'] }), C('itype', 'نوع الصنف', { optional: true, aka: ['النوع'] }), C('unit', 'الوحدة', { optional: true }),
     C('qty', 'الكمية', { ...N, optional: true }), C('count', 'العدد', { ...N, optional: true }), C('uw', 'وزن الوحدة', { ...N, optional: true }),
     C('value', 'القيمة', { ...M, optional: true }), C('disc', 'الخصم', { ...M, optional: true }), C('pack', 'قيمة مواد التعبئة', { ...M, optional: true, aka: ['مواد التعبئة', 'مواد تعبئة'] })];
+  // استيراد المبيعات: العميل الجديد يُكوَّد في قاعدة العملاء (بتصنيف اسم الحساب)،
+  // والصنف الجديد يُكوَّد في أصناف المبيعات الخاصة بنوع المبيعات، والنوع الجديد يُضاف لأنواع الصنف
+  function salesAutoCreate(d, made) {
+    const name = String(d.customer || '').trim();
+    if (name && !isCustomer(name)) {
+      const ca = childrenOf(SYS.customers).find(x => x.code === d.account);
+      if (ca) { db.customers.push({ id: genId(), code: nextNo(db.customers, 'code') || 'C-001', name, category: ca.name, phone: '', city: '', limit: 0 }); made.cust.push(name); cache = {}; }
+    }
+    if (!d.account && isCustomer(name)) d.account = custAcc(name);
+    const sacc = salesAccR({ ...d, stype: '' });
+    (Array.isArray(d.lines) ? d.lines : []).forEach(l => {
+      const nm = String(l.item || '').trim(); if (!nm) return;
+      const ty = String(l.itype || '').trim();
+      const si = salesItemOf(nm);
+      if (!si && !db.items.some(i => i.name === nm)) {
+        const q = +l.qty || 0, v = l.value === '' || l.value == null ? 0 : +l.value || 0;
+        db.salesItems.push({ id: genId(), code: nextNo(db.salesItems, 'code') || 'SI-001', account: sacc, name: nm, itype: ty, unit: l.unit || db.units[0]?.name || 'كجم',
+          weight: +l.uw || 0, price: q && v ? +(v / q).toFixed(2) : 0, stockItem: '' });
+        made.items.push(nm); cache = {};
+      } else if (si && ty && !varietiesOf(si.itype).includes(ty)) { si.itype = [...varietiesOf(si.itype), ty].join('، '); made.types.push(`${nm} › ${ty}`); }
+    });
+  }
   // كود الصنف وحده يكفي في ملف الاستيراد
   const salesLineFix = l => { if (!l.item && l.code) l.item = db.salesItems.find(i => String(i.code) === String(l.code))?.name || db.items.find(i => String(i.code) === String(l.code))?.name || ''; return l; };
   const lineImportCols = (tax, opt) => [C('item', 'الصنف', { optional: !!opt }), C('unit', 'الوحدة', { optional: true }), C('qty', 'الكمية', { ...N, optional: !!opt }), C('price', 'السعر', { ...M, optional: true }),
@@ -3164,7 +3186,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   const importDef = t => t === 'accounts' ? ACC_IMPORT : t === 'journal' ? { ...modules.journal, lineImport: true, lineKey: 'jlines', lineKeys: JL_KEYS,
       cols: [...modules.journal.cols.filter(c => !['jlines', 'amount'].includes(c.key)), C('acc', 'الحساب', { input: 'select', options: leafOpts() }), C('dr', 'مدين', { ...M, optional: true }), C('cr', 'دائن', { ...M, optional: true }), C('note', 'بيان السطر', { optional: true })] }
     : ['salesInvoices', 'salesReturns'].includes(tbl(t)) && modules[t]?.cols.some(c => c.input === 'lines')
-    ? { ...modules[t], lineImport: true, lineKeys: SALES_LK, lineFix: salesLineFix, cols: [...modules[t].cols.filter(c => c.input !== 'lines' && !c.compute), ...salesLineCols()] }
+    ? { ...modules[t], lineImport: true, lineKeys: SALES_LK, lineFix: salesLineFix, prepare: salesAutoCreate, cols: [...modules[t].cols.filter(c => c.input !== 'lines' && !c.compute), ...salesLineCols()] }
     : modules[t]?.cols.some(c => c.input === 'lines')
     ? { ...modules[t], lineImport: true, cols: [...modules[t].cols.filter(c => c.input !== 'lines'), ...lineImportCols(modules[t].cols.some(c => c.tax), modules[t].cols.some(c => c.optionalLines))] } : modules[t];
   const importFields = t => importDef(t).cols.filter(c => !c.compute && c.input !== 'lines' && c.input !== 'jlines');
@@ -3272,7 +3294,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   function runImport(t, rows, preset = {}) {
     const def0 = importDef(t);
     const def = Object.keys(preset).length ? { ...def0, defaults: () => ({ ...(def0.defaults?.() || {}), ...preset }) } : def0;
-    let added = 0, updated = 0; const fails = [];
+    let added = 0, updated = 0; const fails = [], made = { cust: [], items: [], types: [] };
     importing = true;
     try {
       if (def.lineImport) {
@@ -3283,6 +3305,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
           const head = Object.fromEntries(Object.entries(g[0].data).filter(([k, v]) => !LK.includes(k) && !(k in preset && v === '')));
           const data = { ...(def.defaults?.() || {}), ...head, [key]: g.map(r => Object.fromEntries(LK.map(k => [k, r.data[k] ?? '']))).map(l => def.lineFix ? def.lineFix(l) : l).filter(l => l[LK[0]]) };
           if (!data.no) data.no = nextNo(db[t], 'no');
+          def.prepare?.(data, made);
           const err = def.validate?.(data, null);
           if (err) { g.forEach(r => fails.push({ ...r, status: 'error', msg: err })); continue; }
           const rec = { id: genId(), ...data }; db[t].push(rec); added++;
@@ -3307,9 +3330,9 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         cache = {};
       }
     } finally { importing = false; }
-    if (added || updated) save();
+    if (added || updated || made.cust.length || made.items.length || made.types.length) save();
     renderNav(); renderPage();
-    return { added, updated, fails };
+    return { added, updated, fails, made };
   }
 
   // ----- الواجهة -----
@@ -3406,7 +3429,8 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         <div><span>تم التخطي</span><b class="${res.fails.length ? 'down' : ''}">${res.fails.length}</b></div><div><span>الجدول</span><b>${esc(importDef(t).title)}</b></div></div>
         ${res.fails.length ? `<div class="table-wrap imp-prev"><table><thead><tr><th>الصف</th><th>السبب</th></tr></thead><tbody>${res.fails.map(f => `<tr class="bad"><td class="num">${f.line}</td><td class="err-msg">${esc(f.msg)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="af-note">تم استيراد كل الصفوف بنجاح.</div>'}`;
       $('#saveBtn').textContent = 'حفظ'; $('#saveBtn').disabled = false;
-      toast(`استيراد: ${res.added} جديد، ${res.updated} تحديث، ${res.fails.length} متخطى`, 4000);
+      const mk = res.made || {}, extra = [mk.cust?.length ? `${mk.cust.length} عميل جديد` : '', mk.items?.length ? `${mk.items.length} صنف جديد` : '', mk.types?.length ? `${mk.types.length} نوع صنف جديد` : ''].filter(Boolean);
+      toast(`استيراد: ${res.added} جديد، ${res.updated} تحديث، ${res.fails.length} متخطى${extra.length ? ` — وتم تكويد ${extra.join('، ')}` : ''}`, 6000);
       return false;
     };
   }
