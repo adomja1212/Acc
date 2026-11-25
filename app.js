@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 00:45';
+  const APP_VERSION = '26/11/2026, 01:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -566,11 +566,11 @@
   const itemUnit = n => db.items.find(i => i.name === n)?.unit || '';
   // فاتورة البيع / المردودات: الصافي = مجموع الأصناف، والمخزن اختياري
   // اسم الحساب واسم العميل: العميل يجب أن يكون من عملاء الحساب المختار
-  function custAccCheck(d) {
+  function custAccCheck(d, noDue) {
     d.customer = String(d.customer || '').trim();
     if (!isCustomer(d.customer)) return d.customer ? `العميل "${d.customer}" غير موجود في قاعدة بيانات العملاء` : 'اختر اسم العميل';
     if (!d.account) d.account = custAcc(d.customer);
-    if (!d.due) d.due = addDays(d.date || today(), 30);
+    if (!d.due && !noDue) d.due = addDays(d.date || today(), 30);
     if (custAcc(d.customer) !== d.account) return `العميل "${d.customer}" ليس من ${acc(d.account)?.name || 'هذا الحساب'}`;
     const ty = acc(d.account)?.name.replace(/^عملاء\s*/, ''); if (ty && SALE_TYPES.some(([, t]) => t === ty)) d.stype = ty;
   }
@@ -831,17 +831,26 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       actions: [{ icon: 'sales', title: 'تحويل إلى فاتورة', target: 'salesInvoices', show: r => r.status !== 'مرفوض',
         fn: r => openRecordForm('salesInvoices', null, { customer: r.customer, amount: r.amount }, () => { const x = db.salesQuotes.find(q => q.id === r.id); if (x) x.status = 'مقبول'; }), write: true }] },
     salesReturns: { title: 'كل فواتير المردودات', sub: 'تُرحّل: من حـ/ مبيعات النوع إلى حـ/ العميل', single: 'فاتورة مردودات', key: 'no', cols: [
-      C('no', 'رقم فاتورة المردودات', CODE), C('customer', 'العميل', { input: 'select', options: names('customers') }),
-      C('invoice', 'الفاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]) }),
-      C('date', 'التاريخ', D),
-      branchField(), C('warehouse', 'المخزن (لإعادة الأصناف للمخزون)', { input: 'select', optional: true, allowEmpty: '— بدون إعادة للمخزن —', options: names('warehouses'), formOnly: true }),
+      C('no', 'رقم فاتورة المردودات', CODE), C('date', 'التاريخ', D),
+      C('account', 'اسم الحساب', { input: 'select', options: custAccOpts, render: v => `<span class="hint">${esc(acc(v)?.name || v || '')}</span>`, aka: ['حساب العميل'] }),
+      C('customer', 'اسم العميل', { dyn: true, dynFrom: 'account', suggest: v => custOfAcc(v?.account), aka: ['العميل'] }),
+      C('docNo', 'رقم المستند', { optional: true, cls: 'code' }),
+      branchField('الفرع', { formOnly: false, render: v => v ? esc(v) : '<span class="hint">—</span>' }),
+      C('invoice', 'فاتورة البيع الأصلية', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]), aka: ['الفاتورة'] }),
+      C('warehouse', 'المخزن (لإعادة الأصناف للمخزون)', { input: 'select', optional: true, allowEmpty: '— بدون إعادة للمخزن —', options: names('warehouses'), formOnly: true }),
       C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true, priceFrom: 'price', optionalLines: true }),
       C('itemsSum', 'الأصناف', { compute: r => linesSummary(r) || '—', render: (v, r) => Array.isArray(r.lines) && r.lines.length ? `${esc(v)} <span class="hint">(${r.lines.length})</span>` : '<span class="hint">—</span>' }),
-      C('amount', 'القيمة', { ...M, total: true, optional: true }), C('reason', 'السبب', { full: true })],
+      C('weight', 'إجمالي الوزن', { cls: 'num', compute: r => docTotals(r).weight, render: v => v ? num(v) : '—' }),
+      C('amount', 'إجمالي القيمة (دائن)', { ...M, total: true, optional: true, aka: ['القيمة', 'إجمالي القيمة (مدين)'] }), C('reason', 'السبب', { full: true, optional: true, formOnly: true })],
       wide: true,
-      onSelect: { invoice: (f, v) => { const inv = db.salesInvoices.find(i => i.no === v); if (!inv) return; const c = f.namedItem('customer'); if (c && [...c.options].some(o => o.value === inv.customer)) c.value = inv.customer;
-        if (f.namedItem('warehouse') && !f.namedItem('warehouse').value) f.namedItem('warehouse').value = inv.warehouse || ''; } },
-      validate: (d, rec) => { const le = salesLinesCheck(d, rec, 'in'); if (le) return le; const inv = db.salesInvoices.find(i => i.no === d.invoice); if (inv && inv.customer !== d.customer) return `الفاتورة ${inv.no} تخص ${inv.customer}`; } },
+      load: r => r.account ? {} : { account: custAcc(r.customer) },
+      // اختيار فاتورة البيع الأصلية يملأ الحساب والعميل والفرع والمخزن منها
+      onSelect: { invoice: (f, v) => { const inv = db.salesInvoices.find(i => i.no === v); if (!inv) return;
+        const setv = (k, val) => { const el = f.namedItem(k); if (el && val && !el.value) { el.value = val; el.dispatchEvent(new Event('change', { bubbles: true })); } };
+        const a = f.namedItem('account'); if (a) { a.value = inv.account || custAcc(inv.customer); a.dispatchEvent(new Event('change', { bubbles: true })); }
+        const c = f.namedItem('customer'); if (c) c.value = inv.customer;
+        setv('branch', inv.branch); setv('warehouse', inv.warehouse); } },
+      validate: (d, rec) => { const ce = custAccCheck(d, true); if (ce) return ce; const le = salesLinesCheck(d, rec, 'in'); if (le) return le; const inv = db.salesInvoices.find(i => i.no === d.invoice); if (inv && inv.customer !== d.customer) return `الفاتورة ${inv.no} تخص ${inv.customer}`; } },
 
     // ===== الأرصدة الافتتاحية =====
     openingBalances: { title: 'الأرصدة الافتتاحية', sub: 'رصيد أول المدة لكل خزينة أو بنك أو صنف في مخزن أو عميل أو مورد أو حساب — يُرحّل بعد اعتماد المالك: بين الحساب و حـ/ 215 أرصدة افتتاحية', single: 'رصيد افتتاحي', key: 'no', prefix: 'OB-', filter: 'otype', cols: [
