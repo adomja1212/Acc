@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 10:00';
+  const APP_VERSION = '25/11/2026, 12:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -290,13 +290,20 @@
   const isChq = (r, via) => r.method === 'شيك' && !!acc(via);
   const isEff = r => (!r.appr || r.appr.status === 'approved') && r.chequeStatus !== 'مرتد';
   const eff = t => memo('eff:' + t, () => db[t].filter(isEff));
+  // فرع المستند: المكتوب فيه، وإلا من مركز التكلفة أو المخزن أو الخزينة أو الموظف
+  const brBox = n => n ? db.cashboxes.find(b => b.name === n)?.branch || '' : '';
+  const brWh = n => n ? db.warehouses.find(w => w.name === n)?.branch || '' : '';
+  const brCC = n => n ? db.costCenters.find(c => c.name === n)?.branch || '' : '';
+  const brStaff = n => { if (!n) return ''; const s = allStaff().find(x => x.name === n); return s ? s.branch || brCC(s.costCenter) : ''; };
+  const docBranch = r => r.branch || brCC(r.costCenter) || brWh(r.warehouse) || brBox(r.box) || brStaff(r.employee) || brStaff(r.worker) || brBox(r.from) || brWh(r.from) || '';
+  const accBranch = code => memo('ab:' + code, () => db.cashboxes.find(b => b.accountNo === code)?.branch || '');
   function glEntries() {
     return memo('gl', () => {
       const E = [];
       const L = (acc, dr = 0, cr = 0) => ({ acc: String(acc ?? ''), dr: +dr || 0, cr: +cr || 0 });
       const add = (module, src, r, no, date, desc, lines) => {
         lines = lines.filter(l => l.acc && (l.dr || l.cr));
-        if (lines.length) E.push({ module, src, id: r.id, no, date, desc, lines, manual: module === 'journal' });
+        if (lines.length) E.push({ module, src, id: r.id, no, date, desc, lines, manual: module === 'journal', branch: docBranch(r) });
       };
       eff('journal').forEach(r => add('journal', 'قيد يدوي', r, r.no, r.date, r.desc, jLinesOf(r).map(l => ({ ...L(accCode(l.acc), l.dr, l.cr), note: l.note || '' }))));
       eff('salesInvoices').forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
@@ -459,6 +466,8 @@
 
   // ---------- مصادر القوائم المنسدلة ----------
   const names = k => () => db[k].map(r => r.name);
+  // حقل الفرع: اختياري — إذا تُرك فارغاً يُستنتج من الخزينة أو المخزن أو مركز التكلفة
+  const branchField = (label = 'الفرع', extra = {}) => C('branch', label, { input: 'select', optional: true, allowEmpty: '— تلقائي —', options: names('branches'), formOnly: true, ...extra });
   // الوحدات: كل وحدة = معامل × وحدتها الأساسية (طن = 1000 كجم، شيكارة = 50 كجم)
   const unitOf = n => db.units.find(u => u.name === n);
   const unitRoot = n => memo('ur:' + n, () => { let f = 1, u = unitOf(n), seen = new Set();
@@ -641,7 +650,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       actions: [{ icon: 'list', title: 'كارت الصنف (الحركة)', fn: r => itemCard(r) }, { icon: 'plus', title: 'رصيد افتتاحي للصنف', write: true, target: 'openingBalances', fn: r => openRecordForm('openingBalances', null, { otype: OPEN_TYPES[1], item: r.name, warehouse: r.warehouse, cost: r.cost }) }] },
     warehouses: { title: 'المخازن', sub: 'بيانات المخازن وقيمة أرصدتها', single: 'مخزن', key: 'name', actions: [{ icon: 'box', title: 'فتح صفحة المخزن', fn: r => goTo('wh/' + r.id) }], cols: [
       C('code', 'الكود', CODE), C('name', 'اسم المخزن'), C('type', 'النوع', { render: plain, input: 'select', options: opt('خامات', 'إنتاج تام', 'قطع غيار', 'مواقع') }),
-      C('location', 'الموقع'), C('keeper', 'أمين المخزن'),
+      C('location', 'الموقع'), branchField('الفرع', { allowEmpty: '—', formOnly: false, render: v => v ? plain(v) : '—' }), C('keeper', 'أمين المخزن'),
       C('itemsCount', 'أصناف بها رصيد', { cls: 'num', compute: r => db.items.filter(i => stockAt(i.name, r.name) > 0).length }),
       C('value', 'قيمة الرصيد', computed(r => sum(db.items, i => stockAt(i.name, r.name) * i.cost), { total: true }))] },
     units: { title: 'الوحدات ومعامل التحويل', sub: '1 وحدة = المعامل × الوحدة الأساسية — مثل: طن = 1000 كجم، شيكارة = 50 كجم', single: 'وحدة', key: 'name', cols: [
@@ -687,7 +696,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
 
     // ===== الحسابات =====
     journal: { title: 'القيود اليومية', sub: 'دفتر اليومية العامة', single: 'قيد يدوي', key: 'no', cols: [
-      C('no', 'رقم القيد', CODE), C('date', 'التاريخ', D), C('desc', 'البيان', { full: true }),
+      C('no', 'رقم القيد', CODE), C('date', 'التاريخ', D), C('desc', 'البيان', { full: true }), branchField(),
       C('jlines', 'أطراف القيد', { input: 'jlines', formOnly: true, full: true }),
       C('amount', 'المبلغ', { ...M, total: true, compute: jTotal })],
       wide: true,
@@ -714,11 +723,12 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       C('code', 'الكود', CODE), C('name', 'الاسم', { full: true }), C('type', 'النوع', { render: plain, input: 'select', options: opt('خزينة', 'بنك', 'عهدة') }),
       C('accountNo', 'الحساب المرتبط', { input: 'select', options: () => leafAccounts().filter(a => isTreasury(a.code)).map(a => [a.code, accLabel(a)]), render: v => esc(acc(v) ? accLabel(acc(v)) : v) }),
       C('bankAccount', 'رقم الحساب بالبنك', { optional: true, cls: 'code' }),
+      branchField('الفرع', { allowEmpty: '—', formOnly: false, render: v => v ? plain(v) : '—' }),
       C('balance', 'الرصيد', computed(r => acc(r.accountNo) ? ownBal(acc(r.accountNo)) : 0, { total: true }))],
       actions: [{ icon: 'cash', title: 'فتح صفحة الحركات', fn: r => goTo('box/' + r.id) }, { icon: 'list', title: 'كشف حركة الخزينة', fn: r => openLedger(r.accountNo) }],
       validate: (d, rec) => db.cashboxes.some(b => b.accountNo === d.accountNo && b !== rec) ? 'هذا الحساب مرتبط بخزينة أخرى' : '' },
     receipts: { title: 'سندات القبض', sub: 'اختر اسم الحساب ثم المستفيد من قائمته — يُرحّل بعد الاعتماد: من حـ/ الخزينة أو البنك إلى حـ/ الحساب المختار', single: 'سند قبض', key: 'no', cols: [
-      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), boxField(),
+      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), boxField(), branchField(),
       C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— اختر الحساب —', options: treasAccOpts, full: true, render: (v, r) => `<span class="hint">${esc(v || (isCustomer(r.party) ? accLabel(acc(custAcc(r.party)) || { code: '', name: '' }) : '—'))}</span>` }),
       C('party', 'اسم المستفيد / الطرف', { optional: true, full: true, dyn: true, suggest: v => partyOpts(v?.account), render: (v, r) => esc(partyName(r)) }),
       C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', formOnly: true, options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]), when: f => partyKind(accCode(f.account)) === 'c' }),
@@ -743,7 +753,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         if (+d.amount > avail && !ask(`رصيد ${d.from} (${nf.format(avail)}) لا يكفي. متابعة؟`)) return 'تم الإلغاء';
       } },
     payments: { title: 'سندات الصرف', sub: 'اختر اسم الحساب ثم المستفيد من قائمته — يُرحّل بعد الاعتماد: من حـ/ الحساب المختار إلى حـ/ الخزينة أو البنك', single: 'سند صرف', key: 'no', cols: [
-      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), boxField(),
+      C('no', 'رقم الحركة', CODE), C('date', 'تاريخ الحركة', D), boxField(), branchField(),
       C('account', 'اسم الحساب', { input: 'select', optional: true, allowEmpty: '— اختر الحساب —', options: treasAccOpts, full: true, render: (v, r) => `<span class="hint">${esc(v || (isSupplier(r.party) ? accLabel(acc(suppAcc(r.party)) || { code: '', name: '' }) : '—'))}</span>` }),
       C('party', 'اسم المستفيد', { optional: true, full: true, dyn: true, suggest: v => partyOpts(v?.account), render: (v, r) => esc(partyName(r)) }),
       C('invoice', 'سداد فاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', formOnly: true, options: () => db.purchaseInvoices.map(i => [i.no, `${i.no} — ${i.supplier}`]), when: f => partyKind(accCode(f.account)) === 's' }),
@@ -762,7 +772,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     salesInvoices: { title: 'كل فواتير المبيعات', sub: 'تُرحّل تلقائياً: من حـ/ فئة العميل إلى حـ/ مبيعات نفس الفئة و حـ/ الضرائب', single: 'فاتورة بيع', key: 'no', filter: 'status', cols: [
       C('no', 'رقم الفاتورة', CODE), C('customer', 'العميل', { input: 'select', options: names('customers'), full: true }),
       C('revAcc', 'حساب الإيراد', { compute: r => accLabel(acc(salesAccR(r)) || { code: '', name: '' }), render: v => `<span class="hint">${esc(v)}</span>` }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
-      C('warehouse', 'المخزن (للصرف من المخزون)', { input: 'select', optional: true, allowEmpty: '— بدون صرف من المخزن —', options: names('warehouses'), formOnly: true }),
+      branchField(), C('warehouse', 'المخزن (للصرف من المخزون)', { input: 'select', optional: true, allowEmpty: '— بدون صرف من المخزن —', options: names('warehouses'), formOnly: true }),
       C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true, priceFrom: 'price', optionalLines: true }),
       C('itemsSum', 'الأصناف', { compute: r => linesSummary(r) || '—', render: (v, r) => Array.isArray(r.lines) && r.lines.length ? `${esc(v)} <span class="hint">(${r.lines.length})</span>` : '<span class="hint">—</span>' }),
       C('amount', 'الصافي', { ...M, total: true, optional: true }), C('vatRate', 'نسبة الضريبة %', { ...N, formOnly: true }),
@@ -788,7 +798,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       C('no', 'رقم فاتورة المردودات', CODE), C('customer', 'العميل', { input: 'select', options: names('customers') }),
       C('invoice', 'الفاتورة', { input: 'select', optional: true, allowEmpty: '— بدون —', options: () => db.salesInvoices.map(i => [i.no, `${i.no} — ${i.customer}`]) }),
       C('date', 'التاريخ', D),
-      C('warehouse', 'المخزن (لإعادة الأصناف للمخزون)', { input: 'select', optional: true, allowEmpty: '— بدون إعادة للمخزن —', options: names('warehouses'), formOnly: true }),
+      branchField(), C('warehouse', 'المخزن (لإعادة الأصناف للمخزون)', { input: 'select', optional: true, allowEmpty: '— بدون إعادة للمخزن —', options: names('warehouses'), formOnly: true }),
       C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true, priceFrom: 'price', optionalLines: true }),
       C('itemsSum', 'الأصناف', { compute: r => linesSummary(r) || '—', render: (v, r) => Array.isArray(r.lines) && r.lines.length ? `${esc(v)} <span class="hint">(${r.lines.length})</span>` : '<span class="hint">—</span>' }),
       C('amount', 'القيمة', { ...M, total: true, optional: true }), C('reason', 'السبب', { full: true })],
@@ -1247,6 +1257,9 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   const DASH_SEQ = ['#84b9f3', '#519ced', '#257de0', '#1b64be', '#0f4a96'];
   const DASH_PRESETS = [['m1', 'هذا الشهر'], ['m3', 'آخر 3 شهور'], ['m6', 'آخر 6 شهور'], ['m12', 'آخر 12 شهر'], ['y', 'هذه السنة'], ['all', 'الكل']];
   let dashP = 'm12'; try { dashP = localStorage.getItem('acc-erp-dashp') || 'm12'; } catch {}
+  let dashB = ''; try { dashB = localStorage.getItem('acc-erp-dashb') || ''; } catch {}
+  const NO_BR = '__none';
+  const inBr = b => !dashB || (dashB === NO_BR ? !b : b === dashB);
   const ym = d => d.slice(0, 7);
   const monthStart = (y, m) => new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
   function dashRange(p) {
@@ -1266,7 +1279,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   // إيرادات/مصروفات فترة من القيود المرحّلة
   function pl(r) {
     const o = { rev: 0, exp: 0, byMonth: {}, expBy: {} };
-    glEntries().forEach(e => { if (!e.date || e.date < r.from || e.date > r.to) return; const k = ym(e.date), bm = o.byMonth[k] ||= { rev: 0, exp: 0 };
+    glEntries().forEach(e => { if (!e.date || e.date < r.from || e.date > r.to || !inBr(e.branch)) return; const k = ym(e.date), bm = o.byMonth[k] ||= { rev: 0, exp: 0 };
       e.lines.forEach(l => { const root = rootOf(l.acc);
         if (root === SYS.revenue) { const v = l.cr - l.dr; o.rev += v; bm.rev += v; }
         else if (root === SYS.expenses) { const v = l.dr - l.cr; o.exp += v; bm.exp += v; const g = childOfRoot(l.acc, SYS.expenses) || l.acc; o.expBy[g] = (o.expBy[g] || 0) + v; } }); });
@@ -1274,7 +1287,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   }
   // رصيد النقدية (خزائن + بنوك) في نهاية كل شهر
   function cashSeries(months) {
-    const isCash = c => { const a = ancestors(c); return a.includes(SYS.cash) || a.includes(SYS.banks); };
+    const isCash = c => { const a = ancestors(c); return (a.includes(SYS.cash) || a.includes(SYS.banks)) && inBr(accBranch(c)); };
     let bal = sum(db.accounts.filter(a => isCash(a.code)), a => +a.balance || 0);
     const ents = [...glEntries()].filter(e => e.date).sort(byDate); let i = 0;
     return months.map(mo => { const end = mo + '-31';
@@ -1378,19 +1391,28 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     const revM = months.map(m => P.byMonth[m]?.rev || 0), expM = months.map(m => P.byMonth[m]?.exp || 0);
     const cashM = cashSeries(months);
     // المبيعات حسب النوع (صافي بعد المردودات)
-    const inR = r => r.date >= R.from && r.date <= R.to;
+    const inR = r => r.date >= R.from && r.date <= R.to && inBr(docBranch(r));
     const salesBy = SALE_TYPES.map(([, ty]) => ({ l: ty, v: sum(eff('salesInvoices').filter(r => inR(r) && saleType(r) === ty), r => r.amount) - sum(eff('salesReturns').filter(r => inR(r) && saleType(r) === ty), r => r.amount) }));
     // هيكل المصروفات
     const expParts = childrenOf(SYS.expenses).map((a, i) => ({ l: a.name, v: P.expBy[a.code] || 0, color: DASH_COLORS[i % 4], ink: i === 0 ? '#fff' : '#191919' }));
     // أعمار ديون العملاء (حتى اليوم)
     const BK = ['لم تستحق', '1–30', '31–60', '61–90', '+90'], BKT = ['لم تستحق بعد', 'متأخرة 1–30 يوم', 'متأخرة 31–60 يوم', 'متأخرة 61–90 يوم', 'متأخرة أكثر من 90 يوم'], aging = [0, 0, 0, 0, 0], t0 = new Date(today());
-    eff('salesInvoices').forEach(r => { const rem = invTotal(r) - salesPaid(r); if (rem <= 0.005) return; const d = r.due ? Math.floor((t0 - new Date(r.due)) / 864e5) : 0;
+    eff('salesInvoices').forEach(r => { if (!inBr(docBranch(r))) return; const rem = invTotal(r) - salesPaid(r); if (rem <= 0.005) return; const d = r.due ? Math.floor((t0 - new Date(r.due)) / 864e5) : 0;
       aging[d <= 0 ? 0 : d <= 30 ? 1 : d <= 60 ? 2 : d <= 90 ? 3 : 4] += rem; });
-    const topCust = db.customers.map(c => ({ l: c.name, v: custBal(c.name), sub: c.category || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 6);
-    const topSupp = db.suppliers.map(s => ({ l: s.name, v: suppBal(s.name), sub: acc(s.account)?.name || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 6);
-    const invRows = [...childrenOf(SYS.inventory), acc(SYS.finished)].filter(Boolean).map(a => ({ l: a.name, v: rollup(a.code), sub: a.code })).filter(x => x.v).sort((a, b) => b.v - a.v);
-    const boxRows = db.cashboxes.map(b => ({ l: b.name, v: acc(b.accountNo) ? ownBal(acc(b.accountNo)) : 0, sub: b.type || '' })).filter(x => x.v).sort((a, b) => b.v - a.v);
-    const cashNow = rollup(SYS.cash) + rollup(SYS.banks), receivable = sum(db.customers, c => custBal(c.name)), payable = sum(db.suppliers, s => suppBal(s.name));
+    // السداد يتبع فرع الفاتورة التي يسددها (إن وُجدت) وإلا فرع السند نفسه
+    const payBranch = (r, invT) => { const inv = r.invoice && db[invT].find(i => i.no === r.invoice); return r.branch || (inv ? docBranch(inv) : docBranch(r)); };
+    const cBal = n => dashB ? sum(eff('salesInvoices').filter(i => i.customer === n && inBr(docBranch(i))), invTotal) - sum(eff('salesReturns').filter(i => i.customer === n && inBr(docBranch(i))), i => i.amount)
+      - sum(eff('receipts').filter(i => i.party === n && isPartyDoc(i, 'c') && inBr(payBranch(i, 'salesInvoices'))), i => i.amount) : custBal(n);
+    const sBal = n => dashB ? sum(eff('purchaseInvoices').filter(i => i.supplier === n && inBr(docBranch(i))), i => i.amount) + sum(eff('stockIn').filter(i => i.supplier === n && inBr(docBranch(i))), i => docTotals(i).net)
+      + sum(eff('supplierAccruals').filter(i => i.party === n && inBr(docBranch(i))), i => +i.amount || 0) - sum(eff('purchaseReturns').filter(i => i.supplier === n && inBr(docBranch(i))), i => i.amount)
+      - sum(eff('payments').filter(i => i.party === n && isPartyDoc(i, 's') && inBr(payBranch(i, 'purchaseInvoices'))), i => i.amount) : suppBal(n);
+    const topCust = db.customers.map(c => ({ l: c.name, v: cBal(c.name), sub: c.category || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 6);
+    const topSupp = db.suppliers.map(s => ({ l: s.name, v: sBal(s.name), sub: acc(s.account)?.name || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 6);
+    const invAccs = [...childrenOf(SYS.inventory), acc(SYS.finished)].filter(Boolean);
+    const whs = db.warehouses.filter(w => inBr(w.branch)), itemAccOf = i => { const c = String(i.store || SYS.defPurchase); return invAccs.find(a => ancestors(c).includes(a.code))?.code; };
+    const invRows = invAccs.map(a => ({ l: a.name, sub: a.code, v: sum(db.items.filter(i => itemAccOf(i) === a.code), i => sum(whs, w => stockAt(i.name, w.name)) * (+i.cost || 0)) })).filter(x => x.v).sort((a, b) => b.v - a.v);
+    const boxRows = db.cashboxes.filter(b => inBr(b.branch)).map(b => ({ l: b.name, v: acc(b.accountNo) ? ownBal(acc(b.accountNo)) : 0, sub: b.type || '' })).filter(x => x.v).sort((a, b) => b.v - a.v);
+    const cashNow = dashB ? sum(boxRows, x => x.v) : rollup(SYS.cash) + rollup(SYS.banks), receivable = sum(db.customers, c => dashB ? Math.max(0, cBal(c.name)) : cBal(c.name)), payable = sum(db.suppliers, s => dashB ? Math.max(0, sBal(s.name)) : sBal(s.name));
     const delta = (cur, prev, upGood = true) => { if (prev == null || !PR) return ''; if (!prev) return '';
       const ch = (cur - prev) / Math.abs(prev) * 100, good = (ch >= 0) === upGood; return `<span class="dl ${Math.abs(ch) < 0.5 ? 'flat' : good ? 'good' : 'bad'}">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(1)}% عن الفترة السابقة</span>`; };
     const net = P.rev - P.exp, pnet = PR ? PR.rev - PR.exp : null;
@@ -1405,6 +1427,8 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       <div class="dash-filters" role="group" aria-label="الفترة">
         <span class="df-l">الفترة:</span>
         ${DASH_PRESETS.map(([k, l]) => `<button type="button" class="df-b ${k === dashP ? 'on' : ''}" data-dp="${k}" aria-pressed="${k === dashP}">${k === dashP ? '✓ ' : ''}${l}</button>`).join('')}
+        <label class="df-br"><span class="df-l">الفرع:</span><select class="input df-sel" id="dashBranch" aria-label="الفرع">
+          ${[['', 'كل الفروع'], ...db.branches.map(b => [b.name, b.name]), [NO_BR, 'غير محدد الفرع']].map(([v, l]) => `<option value="${esc(v)}" ${v === dashB ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
         <span class="df-r">${fmtDMY(R.from)} — ${fmtDMY(R.to)}</span>
       </div>
       <div class="kpis">
@@ -1424,15 +1448,16 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         ${dcard('هيكل المصروفات', `إجمالي ${money(P.exp)}`, segbar(expParts), dtable(['المجموعة', 'المبلغ'], expParts.map(x => [x.l, x.v])))}
         ${dcard('أكبر العملاء رصيداً', 'مستحق من العملاء', hbars(topCust), dtable(['العميل', 'الرصيد'], topCust.map(x => [x.l, x.v])))}
         ${dcard('أكبر الموردين رصيداً', 'مستحق للموردين', hbars(topSupp, DASH_COLORS[1]), dtable(['المورد', 'الرصيد'], topSupp.map(x => [x.l, x.v])))}
-        ${dcard('قيمة المخزون', 'حسب حساب المخزون في الشجرة', hbars(invRows, DASH_COLORS[2]), dtable(['الحساب', 'القيمة'], invRows.map(x => [x.l, x.v])))}
+        ${dcard('قيمة المخزون', 'الكمية × التكلفة — حسب حساب المخزون', hbars(invRows, DASH_COLORS[2]), dtable(['الحساب', 'القيمة'], invRows.map(x => [x.l, x.v])))}
         ${dcard('أعمار ديون العملاء', 'المتبقي على الفواتير حتى اليوم — بالأيام بعد الاستحقاق', `<div class="chart" data-chart="aging" data-label="أعمار ديون العملاء"></div>`, dtable(['الفئة', 'المبلغ'], BKT.map((b, i) => [b, aging[i]])))}
-        ${dcard('أرصدة الخزائن والبنوك', 'الرصيد الحالي لكل خزينة وبنك', hbars(boxRows, DASH_COLORS[0]), dtable(['الخزينة / البنك', 'الرصيد'], boxRows.map(x => [x.l, x.v])), 'full')}
+        ${dcard('أرصدة الخزائن والبنوك', dashB ? 'خزائن وبنوك الفرع المختار' : 'الرصيد الحالي لكل خزينة وبنك', hbars(boxRows, DASH_COLORS[0]), dtable(['الخزينة / البنك', 'الرصيد'], boxRows.map(x => [x.l, x.v])), 'full')}
       </div>`;
   }
   let dashDraw = null;
   function wireDashboard() {
     dashDraw?.();
     $$('[data-dp]', content).forEach(b => b.onclick = () => { dashP = b.dataset.dp; try { localStorage.setItem('acc-erp-dashp', dashP); } catch {} renderPage(); });
+    const bs = $('#dashBranch', content); if (bs) bs.onchange = () => { dashB = bs.value; try { localStorage.setItem('acc-erp-dashb', dashB); } catch {} renderPage(); };
     $$('.dash-tbl-btn', content).forEach(b => b.onclick = () => { const card = b.closest('.dash-card'), t = $('.dash-table', card), on = t.hidden;
       t.hidden = !on; b.setAttribute('aria-pressed', on); b.textContent = on ? 'عرض كرسم' : 'عرض كجدول'; $$('.chart, .hb, .seg, .dash-legend', card).forEach(x => x.hidden = on); if (!on) dashDraw?.(); });
     const onMove = e => { const h = e.target.closest?.('[data-tip]'); if (!h || !content.contains(h)) { hideTip(); $$('.xh', content).forEach(l => l.setAttribute('visibility', 'hidden')); return; }

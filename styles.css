@@ -951,3 +951,6 @@ tr.picked td { background: #eef3ff; }
 @media (max-width: 1100px) { .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 720px) { .dash-grid { grid-template-columns: 1fr; } .dash-card.wide { grid-column: auto; } .dash-filters .df-r { margin-inline-start: 0; width: 100%; } }
 .dash-card.full { grid-column: 1 / -1; }
+.dash-filters .df-br { display: inline-flex; align-items: center; gap: 6px; margin-inline-start: 10px; }
+.dash-filters .df-br .df-l { margin: 0; }
+.dash-filters .df-br .input { width: 190px; height: 30px; min-height: 30px; border-radius: 99px; font-size: 12.5px; }

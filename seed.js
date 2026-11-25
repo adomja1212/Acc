@@ -2136,7 +2136,7 @@ window.ACC_SEED = {
    "name": "خزينة السادات الرئيسية",
    "type": "خزينة",
    "accountNo": "1211"
-  },
+  , "branch": "فرع السادات"},
   {
    "id": "cashboxes-002",
    "code": "B-02",
@@ -2150,14 +2150,14 @@ window.ACC_SEED = {
    "name": "خزينة النوبارية",
    "type": "خزينة",
    "accountNo": "1213"
-  },
+  , "branch": "فرع النوبارية"},
   {
    "id": "cashboxes-004",
    "code": "B-04",
    "name": "خزينة المكتب العام",
    "type": "خزينة",
    "accountNo": "1214"
-  },
+  , "branch": "المكتب العام"},
   {
    "id": "cashboxes-005",
    "code": "B-05",
