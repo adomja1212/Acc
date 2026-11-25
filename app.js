@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 12:00';
+  const APP_VERSION = '25/11/2026, 15:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -1277,12 +1277,15 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   const rootOf = code => ancestors(code).at(-1);
   const childOfRoot = (code, root) => { const a = ancestors(code); const i = a.indexOf(root); return i > 0 ? a[i - 1] : null; };
   // إيرادات/مصروفات فترة من القيود المرحّلة
-  function pl(r) {
-    const o = { rev: 0, exp: 0, byMonth: {}, expBy: {} };
-    glEntries().forEach(e => { if (!e.date || e.date < r.from || e.date > r.to || !inBr(e.branch)) return; const k = ym(e.date), bm = o.byMonth[k] ||= { rev: 0, exp: 0 };
-      e.lines.forEach(l => { const root = rootOf(l.acc);
+  // expF: مجموعة مصروفات محددة (التعمق) — تُحسب مصروفاتها فقط، مع تفصيلها حسب الحساب التابع لها مباشرة
+  function pl(r, expF) {
+    const o = { rev: 0, exp: 0, expAll: 0, byMonth: {}, expBy: {}, expKid: {} };
+    glEntries().forEach(e => { if (!e.date || e.date < r.from || e.date > r.to || !inBr(e.branch)) return; const k = ym(e.date), bm = o.byMonth[k] ||= { rev: 0, exp: 0, expAll: 0 };
+      e.lines.forEach(l => { const an = ancestors(l.acc), root = an.at(-1);
         if (root === SYS.revenue) { const v = l.cr - l.dr; o.rev += v; bm.rev += v; }
-        else if (root === SYS.expenses) { const v = l.dr - l.cr; o.exp += v; bm.exp += v; const g = childOfRoot(l.acc, SYS.expenses) || l.acc; o.expBy[g] = (o.expBy[g] || 0) + v; } }); });
+        else if (root === SYS.expenses) { const v = l.dr - l.cr, g = childOfRoot(l.acc, SYS.expenses) || l.acc; o.expBy[g] = (o.expBy[g] || 0) + v; o.expAll += v; bm.expAll += v;
+          if (expF) { const ix = an.indexOf(expF); if (ix < 0) return; const kid = ix > 0 ? an[ix - 1] : l.acc; o.expKid[kid] = (o.expKid[kid] || 0) + v; }
+          o.exp += v; bm.exp += v; } }); });
     return o;
   }
   // رصيد النقدية (خزائن + بنوك) في نهاية كل شهر
@@ -1317,36 +1320,36 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   const hideTip = () => { const t = $('#dashTip'); if (t) t.hidden = true; };
   const tip = (title, rows) => { dashTips.push({ title, rows }); return dashTips.length - 1; };
 
-  // ---- رسم أعمدة (مجمّعة) — يتجه حسب اتجاه الواجهة ----
-  function colChart(el, { cats, catTitles, series, colorsPerBar, extra, height = 240 }) {
+  // ---- رسم أعمدة (مجمّعة) — يتجه حسب اتجاه الواجهة، ويدعم التحديد والفلترة بالضغط ----
+  function colChart(el, { cats, catTitles, series, colorsPerBar, extra, height = 240, sel = -1, xf }) {
     const W = Math.max(280, el.clientWidth), H = height, rtl = document.documentElement.dir === 'rtl';
     const padS = 52, padE = 10, top = 14, bot = 26, x0 = rtl ? padE : padS, x1 = rtl ? W - padS : W - padE;
     const all = series.flatMap(s => s.vals), mx = niceMax(Math.max(0, ...all)), mn = Math.min(0, ...all) < 0 ? -niceMax(-Math.min(...all)) : 0;
     const y = v => top + (mx - v) / (mx - mn) * (H - top - bot), n = cats.length, bw = (x1 - x0) / Math.max(1, n);
     const cx = i => rtl ? x1 - (i + 0.5) * bw : x0 + (i + 0.5) * bw;
     const ns = series.length, w = Math.max(3, Math.min(24, (bw * 0.72 - (ns - 1) * 2) / ns));
-    const ticks = 4; let g = '';
-    for (let k = 0; k <= ticks; k++) { const v = mn + (mx - mn) * k / ticks, yy = y(v);
+    let g = '';
+    for (let k = 0; k <= 4; k++) { const v = mn + (mx - mn) * k / 4, yy = y(v);
       g += `<line class="grid" x1="${x0}" x2="${x1}" y1="${yy}" y2="${yy}"/><text class="ax" x="${rtl ? x1 + 8 : x0 - 8}" y="${yy + 4}" text-anchor="${rtl ? 'start' : 'end'}">${cmp.format(v)}</text>`; }
     const every = Math.ceil(n / Math.max(1, Math.floor((x1 - x0) / 60)));
-    cats.forEach((c, i) => { if ((i % every === 0 && n - 1 - i >= every) || i === n - 1) g += `<text class="ax" x="${cx(i)}" y="${H - 8}" text-anchor="middle">${esc(c)}</text>`; });
+    cats.forEach((c, i) => { if ((i % every === 0 && n - 1 - i >= every) || i === n - 1 || i === sel) g += `<text class="ax ${i === sel ? 'on' : ''}" x="${cx(i)}" y="${H - 8}" text-anchor="middle">${esc(c)}</text>`; });
     const yb = y(0);
     cats.forEach((c, i) => {
-      const grp = ns * w + (ns - 1) * 2;
+      const grp = ns * w + (ns - 1) * 2, dim = sel >= 0 && i !== sel ? ' dim' : '';
       series.forEach((s, j) => { const v = s.vals[i] || 0; if (!v) return;
         const off = -grp / 2 + j * (w + 2), xx = rtl ? cx(i) - off - w : cx(i) + off, yv = y(v), hgt = Math.abs(yb - yv), r = Math.min(4, w / 2, hgt);
         const t = Math.min(yv, yb), color = colorsPerBar ? colorsPerBar[i] : s.color;
         const d = v >= 0 ? `M${xx},${yb}V${t + r}Q${xx},${t} ${xx + r},${t}H${xx + w - r}Q${xx + w},${t} ${xx + w},${t + r}V${yb}Z`
           : `M${xx},${yb}V${yb + hgt - r}Q${xx},${yb + hgt} ${xx + r},${yb + hgt}H${xx + w - r}Q${xx + w},${yb + hgt} ${xx + w},${yb + hgt - r}V${yb}Z`;
-        g += `<path class="mk" d="${d}" fill="${color}"/>`; });
-      const ti = tip(catTitles?.[i] || c, [...series.map(s => ({ color: colorsPerBar ? colorsPerBar[i] : s.color, v: money(s.vals[i] || 0), l: s.name })), ...(extra ? [extra(i)] : [])]);
-      g += `<rect class="hit" data-tip="${ti}" x="${cx(i) - bw / 2}" y="${top}" width="${bw}" height="${H - top - bot}" tabindex="0"/>`;
+        g += `<path class="mk${dim}" d="${d}" fill="${color}"/>`; });
+      const ti = tip(catTitles?.[i] || c, [...series.map(s => ({ color: colorsPerBar ? colorsPerBar[i] : s.color, v: money(s.vals[i] || 0), l: s.name })), ...(extra ? [extra(i)] : []), ...(xf ? [{ v: '', l: i === sel ? 'اضغط لإلغاء الفلتر' : 'اضغط للفلترة' }] : [])]);
+      g += `<rect class="hit ${xf ? 'clk' : ''}" data-tip="${ti}" ${xf ? `data-xf="${esc(xf(i))}"` : ''} x="${cx(i) - bw / 2}" y="${top}" width="${bw}" height="${H - top - bot}" tabindex="0"/>`;
     });
     g += `<line class="base" x1="${x0}" x2="${x1}" y1="${yb}" y2="${yb}"/>`;
     el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(el.dataset.label || '')}">${g}</svg>`;
   }
   // ---- خط زمني مع مساحة خفيفة ----
-  function lineChart(el, { cats, catTitles, vals, name, color, height = 240 }) {
+  function lineChart(el, { cats, catTitles, vals, name, color, height = 240, sel = -1 }) {
     const W = Math.max(280, el.clientWidth), H = height, rtl = document.documentElement.dir === 'rtl';
     const padS = 52, padE = 16, top = 22, bot = 26, x0 = rtl ? padE : padS, x1 = rtl ? W - padS : W - padE;
     const mx = niceMax(Math.max(0, ...vals)), mn = Math.min(0, ...vals) < 0 ? -niceMax(-Math.min(...vals)) : 0;
@@ -1360,7 +1363,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     const pts = vals.map((v, i) => `${px(i)},${y(v)}`).join(' ');
     g += `<polygon points="${px(0)},${y(Math.max(mn, 0))} ${pts} ${px(n - 1)},${y(Math.max(mn, 0))}" fill="${color}" opacity=".1"/>`;
     g += `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    const li = n - 1; g += `<circle cx="${px(li)}" cy="${y(vals[li])}" r="5" fill="${color}" stroke="#fff" stroke-width="2"/>`;
+    const li = sel >= 0 ? sel : n - 1; g += `<circle cx="${px(li)}" cy="${y(vals[li])}" r="5" fill="${color}" stroke="#fff" stroke-width="2"/>`;
     g += `<text class="val" x="${px(li)}" y="${y(vals[li]) - 12}" text-anchor="${rtl ? 'start' : 'end'}">${cmp.format(vals[li])}</text>`;
     g += `<line class="xh" x1="0" x2="0" y1="${top}" y2="${H - bot}" visibility="hidden"/>`;
     const bw = n > 1 ? (x1 - x0) / (n - 1) : x1 - x0;
@@ -1368,104 +1371,208 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       g += `<rect class="hit" data-tip="${ti}" data-x="${px(i)}" x="${px(i) - bw / 2}" y="${top}" width="${bw}" height="${H - top - bot}" tabindex="0"/>`; });
     el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(el.dataset.label || '')}">${g}</svg>`;
   }
-  // ---- أشرطة أفقية (HTML) ----
-  const hbars = (rows, color = DASH_COLORS[0]) => { const mx = Math.max(1, ...rows.map(r => Math.abs(r.v)));
-    return rows.length ? `<div class="hb">${rows.map(r => `<div class="hb-row" data-tip="${tip(r.l, [{ color, v: money(r.v), l: r.sub || '' }])}" tabindex="0">
-      <span class="hb-l" title="${esc(r.l)}">${esc(r.l)}</span><span class="hb-t"><i style="width:${Math.max(1.5, Math.abs(r.v) / mx * 100)}%;background:${color}"></i></span><b class="hb-v">${cmp.format(r.v)}</b></div>`).join('')}</div>`
-      : '<div class="dash-empty">لا توجد بيانات في هذه الفترة</div>'; };
+  // ---- خط صغير داخل كارت المؤشر (Sparkline) ----
+  const spark = (vals, color = DASH_COLORS[0]) => { if (vals.length < 2) return ''; const W = 120, H = 30, mx = Math.max(...vals), mn = Math.min(...vals), rg = mx - mn || 1, rtl = document.documentElement.dir === 'rtl';
+    const px = i => { const x = 2 + i * (W - 4) / (vals.length - 1); return rtl ? W - x : x; }, py = v => H - 3 - (v - mn) / rg * (H - 6);
+    return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline points="${vals.map((v, i) => `${px(i)},${py(v)}`).join(' ')}" fill="none" stroke="#9aa6b8" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${px(vals.length - 1)}" cy="${py(vals.at(-1))}" r="3" fill="${color}"/></svg>`; };
+  // ---- أشرطة أفقية (HTML) — الضغط على الشريط يفلتر اللوحة ----
+  const hbars = (rows, color = DASH_COLORS[0], o = {}) => { const mx = Math.max(1, ...rows.map(r => Math.abs(r.v)));
+    return rows.length ? `<div class="hb">${rows.map(r => { const on = o.sel && r.key === o.sel, dim = o.sel && !on;
+      const k = o.xf && o.xf(r);
+      return `<div class="hb-row ${k ? 'clk' : ''} ${on ? 'on' : ''} ${dim ? 'dim' : ''}" data-tip="${tip(r.l, [{ color, v: money(r.v), l: r.sub || '' }, ...(k ? [{ v: '', l: on ? 'اضغط لإلغاء الفلتر' : o.hint || 'اضغط للفلترة' }] : [])])}" ${k ? `data-xf="${esc(k)}"` : ''} tabindex="0">
+      <span class="hb-l" title="${esc(r.l)}">${esc(r.l)}</span><span class="hb-t"><i style="width:${Math.max(1.5, Math.abs(r.v) / mx * 100)}%;background:${color}"></i></span><b class="hb-v">${cmp.format(r.v)}</b></div>`; }).join('')}</div>`
+      : '<div class="dash-empty">لا توجد بيانات بهذه الفلاتر</div>'; };
   // ---- شريط مقسّم (الكل وأجزاؤه) ----
-  const segbar = parts => { const tot = sum(parts, p => Math.max(0, p.v)); if (!tot) return '<div class="dash-empty">لا توجد بيانات في هذه الفترة</div>';
+  const segbar = (parts, o = {}) => { const tot = sum(parts, p => Math.max(0, p.v)); if (!tot) return '<div class="dash-empty">لا توجد بيانات بهذه الفلاتر</div>';
     const ps = parts.filter(p => p.v > 0);
-    return `<div class="seg" role="img" aria-label="${esc(ps.map(p => `${p.l}: ${Math.round(p.v / tot * 100)}%`).join('، '))}">${ps.map(p => `<span class="seg-p" style="flex:${p.v} 1 0;background:${p.color}" data-tip="${tip(p.l, [{ color: p.color, v: money(p.v), l: Math.round(p.v / tot * 100) + '%' }])}" tabindex="0"><em style="color:${p.ink || '#fff'}">${Math.round(p.v / tot * 100)}%</em></span>`).join('')}</div>
-      <ul class="dash-legend">${ps.map(p => `<li><i style="background:${p.color}"></i><span>${esc(p.l)}</span><b>${money(p.v)}</b></li>`).join('')}</ul>`; };
-  // ---- جدول بديل لكل رسم ----
+    return `<div class="seg" role="img" aria-label="${esc(ps.map(p => `${p.l}: ${Math.round(p.v / tot * 100)}%`).join('، '))}">${ps.map(p => `<span class="seg-p ${o.xf ? 'clk' : ''}" style="flex:${p.v} 1 0;background:${p.color}" ${o.xf ? `data-xf="${esc(o.xf(p))}"` : ''} data-tip="${tip(p.l, [{ color: p.color, v: money(p.v), l: Math.round(p.v / tot * 100) + '%' }, ...(o.xf ? [{ v: '', l: o.hint || '' }] : [])])}" tabindex="0"><em style="color:${p.ink || '#fff'}">${Math.round(p.v / tot * 100)}%</em></span>`).join('')}</div>
+      <ul class="dash-legend">${ps.map(p => `<li ${o.xf ? `class="clk" data-xf="${esc(o.xf(p))}"` : ''}><i style="background:${p.color}"></i><span>${esc(p.l)}</span><b>${money(p.v)}</b></li>`).join('')}</ul>`; };
+
+  // ---- بيانات كل كارت: للجدول والتصدير والحركات التفصيلية ----
+  let dashData = {};
   const dtable = (head, rows) => `<div class="dash-table" hidden><div class="table-wrap"><table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td class="${i ? 'num' : ''}">${i && typeof c === 'number' ? money(c) : esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
-  const dcard = (title, sub, body, table, cls = '') => `<div class="card dash-card ${cls}"><div class="card-head"><div><h3>${title}</h3>${sub ? `<div class="sub">${sub}</div>` : ''}</div><span class="spacer"></span>
-      <button type="button" class="link-btn dash-tbl-btn" aria-pressed="false">عرض كجدول</button></div><div class="card-body">${body}${table}</div></div>`;
+  const dcard = (id, title, sub, body, data, cls = '', back = '') => { dashData[id] = data;
+    return `<div class="card dash-card ${cls}" data-card="${id}"><div class="card-head"><div>${back}<h3>${title}</h3>${sub ? `<div class="sub">${sub}</div>` : ''}</div><span class="spacer"></span>
+      <div class="dc-act">
+        ${data.drill ? `<button type="button" class="dc-b" data-act="drill" title="الحركات التفصيلية">☰<span>الحركات</span></button>` : ''}
+        <button type="button" class="dc-b" data-act="table" title="عرض كجدول" aria-pressed="false">▦<span>جدول</span></button>
+        <button type="button" class="dc-b" data-act="xlsx" title="تصدير Excel">⤓<span>Excel</span></button>
+        <button type="button" class="dc-b" data-act="focus" title="تكبير">⛶</button>
+      </div></div><div class="card-body">${body}${dtable(data.head, data.rows)}</div></div>`; };
+
+  // ---- الفلاتر: الفترة (أو مدى مخصص) + الفرع + نوع المبيعات + الفلترة بالضغط على الرسوم ----
+  let dashC = { from: '', to: '' }; try { dashC = JSON.parse(localStorage.getItem('acc-erp-dashc') || '{}') || {}; } catch {}
+  let dashT = ''; try { dashT = localStorage.getItem('acc-erp-dasht') || ''; } catch {}
+  const xf = { month: '', cust: '', exp: '' };
+  const XF_LABEL = { month: 'الشهر', cust: 'العميل', exp: 'المصروفات', stype: 'نوع المبيعات', branch: 'الفرع' };
+  const saveDash = () => { try { localStorage.setItem('acc-erp-dashp', dashP); localStorage.setItem('acc-erp-dashb', dashB); localStorage.setItem('acc-erp-dasht', dashT); localStorage.setItem('acc-erp-dashc', JSON.stringify(dashC)); } catch {} };
+  const payBranch = (r, invT) => { const inv = r.invoice && db[invT].find(i => i.no === r.invoice); return r.branch || (inv ? docBranch(inv) : docBranch(r)); };
 
   function dashboardCharts() {
-    dashTips = [];
-    const R = dashRange(dashP), P = pl(R), months = monthsIn(R), multiYear = months[0]?.slice(0, 4) !== months.at(-1)?.slice(0, 4);
-    const PR = R.all ? null : pl(prevRange(R));
+    dashTips = []; dashData = {};
+    const R0 = dashP === 'custom' && dashC.from && dashC.to ? { from: dashC.from, to: dashC.to } : dashRange(dashP === 'custom' ? 'm12' : dashP);
+    const months = monthsIn(R0), multiYear = months[0]?.slice(0, 4) !== months.at(-1)?.slice(0, 4);
+    if (xf.month && !months.includes(xf.month)) xf.month = '';
+    // الشهر المحدد بالضغط يضيّق كل شيء ما عدا رسم الأشهر نفسه
+    const R = xf.month ? { from: xf.month + '-01', to: xf.month + '-31' } : R0;
+    const P0 = pl(R0, xf.exp), P = xf.month ? pl(R, xf.exp) : P0, PR = R0.all && !xf.month ? null : pl(prevRange(R), xf.exp);
     const cats = months.map(m => monthLabel(m, multiYear && months.length <= 6)), titles = months.map(m => monthLabel(m, true));
-    const revM = months.map(m => P.byMonth[m]?.rev || 0), expM = months.map(m => P.byMonth[m]?.exp || 0);
-    const cashM = cashSeries(months);
-    // المبيعات حسب النوع (صافي بعد المردودات)
+    const revM = months.map(m => P0.byMonth[m]?.rev || 0), expM = months.map(m => P0.byMonth[m]?.exp || 0), expAllM = months.map(m => P0.byMonth[m]?.expAll || 0), cashM = cashSeries(months);
+    const selM = xf.month ? months.indexOf(xf.month) : -1;
+    // مستندات المبيعات بعد الفلاتر
     const inR = r => r.date >= R.from && r.date <= R.to && inBr(docBranch(r));
-    const salesBy = SALE_TYPES.map(([, ty]) => ({ l: ty, v: sum(eff('salesInvoices').filter(r => inR(r) && saleType(r) === ty), r => r.amount) - sum(eff('salesReturns').filter(r => inR(r) && saleType(r) === ty), r => r.amount) }));
-    // هيكل المصروفات
-    const expParts = childrenOf(SYS.expenses).map((a, i) => ({ l: a.name, v: P.expBy[a.code] || 0, color: DASH_COLORS[i % 4], ink: i === 0 ? '#fff' : '#191919' }));
-    // أعمار ديون العملاء (حتى اليوم)
-    const BK = ['لم تستحق', '1–30', '31–60', '61–90', '+90'], BKT = ['لم تستحق بعد', 'متأخرة 1–30 يوم', 'متأخرة 31–60 يوم', 'متأخرة 61–90 يوم', 'متأخرة أكثر من 90 يوم'], aging = [0, 0, 0, 0, 0], t0 = new Date(today());
-    eff('salesInvoices').forEach(r => { if (!inBr(docBranch(r))) return; const rem = invTotal(r) - salesPaid(r); if (rem <= 0.005) return; const d = r.due ? Math.floor((t0 - new Date(r.due)) / 864e5) : 0;
-      aging[d <= 0 ? 0 : d <= 30 ? 1 : d <= 60 ? 2 : d <= 90 ? 3 : 4] += rem; });
-    // السداد يتبع فرع الفاتورة التي يسددها (إن وُجدت) وإلا فرع السند نفسه
-    const payBranch = (r, invT) => { const inv = r.invoice && db[invT].find(i => i.no === r.invoice); return r.branch || (inv ? docBranch(inv) : docBranch(r)); };
-    const cBal = n => dashB ? sum(eff('salesInvoices').filter(i => i.customer === n && inBr(docBranch(i))), invTotal) - sum(eff('salesReturns').filter(i => i.customer === n && inBr(docBranch(i))), i => i.amount)
-      - sum(eff('receipts').filter(i => i.party === n && isPartyDoc(i, 'c') && inBr(payBranch(i, 'salesInvoices'))), i => i.amount) : custBal(n);
-    const sBal = n => dashB ? sum(eff('purchaseInvoices').filter(i => i.supplier === n && inBr(docBranch(i))), i => i.amount) + sum(eff('stockIn').filter(i => i.supplier === n && inBr(docBranch(i))), i => docTotals(i).net)
+    const sOk = r => (!dashT || saleType(r) === dashT) && (!xf.cust || r.customer === xf.cust);
+    const invs = eff('salesInvoices').filter(r => inR(r) && sOk(r)), rets = eff('salesReturns').filter(r => inR(r) && sOk(r));
+    const salesBy = SALE_TYPES.map(([, ty]) => ({ key: ty, l: ty, v: sum(eff('salesInvoices').filter(r => inR(r) && saleType(r) === ty && (!xf.cust || r.customer === xf.cust)), r => r.amount) - sum(eff('salesReturns').filter(r => inR(r) && saleType(r) === ty && (!xf.cust || r.customer === xf.cust)), r => r.amount) }));
+    const netSales = sum(invs, r => r.amount) - sum(rets, r => r.amount);
+    // أكثر الأصناف مبيعاً (من بنود الفواتير)
+    const itemMap = {}; invs.forEach(r => linesOf(r).forEach(l => { if (!l.item) return; const x = itemMap[l.item] ||= { v: 0, q: 0, unit: l.unit || '' }; x.v += lineVal(l); x.q += +l.qty || 0; }));
+    const topItems = Object.entries(itemMap).map(([k, x]) => ({ key: k, l: k, v: x.v, sub: `${num(x.q)} ${x.unit}` })).sort((a, b) => b.v - a.v).slice(0, 6);
+    // هيكل المصروفات أو تفاصيل مجموعة (Drill-down)
+    const expGroups = childrenOf(SYS.expenses), expG = xf.exp && acc(xf.exp), expTop = expG && acc(childOfRoot(expG.code, SYS.expenses) || expG.code);
+    const expParts = expGroups.map((a, i) => ({ key: a.code, l: a.name, v: P.expBy[a.code] || 0, color: DASH_COLORS[i % 4], ink: i === 0 ? '#fff' : '#191919' }));
+    const expKids = expG ? Object.entries(P.expKid).map(([c, v]) => ({ key: c, l: acc(c)?.name || c, v, sub: c })).filter(x => x.v).sort((a, b) => b.v - a.v) : [];
+    // أعمار الديون وأرصدة العملاء — بالفلاتر
+    const filtered = dashB || dashT || xf.cust;
+    const BK = ['لم تستحق', '1–30', '31–60', '61–90', '+90'], BKT = ['لم تستحق بعد', 'متأخرة 1–30 يوم', 'متأخرة 31–60 يوم', 'متأخرة 61–90 يوم', 'متأخرة أكثر من 90 يوم'], aging = [0, 0, 0, 0, 0], agingInv = [[], [], [], [], []], t0 = new Date(today());
+    const openInv = eff('salesInvoices').filter(r => inBr(docBranch(r)) && sOk(r)).map(r => ({ r, rem: invTotal(r) - salesPaid(r) })).filter(x => x.rem > 0.005);
+    openInv.forEach(x => { const d = x.r.due ? Math.floor((t0 - new Date(x.r.due)) / 864e5) : 0, b = d <= 0 ? 0 : d <= 30 ? 1 : d <= 60 ? 2 : d <= 90 ? 3 : 4; aging[b] += x.rem; agingInv[b].push(x); });
+    const cVal = n => filtered ? sum(openInv.filter(x => x.r.customer === n), x => x.rem) : custBal(n);
+    const sVal = n => dashB ? sum(eff('purchaseInvoices').filter(i => i.supplier === n && inBr(docBranch(i))), i => i.amount) + sum(eff('stockIn').filter(i => i.supplier === n && inBr(docBranch(i))), i => docTotals(i).net)
       + sum(eff('supplierAccruals').filter(i => i.party === n && inBr(docBranch(i))), i => +i.amount || 0) - sum(eff('purchaseReturns').filter(i => i.supplier === n && inBr(docBranch(i))), i => i.amount)
       - sum(eff('payments').filter(i => i.party === n && isPartyDoc(i, 's') && inBr(payBranch(i, 'purchaseInvoices'))), i => i.amount) : suppBal(n);
-    const topCust = db.customers.map(c => ({ l: c.name, v: cBal(c.name), sub: c.category || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 6);
-    const topSupp = db.suppliers.map(s => ({ l: s.name, v: sBal(s.name), sub: acc(s.account)?.name || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 6);
+    const custAll = db.customers.map(c => ({ key: c.name, l: c.name, v: cVal(c.name), sub: c.category || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
+    const topCust = custAll.slice(0, 6); if (xf.cust && !topCust.some(x => x.key === xf.cust)) { const c = custAll.find(x => x.key === xf.cust); if (c) topCust.push(c); }
+    const topSupp = db.suppliers.map(s => ({ key: s.name, l: s.name, v: sVal(s.name), sub: acc(s.account)?.name || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 6);
     const invAccs = [...childrenOf(SYS.inventory), acc(SYS.finished)].filter(Boolean);
     const whs = db.warehouses.filter(w => inBr(w.branch)), itemAccOf = i => { const c = String(i.store || SYS.defPurchase); return invAccs.find(a => ancestors(c).includes(a.code))?.code; };
     const invRows = invAccs.map(a => ({ l: a.name, sub: a.code, v: sum(db.items.filter(i => itemAccOf(i) === a.code), i => sum(whs, w => stockAt(i.name, w.name)) * (+i.cost || 0)) })).filter(x => x.v).sort((a, b) => b.v - a.v);
-    const boxRows = db.cashboxes.filter(b => inBr(b.branch)).map(b => ({ l: b.name, v: acc(b.accountNo) ? ownBal(acc(b.accountNo)) : 0, sub: b.type || '' })).filter(x => x.v).sort((a, b) => b.v - a.v);
-    const cashNow = dashB ? sum(boxRows, x => x.v) : rollup(SYS.cash) + rollup(SYS.banks), receivable = sum(db.customers, c => dashB ? Math.max(0, cBal(c.name)) : cBal(c.name)), payable = sum(db.suppliers, s => dashB ? Math.max(0, sBal(s.name)) : sBal(s.name));
-    const delta = (cur, prev, upGood = true) => { if (prev == null || !PR) return ''; if (!prev) return '';
+    const boxRows = db.cashboxes.filter(b => inBr(b.branch)).map(b => ({ l: b.name, v: acc(b.accountNo) ? ownBal(acc(b.accountNo)) : 0, sub: b.type || '', id: b.id })).filter(x => x.v).sort((a, b) => b.v - a.v);
+    const cashNow = dashB ? sum(boxRows, x => x.v) : rollup(SYS.cash) + rollup(SYS.banks), receivable = sum(custAll, x => x.v);
+    const delta = (cur, prev, upGood = true) => { if (prev == null || !PR || !prev) return '';
       const ch = (cur - prev) / Math.abs(prev) * 100, good = (ch >= 0) === upGood; return `<span class="dl ${Math.abs(ch) < 0.5 ? 'flat' : good ? 'good' : 'bad'}">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(1)}% عن الفترة السابقة</span>`; };
-    const net = P.rev - P.exp, pnet = PR ? PR.rev - PR.exp : null;
-    const stat = (label, value, sub, icon, color) => `<div class="kpi"><div class="kpi-icon ${color}">${icon}</div><div><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-trend">${sub}</div></div></div>`;
+    const net = P.rev - P.expAll, pnet = PR ? PR.rev - PR.expAll : null;
+    const stat = (label, value, sub, icon, color, sp) => `<div class="kpi"><div class="kpi-icon ${color}">${icon}</div><div class="kpi-main"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-trend">${sub}</div>${sp || ''}</div></div>`;
+    // الحركات التفصيلية (Drill-through)
+    const revExpDrill = () => glEntries().filter(e => e.date && e.date >= R.from && e.date <= R.to && inBr(e.branch)).map(e => {
+      let rv = 0, ex = 0; e.lines.forEach(l => { const a = ancestors(l.acc); if (a.at(-1) === SYS.revenue) rv += l.cr - l.dr; else if (a.at(-1) === SYS.expenses && (!xf.exp || a.includes(xf.exp))) ex += l.dr - l.cr; });
+      return (rv || ex) && { cells: [e.date, e.no, e.desc, e.src, rv, ex], page: e.manual ? 'journal' : tbl(e.module), q: e.no }; }).filter(Boolean);
+    const invDrill = list => list.map(x => { const r = x.r || x; return { cells: [r.date, r.no, r.customer, saleType(r), invTotal(r), invTotal(r) - salesPaid(r)], page: 'salesInvoices', q: r.no }; });
+    const chips = [
+      ...(dashB ? [['branch', dashB === NO_BR ? 'غير محدد الفرع' : dashB]] : []), ...(dashT ? [['stype', dashT]] : []),
+      ...(xf.month ? [['month', titles[selM] || xf.month]] : []), ...(xf.cust ? [['cust', xf.cust]] : []), ...(xf.exp ? [['exp', acc(xf.exp)?.name || xf.exp]] : [])];
+
     dashDraw = () => {
-      const c1 = $('[data-chart=revexp]', content); if (c1) colChart(c1, { cats, catTitles: titles, series: [{ name: 'الإيرادات', color: DASH_COLORS[0], vals: revM }, { name: 'المصروفات', color: DASH_COLORS[1], vals: expM }], extra: i => ({ v: money(revM[i] - expM[i]), l: 'صافي الربح' }) });
-      const c2 = $('[data-chart=cash]', content); if (c2) lineChart(c2, { cats, catTitles: titles, vals: cashM, name: 'رصيد النقدية', color: DASH_COLORS[0] });
+      const c1 = $('[data-chart=revexp]', content); if (c1) colChart(c1, { cats, catTitles: titles, sel: selM, xf: i => 'month:' + months[i],
+        series: [{ name: 'الإيرادات', color: DASH_COLORS[0], vals: revM }, { name: expG ? 'مصروفات: ' + expG.name : 'المصروفات', color: DASH_COLORS[1], vals: expM }], extra: i => ({ v: money(revM[i] - expAllM[i]), l: 'صافي الربح' }) });
+      const c2 = $('[data-chart=cash]', content); if (c2) lineChart(c2, { cats, catTitles: titles, vals: cashM, name: 'رصيد النقدية', color: DASH_COLORS[0], sel: selM });
       const c3 = $('[data-chart=aging]', content); if (c3) colChart(c3, { cats: BK, catTitles: BKT, series: [{ name: 'المتبقي', color: DASH_SEQ[2], vals: aging }], colorsPerBar: DASH_SEQ, height: 220 });
       $$('.seg-p em', content).forEach(e => { e.style.visibility = e.offsetWidth + 10 > e.parentElement.offsetWidth ? 'hidden' : ''; });
     };
+    const rangeTxt = `${fmtDMY(R.from)} — ${fmtDMY(R.to > today() ? today() : R.to)}`;
     return `
-      <div class="dash-filters" role="group" aria-label="الفترة">
-        <span class="df-l">الفترة:</span>
-        ${DASH_PRESETS.map(([k, l]) => `<button type="button" class="df-b ${k === dashP ? 'on' : ''}" data-dp="${k}" aria-pressed="${k === dashP}">${k === dashP ? '✓ ' : ''}${l}</button>`).join('')}
-        <label class="df-br"><span class="df-l">الفرع:</span><select class="input df-sel" id="dashBranch" aria-label="الفرع">
-          ${[['', 'كل الفروع'], ...db.branches.map(b => [b.name, b.name]), [NO_BR, 'غير محدد الفرع']].map(([v, l]) => `<option value="${esc(v)}" ${v === dashB ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
-        <span class="df-r">${fmtDMY(R.from)} — ${fmtDMY(R.to)}</span>
+      <div class="bi-slicers">
+        <div class="dash-filters" role="group" aria-label="الفترة">
+          <span class="df-l">الفترة:</span>
+          ${[...DASH_PRESETS, ['custom', 'مخصص']].map(([k, l]) => `<button type="button" class="df-b ${k === dashP ? 'on' : ''}" data-dp="${k}" aria-pressed="${k === dashP}">${k === dashP ? '✓ ' : ''}${l}</button>`).join('')}
+          ${dashP === 'custom' ? `<span class="df-cust"><input type="date" class="input" id="dashFrom" value="${esc(R0.from)}" aria-label="من"><span>—</span><input type="date" class="input" id="dashTo" value="${esc(R0.to)}" aria-label="إلى"></span>` : ''}
+        </div>
+        <div class="dash-filters">
+          <label class="df-br"><span class="df-l">الفرع:</span><select class="input df-sel" id="dashBranch" aria-label="الفرع">
+            ${[['', 'كل الفروع'], ...db.branches.map(b => [b.name, b.name]), [NO_BR, 'غير محدد الفرع']].map(([v, l]) => `<option value="${esc(v)}" ${v === dashB ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+          <label class="df-br"><span class="df-l">نوع المبيعات:</span><select class="input df-sel" id="dashType" aria-label="نوع المبيعات">
+            ${[['', 'كل الأنواع'], ...SALE_TYPES.map(([, t]) => [t, t])].map(([v, l]) => `<option value="${esc(v)}" ${v === dashT ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+          <span class="df-r">${rangeTxt}</span>
+        </div>
+        <div class="bi-chips" ${chips.length ? '' : 'hidden'}>
+          <span class="df-l">الفلاتر المطبّقة:</span>
+          ${chips.map(([k, v]) => `<button type="button" class="bi-chip" data-clear="${k}" title="إزالة الفلتر"><small>${XF_LABEL[k]}</small> ${esc(v)} <b aria-hidden="true">×</b></button>`).join('')}
+          <button type="button" class="link-btn" data-clear="all">مسح كل الفلاتر</button>
+        </div>
+        <div class="bi-hint">💡 اضغط على أي عمود أو شريط لفلترة اللوحة كلها، وعلى مجموعة مصروفات للتعمق في حساباتها.</div>
       </div>
       <div class="kpis">
-        ${stat('الإيرادات', money(P.rev), delta(P.rev, PR?.rev), icons.trend, 'green')}
-        ${stat('المصروفات', money(P.exp), delta(P.exp, PR?.exp, false), icons.down, 'red')}
-        ${stat('صافي الربح', money(net), `${P.rev ? `هامش ربح ${Math.round(net / P.rev * 100)}%` : ''} ${delta(net, pnet)}`, icons.wallet, '')}
-        ${stat('النقدية بالخزائن والبنوك', money(cashNow), `للعملاء ${money(receivable)} · للموردين ${money(payable)}`, icons.cash, 'amber')}
+        ${stat('الإيرادات', money(P.rev), delta(P.rev, PR?.rev), icons.trend, 'green', spark(revM, DASH_COLORS[0]))}
+        ${stat(expG ? 'مصروفات: ' + esc(expG.name) : 'المصروفات', money(P.exp), delta(P.exp, PR?.exp, false), icons.down, 'red', spark(expM, DASH_COLORS[1]))}
+        ${stat('صافي الربح', money(net), `${P.rev ? `هامش ربح ${Math.round(net / P.rev * 100)}%` : ''} ${delta(net, pnet)}`, icons.wallet, '', spark(revM.map((v, i) => v - expAllM[i])))}
+        ${stat('صافي المبيعات', money(netSales), `للعملاء ${money(receivable)} · النقدية ${money(cashNow)}`, icons.cash, 'amber', spark(cashM))}
       </div>
       <div class="dash-grid">
-        ${dcard('الإيرادات والمصروفات شهرياً', 'من القيود المرحّلة في الفترة',
-          `<ul class="dash-legend top"><li><i style="background:${DASH_COLORS[0]}"></i><span>الإيرادات</span></li><li><i style="background:${DASH_COLORS[1]}"></i><span>المصروفات</span></li></ul>
+        ${dcard('revexp', 'الإيرادات والمصروفات شهرياً', 'اضغط على شهر لفلترة اللوحة',
+          `<ul class="dash-legend top"><li><i style="background:${DASH_COLORS[0]}"></i><span>الإيرادات</span></li><li><i style="background:${DASH_COLORS[1]}"></i><span>${expG ? 'مصروفات: ' + esc(expG.name) : 'المصروفات'}</span></li></ul>
            <div class="chart" data-chart="revexp" data-label="الإيرادات والمصروفات شهرياً"></div>`,
-          dtable(['الشهر', 'الإيرادات', 'المصروفات', 'صافي الربح'], months.map((m, i) => [titles[i], revM[i], expM[i], revM[i] - expM[i]])), 'wide')}
-        ${dcard('رصيد النقدية', 'الخزائن والبنوك في نهاية كل شهر', `<div class="chart" data-chart="cash" data-label="رصيد النقدية"></div>`,
-          dtable(['الشهر', 'الرصيد'], months.map((m, i) => [titles[i], cashM[i]])))}
-        ${dcard('المبيعات حسب النوع', 'صافي بعد المردودات — قبل الضريبة', hbars(salesBy.filter(x => x.v)), dtable(['النوع', 'صافي المبيعات'], salesBy.map(x => [x.l, x.v])))}
-        ${dcard('هيكل المصروفات', `إجمالي ${money(P.exp)}`, segbar(expParts), dtable(['المجموعة', 'المبلغ'], expParts.map(x => [x.l, x.v])))}
-        ${dcard('أكبر العملاء رصيداً', 'مستحق من العملاء', hbars(topCust), dtable(['العميل', 'الرصيد'], topCust.map(x => [x.l, x.v])))}
-        ${dcard('أكبر الموردين رصيداً', 'مستحق للموردين', hbars(topSupp, DASH_COLORS[1]), dtable(['المورد', 'الرصيد'], topSupp.map(x => [x.l, x.v])))}
-        ${dcard('قيمة المخزون', 'الكمية × التكلفة — حسب حساب المخزون', hbars(invRows, DASH_COLORS[2]), dtable(['الحساب', 'القيمة'], invRows.map(x => [x.l, x.v])))}
-        ${dcard('أعمار ديون العملاء', 'المتبقي على الفواتير حتى اليوم — بالأيام بعد الاستحقاق', `<div class="chart" data-chart="aging" data-label="أعمار ديون العملاء"></div>`, dtable(['الفئة', 'المبلغ'], BKT.map((b, i) => [b, aging[i]])))}
-        ${dcard('أرصدة الخزائن والبنوك', dashB ? 'خزائن وبنوك الفرع المختار' : 'الرصيد الحالي لكل خزينة وبنك', hbars(boxRows, DASH_COLORS[0]), dtable(['الخزينة / البنك', 'الرصيد'], boxRows.map(x => [x.l, x.v])), 'full')}
+          { head: ['الشهر', 'الإيرادات', 'المصروفات', 'صافي الربح'], rows: months.map((m, i) => [titles[i], revM[i], expM[i], revM[i] - expAllM[i]]),
+            drill: { title: 'القيود: الإيرادات والمصروفات', head: ['التاريخ', 'رقم القيد', 'البيان', 'المصدر', 'إيراد', 'مصروف'], get: revExpDrill } }, 'wide')}
+        ${dcard('cash', 'رصيد النقدية', dashB ? 'خزائن وبنوك الفرع في نهاية كل شهر' : 'الخزائن والبنوك في نهاية كل شهر', `<div class="chart" data-chart="cash" data-label="رصيد النقدية"></div>`,
+          { head: ['الشهر', 'الرصيد'], rows: months.map((m, i) => [titles[i], cashM[i]]) })}
+        ${dcard('stype', 'المبيعات حسب النوع', 'صافي بعد المردودات — اضغط للفلترة', hbars(salesBy.filter(x => x.v), DASH_COLORS[0], { xf: r => 'stype:' + r.key, sel: dashT }),
+          { head: ['النوع', 'صافي المبيعات'], rows: salesBy.map(x => [x.l, x.v]), drill: { title: 'فواتير المبيعات', head: ['التاريخ', 'رقم الفاتورة', 'العميل', 'النوع', 'الإجمالي', 'المتبقي'], get: () => invDrill(invs) } })}
+        ${expG ? dcard('exp', `هيكل المصروفات › ${ancestors(expG.code).slice(0, -1).reverse().map(c => esc(acc(c)?.name || c)).join(' › ')}`, `إجمالي ${money(P.exp)} — حسب الحساب`, hbars(expKids, DASH_COLORS[expGroups.indexOf(expTop) % 4] || DASH_COLORS[1], { xf: r => childrenOf(r.key).length ? 'exp:' + r.key : '', hint: 'اضغط للتعمق في الحساب' }),
+            { head: ['الحساب', 'المبلغ'], rows: expKids.map(x => [x.l, x.v]), drill: { title: 'قيود ' + expG.name, head: ['التاريخ', 'رقم القيد', 'البيان', 'المصدر', 'إيراد', 'مصروف'], get: () => revExpDrill().filter(x => x.cells[5]) } }, '',
+            expG.parent && expG.parent !== SYS.expenses ? `<button type="button" class="bi-back" data-xf="exp:${esc(expG.parent)}">${document.documentElement.dir === 'rtl' ? '→' : '←'} ${esc(acc(expG.parent)?.name || '')}</button>` : `<button type="button" class="bi-back" data-clear="exp">${document.documentElement.dir === 'rtl' ? '→' : '←'} كل المصروفات</button>`)
+          : dcard('exp', 'هيكل المصروفات', `إجمالي ${money(P.exp)} — اضغط للتعمق`, segbar(expParts, { xf: p => 'exp:' + p.key, hint: 'اضغط لعرض حسابات المجموعة' }),
+            { head: ['المجموعة', 'المبلغ'], rows: expParts.map(x => [x.l, x.v]) })}
+        ${dcard('items', 'أكثر الأصناف مبيعاً', 'قيمة البنود في فواتير الفترة', hbars(topItems, DASH_COLORS[2]), { head: ['الصنف', 'القيمة'], rows: topItems.map(x => [x.l, x.v]) })}
+        ${dcard('cust', 'أكبر العملاء رصيداً', filtered ? 'المتبقي على فواتير الفلاتر — اضغط للفلترة' : 'مستحق من العملاء — اضغط للفلترة', hbars(topCust, DASH_COLORS[0], { xf: r => 'cust:' + r.key, sel: xf.cust }),
+          { head: ['العميل', 'الرصيد'], rows: custAll.map(x => [x.l, x.v]), drill: { title: 'الفواتير المفتوحة', head: ['التاريخ', 'رقم الفاتورة', 'العميل', 'النوع', 'الإجمالي', 'المتبقي'], get: () => invDrill(openInv) } })}
+        ${dcard('supp', 'أكبر الموردين رصيداً', 'مستحق للموردين', hbars(topSupp, DASH_COLORS[1]), { head: ['المورد', 'الرصيد'], rows: topSupp.map(x => [x.l, x.v]) })}
+        ${dcard('aging', 'أعمار ديون العملاء', 'بالأيام بعد الاستحقاق', `<div class="chart" data-chart="aging" data-label="أعمار ديون العملاء"></div>`,
+          { head: ['الفئة', 'المبلغ'], rows: BKT.map((b, i) => [b, aging[i]]), drill: { title: 'الفواتير المفتوحة حسب العمر', head: ['التاريخ', 'رقم الفاتورة', 'العميل', 'النوع', 'الإجمالي', 'المتبقي'], get: () => invDrill(agingInv.flat()) } })}
+        ${dcard('inv', 'قيمة المخزون', 'الكمية × التكلفة — حسب حساب المخزون', hbars(invRows, DASH_COLORS[2]), { head: ['الحساب', 'القيمة'], rows: invRows.map(x => [x.l, x.v]) })}
+        ${dcard('boxes', 'أرصدة الخزائن والبنوك', dashB ? 'خزائن وبنوك الفرع المختار' : 'الرصيد الحالي لكل خزينة وبنك', hbars(boxRows, DASH_COLORS[0]),
+          { head: ['الخزينة / البنك', 'الرصيد'], rows: boxRows.map(x => [x.l, x.v]) }, 'wide')}
       </div>`;
   }
   let dashDraw = null;
+  // نافذة الحركات التفصيلية
+  function openDrill(d) {
+    const rows = d.get(), numCols = d.head.map((h, i) => rows.some(r => typeof r.cells[i] === 'number'));
+    let el = $('#biDrawer'); if (!el) { el = document.createElement('div'); el.id = 'biDrawer'; el.className = 'bi-drawer'; document.body.appendChild(el); }
+    el.innerHTML = `<div class="bi-dr-box" role="dialog" aria-label="${esc(d.title)}"><div class="bi-dr-head"><b>${esc(d.title)}</b><span class="pill">${rows.length}</span><span class="spacer"></span>
+      <button type="button" class="dc-b" data-dr="xlsx">⤓<span>Excel</span></button><button type="button" class="icon-btn" data-dr="close" aria-label="إغلاق"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <div class="table-wrap"><table><thead><tr>${d.head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>
+      ${rows.map((r, i) => `<tr class="clk" data-row="${i}" title="فتح المستند">${r.cells.map((c, j) => `<td class="${numCols[j] ? 'num' : ''}">${numCols[j] ? (c ? money(c) : '') : esc(c ?? '')}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${d.head.length}" class="dash-empty">لا توجد حركات بهذه الفلاتر</td></tr>`}</tbody>
+      ${rows.length ? `<tfoot><tr>${d.head.map((h, j) => `<td class="${numCols[j] ? 'num' : ''}">${j === 0 ? 'الإجمالي' : numCols[j] ? money(sum(rows, r => r.cells[j])) : ''}</td>`).join('')}</tr></tfoot>` : ''}</table></div></div>`;
+    el.hidden = false;
+    el.onclick = e => { if (e.target === el || e.target.closest('[data-dr=close]')) { el.hidden = true; return; }
+      if (e.target.closest('[data-dr=xlsx]')) { exportGrid(d.title, d.head, rows.map(r => r.cells)); return; }
+      const tr = e.target.closest('[data-row]'); if (tr) { const r = rows[+tr.dataset.row]; el.hidden = true; goTo(r.page, r.q); } };
+  }
+  async function exportGrid(title, head, rows) {
+    const X = await loadXLSX(), name = `${title}-${today()}`;
+    if (X) { const ws = X.utils.aoa_to_sheet([head, ...rows]); ws['!cols'] = head.map(h => ({ wch: Math.max(14, String(h).length + 4) })); const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, 'بيانات');
+      saveFile(name + '.xlsx', new Blob([X.write(wb, { type: 'array', bookType: 'xlsx' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); }
+    else downloadCSV(name, head, rows);
+  }
   function wireDashboard() {
     dashDraw?.();
-    $$('[data-dp]', content).forEach(b => b.onclick = () => { dashP = b.dataset.dp; try { localStorage.setItem('acc-erp-dashp', dashP); } catch {} renderPage(); });
-    const bs = $('#dashBranch', content); if (bs) bs.onchange = () => { dashB = bs.value; try { localStorage.setItem('acc-erp-dashb', dashB); } catch {} renderPage(); };
-    $$('.dash-tbl-btn', content).forEach(b => b.onclick = () => { const card = b.closest('.dash-card'), t = $('.dash-table', card), on = t.hidden;
-      t.hidden = !on; b.setAttribute('aria-pressed', on); b.textContent = on ? 'عرض كرسم' : 'عرض كجدول'; $$('.chart, .hb, .seg, .dash-legend', card).forEach(x => x.hidden = on); if (!on) dashDraw?.(); });
+    const re = () => { saveDash(); renderPage(); };
+    $$('[data-dp]', content).forEach(b => b.onclick = () => { dashP = b.dataset.dp; xf.month = ''; if (dashP === 'custom' && !dashC.from) { const r = dashRange('m12'); dashC = { from: r.from, to: r.to }; } re(); });
+    const f = $('#dashFrom', content), t = $('#dashTo', content);
+    [f, t].forEach(x => x && (x.onchange = () => { if (f.value && t.value && f.value <= t.value) { dashC = { from: f.value, to: t.value }; xf.month = ''; re(); } }));
+    const bs = $('#dashBranch', content); if (bs) bs.onchange = () => { dashB = bs.value; re(); };
+    const ts = $('#dashType', content); if (ts) ts.onchange = () => { dashT = ts.value; re(); };
+    $$('.dash-card', content).forEach(card => { const id = card.dataset.card, d = dashData[id];
+      card.querySelector('.dc-act').onclick = e => { const b = e.target.closest('[data-act]'); if (!b) return;
+        if (b.dataset.act === 'table') { const tb = $('.dash-table', card), on = tb.hidden; tb.hidden = !on; b.setAttribute('aria-pressed', on); b.classList.toggle('on', on); $$('.chart, .hb, .seg, .dash-legend, .dash-empty', card).forEach(x => { if (!x.closest('.dash-table')) x.hidden = on; }); if (!on) dashDraw?.(); }
+        else if (b.dataset.act === 'xlsx') exportGrid($('h3', card).textContent, d.head, d.rows);
+        else if (b.dataset.act === 'drill') openDrill(d.drill);
+        else if (b.dataset.act === 'focus') { const on = !card.classList.contains('focus'); card.classList.toggle('focus', on); document.body.classList.toggle('bi-focus', on); b.textContent = on ? '✕' : '⛶'; b.title = on ? 'تصغير' : 'تكبير'; dashDraw?.(); } }; });
+    content.onclick = e => {
+      const c = e.target.closest('[data-clear]'); if (c && content.contains(c)) { const k = c.dataset.clear;
+        if (k === 'all') { xf.month = xf.cust = xf.exp = ''; dashB = ''; dashT = ''; } else if (k === 'branch') dashB = ''; else if (k === 'stype') dashT = ''; else xf[k] = ''; re(); return; }
+      const h = e.target.closest('[data-xf]'); if (!h || !content.contains(h)) return;
+      const [k, ...v] = h.dataset.xf.split(':'), val = v.join(':');
+      if (k === 'stype') dashT = dashT === val ? '' : val; else xf[k] = xf[k] === val ? '' : val;
+      hideTip(); re(); };
+    content.onkeydown = e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-xf]')) { e.preventDefault(); e.target.click(); } };
     const onMove = e => { const h = e.target.closest?.('[data-tip]'); if (!h || !content.contains(h)) { hideTip(); $$('.xh', content).forEach(l => l.setAttribute('visibility', 'hidden')); return; }
       showTip(+h.dataset.tip, e); const svg = h.closest('svg'), xh = svg && $('.xh', svg); if (xh) { xh.setAttribute('x1', h.dataset.x); xh.setAttribute('x2', h.dataset.x); xh.setAttribute('visibility', 'visible'); } };
     content.onpointermove = onMove; content.onpointerleave = () => hideTip();
     content.onfocusin = e => { const h = e.target.closest?.('[data-tip]'); if (h) { const r = h.getBoundingClientRect(); showTip(+h.dataset.tip, { clientX: r.left + r.width / 2, clientY: r.top }); } };
     content.onfocusout = () => hideTip();
   }
+  addEventListener('keydown', e => { if (e.key !== 'Escape') return; const d = $('#biDrawer'); if (d && !d.hidden) { d.hidden = true; return; } const f = $('.dash-card.focus'); if (f) f.querySelector('[data-act=focus]').click(); });
   let dashRz; addEventListener('resize', () => { clearTimeout(dashRz); dashRz = setTimeout(() => { if (state.page === 'dashboard') dashDraw?.(); }, 150); });
 
   function renderDashboard() {
