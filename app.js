@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 04:00';
+  const APP_VERSION = '26/11/2026, 04:30';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -3915,6 +3915,57 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       return { cols: [col('الشهر'), col('عدد الفواتير', N$), col('الصافي', M$), col('الضريبة', M$), col('الإجمالي', M$)],
         rows: months.map(m => { const l = list.filter(r => monthOf(r.date) === m); return [m, l.length, sum(l, r => r.amount), sum(l, vatOf), sum(l, invTotal)]; }) };
     } },
+    // ===== تقارير المبيعات التفصيلية (سطر لكل صنف) — الافتراضي مبيعات السوق المحلي =====
+    ...(() => {
+      // أسطر الأصناف من الفواتير المعتمدة بعد الفلاتر (مع المردودات بالسالب)
+      const lmLines = (f, t, F) => {
+        const ok = r => inRange(r.date, f, t) && (!F.stype || saleType(r) === F.stype) && (!F.branch || (F.branch === '__none' ? !docBranch(r) : docBranch(r) === F.branch)) && (!F.cust || r.customer === F.cust);
+        const out = [];
+        [['salesInvoices', 1], ['salesReturns', -1]].forEach(([tb, sg]) => eff(tb).filter(ok).forEach(r => {
+          const ls = linesOf(r).length ? linesOf(r) : [{ item: '—', qty: 0, value: +r.amount }];
+          ls.forEach(l => { if (F.item && l.item !== F.item) return; if (F.itype && (l.itype || '') !== F.itype) return;
+            out.push({ r, sg, tb, item: l.item, itype: l.itype || '', unit: l.unit || '', qty: sg * (+l.qty || 0), count: sg * (+l.count || 0), weight: sg * lineWeight(l), price: +l.price || 0,
+              value: sg * lineVal(l), disc: sg * (+l.disc || 0), pack: sg * (+l.pack || 0), total: sg * lineTot(l), branch: docBranch(r) || '—' }); }); }));
+        return out;
+      };
+      const groupBy = (ls, keyF) => { const m = new Map(); ls.forEach(l => { const k = keyF(l); const g = m.get(k) || { ls: [], inv: new Set() }; g.ls.push(l); g.inv.add(l.tb + l.r.id); m.set(k, g); }); return m; };
+      const agg = g => ({ n: g.inv.size, qty: sum(g.ls, l => l.qty), weight: sum(g.ls, l => l.weight), value: sum(g.ls, l => l.value), disc: sum(g.ls, l => l.disc), pack: sum(g.ls, l => l.pack), total: sum(g.ls, l => l.total) });
+      const NUMC0 = [col('عدد الفواتير', N$), col('الكمية', N$), col('إجمالي الوزن', N$), col('إجمالي القيمة', M$), col('الخصم', M$), col('مواد التعبئة', M$), col('إجمالي مدين', M$)];
+      // عدد الفواتير يُجمع فقط عندما تقع الفاتورة في مجموعة واحدة (الفرع/العميل)
+      const NUMC = [col('عدد الفواتير', N$, { noSum: true }), ...NUMC0.slice(1)];
+      const numRow = x => [x.n, x.qty, x.weight, x.value, x.disc, x.pack, x.total];
+      const pct = (v, tot) => tot ? +(v / tot * 100).toFixed(1) : 0;
+      const filters = ['stype', 'branch', 'cust', 'item', 'itype'];
+      const G = 'تقارير المبيعات التفصيلية', need = 'salesInvoices';
+      const noteOf = (F, ls) => `${F.stype || 'كل أنواع المبيعات'}${F.branch ? ' · ' + (F.branch === '__none' ? 'بدون فرع' : F.branch) : ' · كل الفروع'}${F.cust ? ' · ' + F.cust : ''}${F.item ? ' · ' + F.item : ''}${F.itype ? ' (' + F.itype + ')' : ''} · ${ls.length} سطر`;
+      return [
+        { id: 'lmBranch', group: G, title: 'المبيعات حسب الفرع', need, filters, run: (f, t, F) => { const ls = lmLines(f, t, F), m = groupBy(ls, l => l.branch), tot = sum(ls, l => l.total);
+          return { cols: [col('الفرع'), ...NUMC0, col('النسبة %', N$, { noSum: true })], rows: [...m].map(([k, g]) => { const x = agg(g); return [k, ...numRow(x), pct(x.total, tot)]; }).sort((p, q) => q[7] - p[7]), note: noteOf(F, ls) }; } },
+        { id: 'lmItem', group: G, title: 'المبيعات حسب الصنف ونوعه', need, filters, run: (f, t, F) => { const ls = lmLines(f, t, F), m = groupBy(ls, l => l.item + '\u0000' + l.itype), tot = sum(ls, l => l.total);
+          return { cols: [col('الصنف'), col('نوع الصنف'), ...NUMC, col('متوسط السعر', M$, { noSum: true }), col('النسبة %', N$, { noSum: true })],
+            rows: [...m].map(([k, g]) => { const [it, ty] = k.split('\u0000'), x = agg(g); return [it, ty || '—', ...numRow(x), x.qty ? +(x.value / x.qty).toFixed(2) : 0, pct(x.total, tot)]; }).sort((p, q) => p[0].localeCompare(q[0]) || q[8] - p[8]), note: noteOf(F, ls) }; } },
+        { id: 'lmItemOnly', group: G, title: 'المبيعات حسب الصنف (إجمالي)', need, filters, run: (f, t, F) => { const ls = lmLines(f, t, F), m = groupBy(ls, l => l.item), tot = sum(ls, l => l.total);
+          return { cols: [col('الصنف'), ...NUMC, col('متوسط السعر', M$, { noSum: true }), col('النسبة %', N$, { noSum: true })],
+            rows: [...m].map(([k, g]) => { const x = agg(g); return [k, ...numRow(x), x.qty ? +(x.value / x.qty).toFixed(2) : 0, pct(x.total, tot)]; }).sort((p, q) => q[7] - p[7]), note: noteOf(F, ls) }; } },
+        { id: 'lmCust', group: G, title: 'المبيعات حسب العميل', need, filters, run: (f, t, F) => { const ls = lmLines(f, t, F), m = groupBy(ls, l => l.r.customer), tot = sum(ls, l => l.total);
+          return { cols: [col('العميل'), ...NUMC0, col('النسبة %', N$, { noSum: true }), col('رصيد العميل الحالي', M$, { noSum: true })],
+            rows: [...m].map(([k, g]) => { const x = agg(g); return [k, ...numRow(x), pct(x.total, tot), custBal(k)]; }).sort((p, q) => q[7] - p[7]), note: noteOf(F, ls) }; } },
+        { id: 'lmCustItem', group: G, title: 'المبيعات حسب العميل والصنف', need, filters, run: (f, t, F) => { const ls = lmLines(f, t, F), m = groupBy(ls, l => l.r.customer + '\u0000' + l.item + '\u0000' + l.itype);
+          const rows = []; let last = null;
+          [...m].map(([k, g]) => [k.split('\u0000'), agg(g)]).sort((p, q) => p[0][0].localeCompare(q[0][0]) || p[0][1].localeCompare(q[0][1]) || q[1].total - p[1].total)
+            .forEach(([[c, it, ty], x]) => { rows.push([c === last ? '' : c, it, ty || '—', ...numRow(x)]); last = c; });
+          return { cols: [col('العميل'), col('الصنف'), col('نوع الصنف'), ...NUMC], rows, note: noteOf(F, ls) }; } },
+        { id: 'lmBranchItem', group: G, title: 'المبيعات حسب الفرع والصنف', need, filters, run: (f, t, F) => { const ls = lmLines(f, t, F), m = groupBy(ls, l => l.branch + '\u0000' + l.item + '\u0000' + l.itype);
+          const rows = []; let last = null;
+          [...m].map(([k, g]) => [k.split('\u0000'), agg(g)]).sort((p, q) => p[0][0].localeCompare(q[0][0]) || p[0][1].localeCompare(q[0][1]) || q[1].total - p[1].total)
+            .forEach(([[b, it, ty], x]) => { rows.push([b === last ? '' : b, it, ty || '—', ...numRow(x)]); last = b; });
+          return { cols: [col('الفرع'), col('الصنف'), col('نوع الصنف'), ...NUMC], rows, note: noteOf(F, ls) }; } },
+        { id: 'lmDetail', group: G, title: 'كشف المبيعات التفصيلي', need, filters, run: (f, t, F) => { const ls = lmLines(f, t, F).sort((p, q) => byDate(p.r, q.r) || String(p.r.no).localeCompare(String(q.r.no)));
+          return { cols: [col('التاريخ'), col('رقم الفاتورة'), col('رقم المستند'), col('الفرع'), col('العميل'), col('الصنف'), col('نوع الصنف'), col('الكمية', N$), col('الوحدة'), col('سعر الوحدة', M$, { noSum: true }),
+            col('إجمالي الوزن', N$), col('إجمالي القيمة', M$), col('الخصم', M$), col('مواد التعبئة', M$), col('إجمالي مدين', M$)],
+            rows: ls.map(l => [l.r.date, l.r.no + (l.sg < 0 ? ' (مردود)' : ''), l.r.docNo || '', l.branch, l.r.customer, l.item, l.itype || '—', l.qty, l.unit, l.price, l.weight, l.value, l.disc, l.pack, l.total]), note: noteOf(F, ls) }; } },
+      ];
+    })(),
     // ===== المشتريات =====
     { id: 'purSupp', group: 'المشتريات', title: 'المشتريات حسب المورد', need: 'purchaseInvoices', run: (f, t) => {
       const inv = eff('purchaseInvoices').filter(r => inRange(r.date, f, t)), ret = eff('purchaseReturns').filter(r => inRange(r.date, f, t)), pay = eff('payments').filter(r => inRange(r.date, f, t));
@@ -3998,8 +4049,31 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   ];
 
   const fmtCell = (c, v) => c.type === M$ ? money(v) : c.type === N$ ? num(v) : esc(v);
+  // فلاتر التقارير التفصيلية (تُحفظ في الحالة لكل الجلسة)؛ نوع المبيعات الافتراضي: السوق المحلي
+  function repFilters(rep) {
+    if (!rep.filters) return {};
+    const F = state.rF ||= { stype: 'السوق المحلي', branch: '', cust: '', item: '', itype: '' };
+    return { ...F };
+  }
+  function repFiltersHTML(rep) {
+    if (!rep.filters) return '';
+    const F = repFilters(rep), base = eff('salesInvoices').concat(eff('salesReturns')).filter(r => !F.stype || saleType(r) === F.stype);
+    const lines = base.flatMap(r => linesOf(r));
+    const items = [...new Set(lines.map(l => l.item).filter(Boolean))].sort();
+    const types = [...new Set(lines.filter(l => !F.item || l.item === F.item).map(l => l.itype).filter(Boolean))].sort();
+    const custs = [...new Set(base.map(r => r.customer).filter(Boolean))].sort();
+    const sel = (k, label, opts, allLbl) => `<label class="rf"><span>${label}</span><select class="input" data-rf="${k}"><option value="">${allLbl}</option>${opts.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${v === F[k] ? 'selected' : ''}>${esc(l)}</option>`; }).join('')}</select></label>`;
+    return `<div class="rep-filters">
+      ${sel('stype', 'نوع المبيعات', SALE_TYPES.map(([, t]) => t), 'كل الأنواع')}
+      ${sel('branch', 'الفرع', [...db.branches.map(b => b.name), ['__none', 'بدون فرع']], 'كل الفروع')}
+      ${sel('cust', 'العميل', custs, 'كل العملاء')}
+      ${sel('item', 'الصنف', items, 'كل الأصناف')}
+      ${sel('itype', 'نوع الصنف', types, 'كل الأنواع')}
+      ${Object.entries(F).some(([k, v]) => v && !(k === 'stype' && v === 'السوق المحلي')) ? '<button type="button" class="link-btn" id="rfClear">مسح الفلاتر</button>' : ''}
+    </div>`;
+  }
   function runReport(rep) {
-    const out = rep.run(state.rFrom || '', state.rTo || '');
+    const out = rep.run(state.rFrom || '', state.rTo || '', repFilters(rep));
     const rows = out.rows.map(r => Array.isArray(r) ? { cells: r } : r);
     const totals = out.noTotal ? null : out.cols.map((c, i) => (c.type === M$ || c.type === N$) && !c.noSum ? sum(rows.filter(r => !r.cls || r.cls === 'warn'), r => r.cells[i]) : null);
     return { ...out, rows, totals };
@@ -4031,11 +4105,14 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
               <button class="btn ghost" id="exportBtn">${icons.export}تصدير</button>
               <button class="btn ghost" id="repPrint">${icons.print}طباعة</button>
             </div></div>
+          ${repFiltersHTML(rep)}
           <div class="table-wrap">${reportTableHTML(rep, res)}</div>
           <div class="table-foot"><span>${res.rows.filter(r => !r.cls).length} صف</span><span>يعتمد على المستندات المعتمدة فقط</span></div>
         </section>
       </div>`;
     $$('[data-rep]', content).forEach(b => b.onclick = () => { state.report = b.dataset.rep; renderPage(); });
+    $$('[data-rf]', content).forEach(s => s.addEventListener('change', () => { const F = state.rF ||= {}; F[s.dataset.rf] = s.value; if (s.dataset.rf === 'item' || s.dataset.rf === 'stype') F.itype = ''; renderPage(); }));
+    $('#rfClear')?.addEventListener('click', () => { state.rF = { stype: 'السوق المحلي', branch: '', cust: '', item: '', itype: '' }; renderPage(); });
     const setP = () => { state.rFrom = $('#rFrom')?.value || ''; state.rTo = $('#rTo')?.value || ''; renderPage(); };
     $('#rFrom')?.addEventListener('change', setP); $('#rTo')?.addEventListener('change', setP);
     $('#rQuick')?.addEventListener('change', e => {
@@ -4048,7 +4125,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     $('#repPrint').onclick = () => {
       const s = db.settings, area = $('#printArea');
       area.innerHTML = `<div class="doc"><div class="doc-head"><div><h1>${esc(s.company || '')}</h1><p>${esc(s.address || '')}</p></div>
-        <div class="doc-title"><h2>${esc(rep.title)}</h2><span>${esc(period)}</span></div></div>${reportTableHTML(rep, res)}
+        <div class="doc-title"><h2>${esc(rep.title)}</h2><span>${esc(period)}${res.note ? ` — ${esc(res.note)}` : ''}</span></div></div>${reportTableHTML(rep, res)}
         <div class="doc-foot">طُبع بواسطة ${esc(curUser()?.name || '')} — ${new Date().toLocaleString((window.UI_LOCALE || 'ar-EG'))}</div></div>`;
       document.body.classList.add('printing');
       const done = () => { document.body.classList.remove('printing'); area.innerHTML = ''; window.removeEventListener('afterprint', done); };
