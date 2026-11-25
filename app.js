@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 01:00';
+  const APP_VERSION = '26/11/2026, 01:30';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -583,13 +583,15 @@
       if (si && d.stype && si.account !== salesAccOfType(d.stype)) return `الصنف "${l.item}" ليس من أصناف ${d.stype}`;
       if (!(+l.qty > 0) && !(+l.count > 0)) return `اكتب كمية أو عدد "${l.item}"`;
       if (!l.unit) l.unit = si?.unit || itemUnit(l.item);
-      if (!l.price) l.price = +si?.price || 0;
+      if (!+l.price) l.price = +si?.price || 0;
       if (l.uw === '' || l.uw == null) l.uw = +si?.weight || 0;
       const sl = stockLine(l); if (sl) { const ue = unitErr(sl); if (ue) return ue; }
       ['qty', 'price', 'count', 'uw', 'disc', 'pack'].forEach(k => { l[k] = +l[k] || 0; }); l.vatRate = 0; l.whtRate = 0; l.itype = String(l.itype || '').trim();
       l.value = l.value === '' || l.value == null ? +(l.qty * l.price).toFixed(2) : +l.value || 0;
       if (!(lineTot(l) > 0)) return `اكتب قيمة "${l.item}"`;
-      delete l.code;
+      if (l.dr !== '' && l.dr != null && Math.abs(+l.dr - lineTot(l)) > 0.05) return `"${l.item}": إجمالي مدين في الملف (${nf.format(+l.dr)}) لا يساوي إجمالي القيمة − الخصم + مواد التعبئة (${nf.format(lineTot(l))})`;
+      if (l.tw !== '' && l.tw != null && +l.tw && lineWeight(l) && Math.abs(+l.tw - lineWeight(l)) > 0.05) return `"${l.item}": إجمالي الوزن في الملف (${nf.format(+l.tw)}) لا يساوي الكمية × سعة الوحدة (${nf.format(lineWeight(l))})`;
+      delete l.code; delete l.dr; delete l.tw;
     }
     d.lines = ls;
     if (ls.length) d.amount = +sum(ls, lineTot).toFixed(2);
@@ -3161,10 +3163,15 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     C('balance', 'الرصيد الافتتاحي', { input: 'number', optional: true })],
     validate: d => { if (d.parent && !acc(d.parent)) return `الحساب الأب ${d.parent} غير موجود`; if (d.parent === d.code) return 'الحساب لا يكون أباً لنفسه'; } };
   const LINE_KEYS = ['item', 'unit', 'qty', 'price', 'vatRate', 'whtRate'];
-  const SALES_LK = ['item', 'code', 'itype', 'unit', 'qty', 'count', 'uw', 'value', 'disc', 'pack'];
-  const salesLineCols = () => [C('code', 'كود الصنف', { optional: true, aka: ['الكود'] }), C('item', 'اسم الصنف', { optional: true, aka: ['الصنف'] }), C('itype', 'نوع الصنف', { optional: true, aka: ['النوع'] }), C('unit', 'الوحدة', { optional: true }),
-    C('qty', 'الكمية', { ...N, optional: true }), C('count', 'العدد', { ...N, optional: true }), C('uw', 'وزن الوحدة', { ...N, optional: true }),
-    C('value', 'القيمة', { ...M, optional: true }), C('disc', 'الخصم', { ...M, optional: true }), C('pack', 'قيمة مواد التعبئة', { ...M, optional: true, aka: ['مواد التعبئة', 'مواد تعبئة'] })];
+  const SALES_LK = ['item', 'code', 'itype', 'unit', 'qty', 'count', 'uw', 'price', 'value', 'disc', 'pack', 'tw', 'dr'];
+  // أعمدة أصناف المبيعات في ملف الاستيراد — "إجمالي الوزن" و"إجمالي مدين" للمراجعة فقط: يُحسبان ويُقارَنان بالملف
+  const salesLineCols = () => [C('code', 'كود الصنف', { optional: true, aka: ['الكود'] }), C('item', 'اسم الصنف', { optional: true, aka: ['الصنف'] }), C('itype', 'نوع الصنف', { optional: true, aka: ['النوع'] }),
+    C('qty', 'الكمية', { ...N, optional: true, aka: ['الكميه'] }), C('unit', 'الوحدة', { optional: true, aka: ['الوحده'] }), C('price', 'سعر الوحدة', { ...M, optional: true, aka: ['سعر الوحده', 'السعر'] }),
+    C('uw', 'سعة الوحدة', { ...N, optional: true, aka: ['وزن الوحدة', 'سعة العبوة', 'سعة العبوه', 'سعة الوحده'] }), C('count', 'العدد', { ...N, optional: true }),
+    C('tw', 'إجمالي الوزن', { ...N, optional: true, aka: ['الوزن بالكيلو', 'اجمالي الوزن'] }),
+    C('value', 'إجمالي القيمة', { ...M, optional: true, aka: ['القيمة', 'اجمالي القيمه', 'القيمه قبل الاضافات والخصومات'] }), C('disc', 'الخصم', { ...M, optional: true, aka: ['خصم مسموح به'] }),
+    C('pack', 'قيمة مواد التعبئة', { ...M, optional: true, aka: ['مواد التعبئة', 'مواد تعبئة', 'قيمه مواد التعبئه', 'قيمه مواد تعبئه'] }),
+    C('dr', 'إجمالي مدين', { ...M, optional: true, aka: ['اجمالي مدين', 'اجمالي المدين', 'مدين'] })];
   // استيراد المبيعات: العميل الجديد يُكوَّد في قاعدة العملاء (بتصنيف اسم الحساب)،
   // والصنف الجديد يُكوَّد في أصناف المبيعات الخاصة بنوع المبيعات، والنوع الجديد يُضاف لأنواع الصنف
   function salesAutoCreate(d, made) {
@@ -3182,7 +3189,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       if (!si && !db.items.some(i => i.name === nm)) {
         const q = +l.qty || 0, v = l.value === '' || l.value == null ? 0 : +l.value || 0;
         db.salesItems.push({ id: genId(), code: nextNo(db.salesItems, 'code') || 'SI-001', account: sacc, name: nm, itype: ty, unit: l.unit || db.units[0]?.name || 'كجم',
-          weight: +l.uw || 0, price: q && v ? +(v / q).toFixed(2) : 0, stockItem: '' });
+          weight: +l.uw || 0, price: +l.price || (q && v ? +(v / q).toFixed(2) : 0), stockItem: '' });
         made.items.push(nm); cache = {};
       } else if (si && ty && !varietiesOf(si.itype).includes(ty)) { si.itype = [...varietiesOf(si.itype), ty].join('، '); made.types.push(`${nm} › ${ty}`); }
     });
