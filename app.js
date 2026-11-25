@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 23:15';
+  const APP_VERSION = '26/11/2026, 00:15';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -226,6 +226,11 @@
   const isTreasury = code => code.startsWith(SYS.cash) || code.startsWith(SYS.banks);
   const catAcc = (parent, cat) => childrenOf(parent).find(a => a.name === cat)?.code || parent;
   const custAcc = name => catAcc(SYS.customers, db.customers.find(c => c.name === name)?.category);
+  // حسابات العملاء (فئات تحت 123) وعملاء كل حساب
+  const custAccOpts = () => childrenOf(SYS.customers).map(a => [a.code, accLabel(a)]);
+  const custOfAcc = code => db.customers.filter(c => !code || custAcc(c.name) === code).map(c => c.name);
+  // إيرادات مواد التعبئة (424)، وإن لم يوجد الحساب تُضم للمبيعات
+  const packAcc = () => acc('424') ? '424' : SYS.otherRev;
   const suppAcc = name => catAcc(SYS.suppliers, db.suppliers.find(s => s.name === name)?.category);
   const ownerAcc = name => childrenOf(SYS.drawings).find(a => a.name === name)?.code;
   // فئات المرتبات: كل التزام تحت "أرصدة دائنة أخرى" يقابله مصروف بنفس الاسم بدون "المستحقة" تحت "الأجور والمرتبات"
@@ -245,7 +250,7 @@
   const laborAcc = ct => expAcc('أجور العمالة', ct, SYS.labor);
   // حساب المبيعات المقابل لفئة العميل: عملاء السوق المحلي ← مبيعات السوق المحلي، وعملاء آخرون ← إيرادات أخرى
   const SALE_TYPES = [['local', 'السوق المحلي'], ['seedlings', 'الشتلات'], ['scrap', 'الخردة'], ['livestock', 'الثروة الحيوانية']];
-  const saleType = r => r.stype || (db.customers.find(c => c.name === r.customer)?.category || '').replace(/^عملاء\s*/, '');
+  const saleType = r => r.stype || (r.account && acc(r.account) ? acc(r.account).name.replace(/^عملاء\s*/, '') : '') || (db.customers.find(c => c.name === r.customer)?.category || '').replace(/^عملاء\s*/, '');
   const salesAccR = r => leafByName(SYS.revenue, 'مبيعات ' + saleType(r)) || SYS.otherRev;
   const salesAcc = name => { const cat = db.customers.find(c => c.name === name)?.category || '';
     return leafByName(SYS.revenue, 'مبيعات ' + cat.replace(/^عملاء\s*/, '')) || SYS.otherRev; };
@@ -309,14 +314,14 @@
       };
       eff('journal').forEach(r => add('journal', 'قيد يدوي', r, r.no, r.date, r.desc, jLinesOf(r).map(l => ({ ...L(accCode(l.acc), l.dr, l.cr), note: l.note || '' }))));
       eff('salesInvoices').forEach(r => add('salesInvoices', 'فاتورة مبيعات', r, r.no, r.date, `فاتورة مبيعات آجلة - ${r.customer}`,
-        [L(custAcc(r.customer), invTotal(r)), L(salesAccR(r), 0, r.amount), L(SYS.vat, 0, vatOf(r))]));
+        [L(custAcc(r.customer), invTotal(r)), L(salesAccR(r), 0, +r.amount - packOf(r)), L(packAcc(), 0, packOf(r)), L(SYS.vat, 0, vatOf(r))]));
       // تكلفة المبيعات: عند الصرف من المخزن — من حـ/ تكلفة البضاعة المباعة إلى حـ/ مخزون كل صنف (بالتكلفة)، والمردودات بالعكس
       const cogsLines = r => { const inv = {}; if (!r.warehouse || !Array.isArray(r.lines)) return [];
         r.lines.map(stockLine).filter(Boolean).forEach(l => { const it = db.items.find(i => i.name === l.item); const v = baseQty(l) * (+it?.cost || 0); if (!v) return; const a = itemStore(l.item) || SYS.defPurchase; inv[a] = (inv[a] || 0) + v; });
         return Object.entries(inv); };
       eff('salesInvoices').forEach(r => { const c = cogsLines(r); if (c.length) add('salesInvoices', 'تكلفة المبيعات', r, `${r.no}-ت`, r.date, `تكلفة مبيعات الفاتورة ${r.no} — ${linesSummary(r)}`, [L(SYS.cogs, sum(c, x => x[1])), ...c.map(([a, v]) => L(a, 0, v))]); });
       eff('salesReturns').forEach(r => { const c = cogsLines(r); if (c.length) add('salesReturns', 'إعادة للمخزون', r, `${r.no}-ت`, r.date, `إعادة أصناف المردودات ${r.no} للمخزون`, [...c.map(([a, v]) => L(a, v)), L(SYS.cogs, 0, sum(c, x => x[1]))]); });
-      eff('salesReturns').forEach(r => add('salesReturns', 'مردودات مبيعات', r, r.no, r.date, `مردودات مبيعات ${saleType(r)} - ${r.customer}`, [L(salesAccR(r), r.amount), L(custAcc(r.customer), 0, r.amount)]));
+      eff('salesReturns').forEach(r => add('salesReturns', 'مردودات مبيعات', r, r.no, r.date, `مردودات مبيعات ${saleType(r)} - ${r.customer}`, [L(salesAccR(r), +r.amount - packOf(r)), L(packAcc(), packOf(r)), L(custAcc(r.customer), 0, r.amount)]));
       eff('receipts').forEach(r => { const chq = isChq(r, SYS.chqIn);
         add('receipts', 'سند قبض', r, r.no, r.date, r.desc || `قبض من ${partyName(r)}${chq ? ` — شيك ${r.chequeNo}` : ''}`,
           [L(chq ? SYS.chqIn : boxAcc(r.box), r.amount), L(accCode(r.account) || (isCustomer(r.party) ? custAcc(r.party) : SYS.otherRev), 0, r.amount)]);
@@ -397,10 +402,14 @@
   // ----- المخزون -----
   // الإذن الواحد يحمل عدة أصناف (lines)؛ الأذون القديمة صنف واحد
   const linesOf = r => Array.isArray(r.lines) && r.lines.length ? r.lines : r.item ? [{ item: r.item, unit: r.unit, qty: r.qty, price: r.price || 0, vatRate: 0, whtRate: 0 }] : [];
-  const lineVal = l => (+l.qty || 0) * (+l.price || 0);
+  const lineVal = l => l.value != null && l.value !== '' ? +l.value || 0 : (+l.qty || 0) * (+l.price || 0);
+  const lineTot = l => lineVal(l) - (+l.disc || 0) + (+l.pack || 0);
+  const lineWeight = l => (+l.count > 0 ? +l.count : +l.qty || 0) * (+l.uw || 0);
   const lineVat = l => lineVal(l) * (+l.vatRate || 0) / 100, lineWht = l => lineVal(l) * (+l.whtRate || 0) / 100;
-  const docTotals = r => { const ls = linesOf(r), sub = sum(ls, lineVal), vat = sum(ls, lineVat), wht = sum(ls, lineWht); return { sub, vat, wht, net: sub + vat - wht, n: ls.length, qty: sum(ls, l => +l.qty || 0) }; };
-  const linesSummary = r => { const ls = linesOf(r); return ls.length ? ls.slice(0, 2).map(l => l.item).join('، ') + (ls.length > 2 ? ` و${ls.length - 2} أخرى` : '') : ''; };
+  const docTotals = r => { const ls = linesOf(r), sub = sum(ls, lineVal), vat = sum(ls, lineVat), wht = sum(ls, lineWht), disc = sum(ls, l => +l.disc || 0), pack = sum(ls, l => +l.pack || 0);
+    return { sub, vat, wht, net: sub + vat - wht, disc, pack, total: sub - disc + pack, n: ls.length, qty: sum(ls, l => +l.qty || 0), count: sum(ls, l => +l.count || 0), weight: sum(ls, lineWeight) }; };
+  const packOf = r => Array.isArray(r.lines) ? sum(r.lines, l => +l.pack || 0) : 0;
+  const linesSummary = r => { const ls = linesOf(r); return ls.length ? ls.slice(0, 2).map(l => l.itype ? `${l.item} (${l.itype})` : l.item).join('، ') + (ls.length > 2 ? ` و${ls.length - 2} أخرى` : '') : ''; };
   const SALES_T = ['salesInvoices', 'salesReturns'];
   const stockRows = t => memo('sr:' + t, () => eff(t).filter(r => !SALES_T.includes(t) || (r.warehouse && Array.isArray(r.lines)))
     .flatMap(r => linesOf(r).map(l => SALES_T.includes(t) ? stockLine(l) : l).filter(Boolean).map(l => ({ ...l, date: r.date, no: r.no, warehouse: r.warehouse, doc: r }))));
@@ -556,19 +565,34 @@
 
   const itemUnit = n => db.items.find(i => i.name === n)?.unit || '';
   // فاتورة البيع / المردودات: الصافي = مجموع الأصناف، والمخزن اختياري
+  // اسم الحساب واسم العميل: العميل يجب أن يكون من عملاء الحساب المختار
+  function custAccCheck(d) {
+    d.customer = String(d.customer || '').trim();
+    if (!isCustomer(d.customer)) return d.customer ? `العميل "${d.customer}" غير موجود في قاعدة بيانات العملاء` : 'اختر اسم العميل';
+    if (!d.account) d.account = custAcc(d.customer);
+    if (!d.due) d.due = addDays(d.date || today(), 30);
+    if (custAcc(d.customer) !== d.account) return `العميل "${d.customer}" ليس من ${acc(d.account)?.name || 'هذا الحساب'}`;
+    const ty = acc(d.account)?.name.replace(/^عملاء\s*/, ''); if (ty && SALE_TYPES.some(([, t]) => t === ty)) d.stype = ty;
+  }
   function salesLinesCheck(d, rec, dir) {
-    const ls = (Array.isArray(d.lines) ? d.lines : []).filter(l => l.item);
+    const ls = (Array.isArray(d.lines) ? d.lines : []).filter(l => l.item || l.code);
     for (const l of ls) {
+      if (!l.item && l.code) l.item = db.salesItems.find(i => String(i.code) === String(l.code))?.name || db.items.find(i => String(i.code) === String(l.code))?.name || '';
       const si = salesItemOf(l.item);
       if (!si && !db.items.some(i => i.name === l.item)) return `الصنف "${l.item}" غير موجود في قاعدة بيانات أصناف المبيعات`;
       if (si && d.stype && si.account !== salesAccOfType(d.stype)) return `الصنف "${l.item}" ليس من أصناف ${d.stype}`;
-      if (!(+l.qty > 0)) return `اكتب كمية "${l.item}"`;
+      if (!(+l.qty > 0) && !(+l.count > 0)) return `اكتب كمية أو عدد "${l.item}"`;
       if (!l.unit) l.unit = si?.unit || itemUnit(l.item);
+      if (!l.price) l.price = +si?.price || 0;
+      if (l.uw === '' || l.uw == null) l.uw = +si?.weight || 0;
       const sl = stockLine(l); if (sl) { const ue = unitErr(sl); if (ue) return ue; }
-      ['qty', 'price'].forEach(k => { l[k] = +l[k] || 0; }); l.vatRate = 0; l.whtRate = 0;
+      ['qty', 'price', 'count', 'uw', 'disc', 'pack'].forEach(k => { l[k] = +l[k] || 0; }); l.vatRate = 0; l.whtRate = 0; l.itype = String(l.itype || '').trim();
+      l.value = l.value === '' || l.value == null ? +(l.qty * l.price).toFixed(2) : +l.value || 0;
+      if (!(lineTot(l) > 0)) return `اكتب قيمة "${l.item}"`;
+      delete l.code;
     }
     d.lines = ls;
-    if (ls.length) d.amount = +sum(ls, lineVal).toFixed(2);
+    if (ls.length) d.amount = +sum(ls, lineTot).toFixed(2);
     else d.warehouse = '';
     if (!(+d.amount > 0)) return 'أضف الأصناف أو اكتب المبلغ';
     if (dir === 'out' && d.warehouse) {
@@ -667,7 +691,9 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     salesItems: { title: 'أصناف المبيعات', sub: 'نوع الحساب (مبيعات السوق المحلي / الشتلات / الخردة / الثروة الحيوانية) › الصنف › الوحدة — تظهر في فاتورة نوعها فقط', single: 'صنف مبيعات', key: 'name', filter: 'account', cols: [
       C('code', 'الكود', CODE),
       C('account', 'نوع الحساب', { input: 'select', options: () => leafAccounts().filter(a => a.code.startsWith('41')).map(a => [a.code, a.name]), render: v => `<span class="pill">${esc(acc(v)?.name || v)}</span>` }),
-      C('name', 'اسم الصنف'), C('unit', 'الوحدة', { input: 'select', options: () => { const l = db.units.map(u => u.name); return l.length ? l : ['قطعة']; } }),
+      C('name', 'اسم الصنف'), C('itype', 'أنواع الصنف', { optional: true, full: true, placeholder: 'مثال: ايرلي سويت، فليم، كريمسون', render: v => varietiesOf(v).length ? varietiesOf(v).map(x => `<span class="pill">${esc(x)}</span>`).join(' ') : '—' }),
+      C('unit', 'الوحدة', { input: 'select', options: () => { const l = db.units.map(u => u.name); return l.length ? l : ['قطعة']; } }),
+      C('weight', 'وزن الوحدة', { ...N, optional: true }),
       C('price', 'سعر البيع', { ...M, optional: true }),
       C('stockItem', 'الصنف المخزني المرتبط', { input: 'select', optional: true, allowEmpty: '— بدون (لا يُصرف من المخزن) —', options: names('items'), render: v => v ? esc(v) : '<span class="hint">—</span>' }),
       C('sold', 'الكمية المباعة', { cls: 'num', compute: r => sum(eff('salesInvoices').flatMap(i => Array.isArray(i.lines) ? i.lines : []).filter(l => l.item === r.name), l => +l.qty || 0) - sum(eff('salesReturns').flatMap(i => Array.isArray(i.lines) ? i.lines : []).filter(l => l.item === r.name), l => +l.qty || 0), render: num }),
@@ -772,20 +798,28 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
 
     // ===== المبيعات =====
     salesInvoices: { title: 'كل فواتير المبيعات', sub: 'تُرحّل تلقائياً: من حـ/ فئة العميل إلى حـ/ مبيعات نفس الفئة و حـ/ الضرائب', single: 'فاتورة بيع', key: 'no', filter: 'status', cols: [
-      C('no', 'رقم الفاتورة', CODE), C('customer', 'العميل', { input: 'select', options: names('customers'), full: true }),
-      C('revAcc', 'حساب الإيراد', { compute: r => accLabel(acc(salesAccR(r)) || { code: '', name: '' }), render: v => `<span class="hint">${esc(v)}</span>` }), C('date', 'التاريخ', D), C('due', 'الاستحقاق', D),
-      branchField(), C('warehouse', 'المخزن (للصرف من المخزون)', { input: 'select', optional: true, allowEmpty: '— بدون صرف من المخزن —', options: names('warehouses'), formOnly: true }),
+      C('no', 'رقم الفاتورة', CODE), C('date', 'التاريخ', D),
+      C('account', 'اسم الحساب', { input: 'select', options: custAccOpts, render: v => `<span class="hint">${esc(acc(v)?.name || v || '')}</span>`, aka: ['حساب العميل'] }),
+      C('customer', 'اسم العميل', { dyn: true, dynFrom: 'account', suggest: v => custOfAcc(v?.account), aka: ['العميل'] }),
+      C('docNo', 'رقم المستند', { optional: true, cls: 'code' }),
+      branchField('الفرع', { formOnly: false, render: v => v ? esc(v) : '<span class="hint">—</span>' }),
+      C('revAcc', 'حساب الإيراد', { compute: r => accLabel(acc(salesAccR(r)) || { code: '', name: '' }), render: v => `<span class="hint">${esc(v)}</span>` }),
+      C('due', 'الاستحقاق', { ...D, formOnly: true, optional: true }),
+      C('warehouse', 'المخزن (للصرف من المخزون)', { input: 'select', optional: true, allowEmpty: '— بدون صرف من المخزن —', options: names('warehouses'), formOnly: true }),
       C('lines', 'الأصناف', { input: 'lines', formOnly: true, full: true, priceFrom: 'price', optionalLines: true }),
       C('itemsSum', 'الأصناف', { compute: r => linesSummary(r) || '—', render: (v, r) => Array.isArray(r.lines) && r.lines.length ? `${esc(v)} <span class="hint">(${r.lines.length})</span>` : '<span class="hint">—</span>' }),
-      C('amount', 'الصافي', { ...M, total: true, optional: true }), C('vatRate', 'نسبة الضريبة %', { ...N, formOnly: true }),
+      C('weight', 'إجمالي الوزن', { cls: 'num', compute: r => docTotals(r).weight, render: v => v ? num(v) : '—' }),
+      C('amount', 'إجمالي القيمة (مدين)', { ...M, total: true, optional: true, aka: ['الصافي'] }), C('vatRate', 'نسبة الضريبة %', { ...N, formOnly: true, optional: true }),
       C('total', 'الإجمالي شامل الضريبة', computed(invTotal, { total: true })),
       C('remaining', 'المتبقي', computed(r => invTotal(r) - salesPaid(r), { total: true })),
       C('status', 'الحالة', statusOf(salesStatus, 'معلقة', 'مدفوعة جزئياً', 'مدفوعة', 'متأخرة'))],
-      defaults: () => ({ vatRate: db.settings.vat, due: addDays(today(), 30) }),
+      defaults: () => ({ vatRate: 0, due: addDays(today(), 30) }),
+      load: r => r.account ? {} : { account: custAcc(r.customer) },
       actions: [{ icon: 'receive', title: 'تحصيل (سند قبض)', write: true, target: 'receipts', show: r => salesStatus(r) !== 'مدفوعة',
         fn: r => openRecordForm('receipts', null, { account: acc(custAcc(r.customer)) ? accLabel(acc(custAcc(r.customer))) : '', party: r.customer, invoice: r.no, amount: +(invTotal(r) - salesPaid(r)).toFixed(2), desc: `سداد فاتورة ${r.no}` }) }],
       wide: true,
       validate: (d, rec) => {
+        const ce = custAccCheck(d); if (ce) return ce;
         const le = salesLinesCheck(d, rec, 'out'); if (le) return le;
         const c = db.customers.find(x => x.name === d.customer); if (!c || !+c.limit) return;
         const after = custBal(c.name) - (rec && rec.customer === c.name ? invTotal(rec) : 0) + +d.amount * (1 + (+d.vatRate || 0) / 100);
@@ -1113,7 +1147,9 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   const custOfType = ty => db.customers.filter(c => c.category === 'عملاء ' + ty).map(c => c.name);
   SALE_TYPES.forEach(([k, ty]) => {
     const view = r => saleType(r) === ty;
-    const custCol = c => c.key === 'customer' ? { ...c, options: () => custOfType(ty), allowEmpty: undefined } : c.key === 'invoice' ? { ...c, options: () => db.salesInvoices.filter(view).map(i => [i.no, `${i.no} — ${i.customer}`]) } : c;
+    const custCol = c => c.key === 'account' ? { ...c, options: () => custAccOpts().filter(([code]) => code === catAcc(SYS.customers, 'عملاء ' + ty)) }
+      : c.key === 'customer' && c.dyn ? { ...c, suggest: v => custOfAcc(v?.account).filter(n => custOfType(ty).includes(n)) }
+      : c.key === 'customer' ? { ...c, options: () => custOfType(ty), allowEmpty: undefined } : c.key === 'invoice' ? { ...c, options: () => db.salesInvoices.filter(view).map(i => [i.no, `${i.no} — ${i.customer}`]) } : c;
     modules['si_' + k] = { ...modules.salesInvoices, table: 'salesInvoices', view, fixed: { stype: ty }, title: `فواتير مبيعات ${ty}`, single: `فاتورة مبيعات ${ty}`,
       sub: `من حـ/ عملاء ${ty} إلى حـ/ مبيعات ${ty} و حـ/ الضرائب — بعد الاعتماد`, cols: modules.salesInvoices.cols.map(custCol) };
     modules['sr_' + k] = { ...modules.salesReturns, table: 'salesReturns', view, fixed: { stype: ty }, title: `مردودات مبيعات ${ty}`, single: `فاتورة مردودات ${ty}`,
@@ -1124,6 +1160,8 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   const salesAccOfType = ty => leafByName(SYS.revenue, 'مبيعات ' + ty);
   const salesItemsFor = ty => db.salesItems.filter(i => !ty || i.account === salesAccOfType(ty));
   const salesItemOf = n => db.salesItems.find(i => i.name === n);
+  // أنواع الصنف: نص مفصول بفاصلة (، أو ,) — مثل: ايرلي سويت، فليم
+  const varietiesOf = v => String(v || '').split(/[،,\n]/).map(s => s.trim()).filter(Boolean);
   // سطر البيع بما يقابله في المخزن: صنف مبيعات مربوط بصنف مخزني، أو صنف مخزني مباشرة
   const stockLine = l => { const si = salesItemOf(l.item); if (si) return si.stockItem && db.items.some(i => i.name === si.stockItem) ? { ...l, item: si.stockItem, unit: l.unit || si.unit } : null;
     return db.items.some(i => i.name === l.item) ? l : null; };
@@ -1787,7 +1825,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     if (c.input === 'checks') return `<div class="field full"><label>${c.label}</label><div class="checks">${c.options().map(o => `<label class="check"><input type="checkbox" name="${c.key}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div></div>`;
     const input = c.input === 'select'
       ? `<select class="input" name="${c.key}" ${c.optional ? '' : 'required'}>${c.allowEmpty ? `<option value="">${c.allowEmpty}</option>` : ''}${c.options().map(o => { const [ov, ol] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`; }).join('')}</select>`
-      : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.optional ? '' : 'required'} ${c.suggest ? `data-dl="dl-${c.key}" autocomplete="off"` : ''}>${c.suggest ? `<datalist id="dl-${c.key}">${c.suggest(vals).map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : ''}`;
+      : `<input class="input" name="${c.key}" type="${c.input ?? 'text'}" ${c.input === 'number' ? 'step="any"' : ''} value="${esc(v)}" ${c.placeholder ? `placeholder="${esc(c.placeholder)}"` : ''} ${c.optional ? '' : 'required'} ${c.suggest ? `data-dl="dl-${c.key}" autocomplete="off"` : ''}>${c.suggest ? `<datalist id="dl-${c.key}">${c.suggest(vals).map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : ''}`;
     return `<div class="field ${c.full ? 'full' : ''}" data-f="${c.key}"><label>${c.label}</label>${input}</div>`;
   };
   function openModal(title, fields, values, submit) {
@@ -1880,10 +1918,11 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     $$('#modalBody .jlines-box').forEach(box => initJLines(box, form.elements.namedItem(box.dataset.jlines)));
     $$('#modalBody .lines-box').forEach(box => { const lc = fields.find(c => c.key === box.dataset.lines);
       const sales = lc?.priceFrom === 'price';
-      initLines(box, form.elements.namedItem(box.dataset.lines), { tax: !!box.dataset.tax, priceOf: it => +(sales ? it.price : it.cost) || 0,
-        items: sales ? () => salesItemsFor(m.fixed?.stype).map(i => ({ ...i, category: acc(i.account)?.name || '' })) : null,
+      const typeNow = () => m.fixed?.stype || (form.elements.namedItem('account') ? acc(form.elements.namedItem('account').value)?.name.replace(/^عملاء\s*/, '') : '') || '';
+      initLines(box, form.elements.namedItem(box.dataset.lines), { tax: !!box.dataset.tax, priceOf: it => +(sales ? it.price : it.cost) || 0, sales,
+        items: sales ? () => salesItemsFor(SALE_TYPES.some(([, t]) => t === typeNow()) ? typeNow() : '').map(i => ({ ...i, category: acc(i.account)?.name || '' })) : null,
         empty: sales ? `لا توجد أصناف ${m.fixed?.stype ? 'لـ ' + m.fixed.stype : 'مبيعات'} — أضفها من قواعد البيانات › أصناف المبيعات` : '',
-        onTotal: lc?.priceFrom === 'price' ? sub => { const a = form.elements.namedItem('amount'); if (a) { a.readOnly = sub > 0; if (sub > 0) a.value = +sub.toFixed(2); } } : null }); });
+        onTotal: lc?.priceFrom === 'price' ? (sub, t) => { sub = t ? t.total : sub; const a = form.elements.namedItem('amount'); if (a) { a.readOnly = sub > 0; if (sub > 0) a.value = +sub.toFixed(2); } } : null }); });
     // قوائم اقتراحات تتغير حسب حقل آخر (اسم المستفيد حسب اسم الحساب)
     const dyns = fields.filter(c => c.dyn);
     // حقول تظهر حسب الاختيار (مثل بيانات الشيك والتحويل البنكي عند اختيار بنك)
@@ -2028,11 +2067,13 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   }
 
   // ---------- محرر الأصناف (مثل Excel): صف لكل صنف، يجلب بيانات الصنف تلقائياً ----------
-  function initLines(box, hidden, { tax, priceOf, onTotal, items, empty }) {
-    const ITEMS = items ? items() : db.items;
+  function initLines(box, hidden, { tax, priceOf, onTotal, items, empty, sales }) {
+    let ITEMS = items ? items() : db.items;
     let rows = []; try { rows = JSON.parse(hidden.value || '[]'); } catch {}
-    rows = rows.map(l => ({ ...l, _it: l.item }));
-    const blank = () => ({ item: '', unit: '', qty: '', price: '', vatRate: tax ? db.settings.vat ?? 14 : 0, whtRate: tax ? 1 : 0 });
+    rows = rows.map(l => ({ ...l, _it: l.item, _vEdited: sales && l.value != null && l.value !== '' && Math.abs(+l.value - (+l.qty || 0) * (+l.price || 0)) > 0.005 }));
+    const blank = () => ({ item: '', unit: '', qty: '', price: '', vatRate: tax ? db.settings.vat ?? 14 : 0, whtRate: tax ? 1 : 0, ...(sales ? { count: '', uw: '', value: '', disc: '', pack: '' } : {}) });
+    const typesOf = it => varietiesOf(it?.itype);
+    const autoVal = l => !l._vEdited ? (+l.qty || 0) * (+l.price || 0) : +l.value || 0;
     rows.push(blank());
     const wh = () => form.elements.namedItem('warehouse')?.value || '';
     const itemOf = n => ITEMS.find(i => i.name === n);
@@ -2042,6 +2083,16 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       return list.map(u => `<option ${u === (l.unit || it?.unit) ? 'selected' : ''}>${esc(u)}</option>`).join(''); };
     const cell = (k, v, cls = '', type = 'number') => `<td><input class="lg-in ${cls}" data-k="${k}" type="${type}" ${type === 'number' ? 'step="any" min="0"' : ''} value="${esc(v ?? '')}"></td>`;
     const rowHTML = (l, i) => { const it = itemOf(l.item);
+      if (sales) return `<tr data-i="${i}"><td class="lg-n">${i + 1}</td>
+        <td class="lg-codein"><input class="lg-in code" data-k="code" autocomplete="off" placeholder="الكود" value="${esc(it?.code || '')}"></td>
+        <td class="lg-item"><input class="lg-in" data-k="item" data-dl="dl-lg-items" autocomplete="off" placeholder="اكتب اسم الصنف" value="${esc(l.item)}"></td>
+        <td class="lg-itype"><input class="lg-in" data-k="itype" data-dl="dl-lg-itype" autocomplete="off" placeholder="${it && typesOf(it).length ? 'اختر النوع' : '—'}" value="${esc(l.itype || '')}"></td>
+        <td><select class="lg-in" data-k="unit">${unitOpts(l)}</select></td>
+        ${cell('qty', l.qty)}${cell('count', l.count)}${cell('uw', l.uw)}
+        <td class="lg-ro num" data-c="tw"></td>
+        ${cell('value', l._vEdited ? l.value : '', 'lg-val')}${cell('disc', l.disc)}${cell('pack', l.pack)}
+        <td class="lg-ro num lg-tot" data-c="tot"></td>
+        <td><button type="button" class="lg-del" data-del title="حذف الصف">✕</button></td></tr>`;
       return `<tr data-i="${i}"><td class="lg-n">${i + 1}</td>
         <td class="lg-item"><input class="lg-in" data-k="item" data-dl="dl-lg-items" autocomplete="off" placeholder="اكتب اسم أو كود الصنف" value="${esc(l.item)}"></td>
         <td class="lg-ro code" data-c="code">${esc(it?.code || '')}</td>
@@ -2052,20 +2103,37 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         <td class="lg-ro num" data-c="val"></td>${tax ? '<td class="lg-ro num" data-c="net"></td>' : ''}
         <td><button type="button" class="lg-del" data-del title="حذف الصف">✕</button></td></tr>`; };
     const sync = () => {
+      if (sales) {
+        const clean = rows.filter(l => l.item).map(l => ({ item: l.item, itype: String(l.itype || '').trim(), unit: l.unit || itemOf(l.item)?.unit || '', qty: +l.qty || 0, count: +l.count || 0, uw: +l.uw || 0, price: +l.price || 0,
+          value: +autoVal(l).toFixed(2), disc: +l.disc || 0, pack: +l.pack || 0, vatRate: 0, whtRate: 0 }));
+        hidden.value = JSON.stringify(clean);
+        $$('tbody tr', box).forEach(tr => { const l = rows[+tr.dataset.i]; if (!l) return; const v = autoVal(l);
+          tr.querySelector('[data-c="tw"]').textContent = l.item && lineWeight(l) ? num(lineWeight(l)) : '';
+          const vi = tr.querySelector('[data-k="value"]'); if (vi && !l._vEdited && document.activeElement !== vi) { vi.value = ''; vi.placeholder = l.item && v ? nf.format(v) : ''; }
+          tr.querySelector('[data-c="tot"]').textContent = l.item ? money(v - (+l.disc || 0) + (+l.pack || 0)) : ''; });
+        const t = docTotals({ lines: clean }); onTotal?.(clean.length ? t.total : 0, clean.length ? t : null);
+        box.querySelector('tfoot').innerHTML = `<tr><td colspan="5">${clean.length} صنف</td><td class="num"><b>${num(t.qty)}</b></td><td class="num"><b>${num(t.count)}</b></td><td></td><td class="num"><b>${num(t.weight)}</b></td>
+          <td class="num"><b>${money(t.sub)}</b></td><td class="num"><b>${money(t.disc)}</b></td><td class="num"><b>${money(t.pack)}</b></td><td class="num"><b>${money(t.total)}</b></td><td></td></tr>`;
+        const sm = box.querySelector('.lg-sum');
+        if (sm) sm.innerHTML = `<span>القيمة <b>${money(t.sub)}</b></span><span>− الخصم <b>${money(t.disc)}</b></span><span>+ مواد التعبئة <b>${money(t.pack)}</b></span><span class="net">إجمالي القيمة (مدين) <b>${money(t.total)}</b></span>`;
+        return;
+      }
       const clean = rows.filter(l => l.item).map(l => ({ item: l.item, unit: l.unit || itemOf(l.item)?.unit || '', qty: +l.qty || 0, price: +l.price || 0, vatRate: tax ? +l.vatRate || 0 : 0, whtRate: tax ? +l.whtRate || 0 : 0 }));
       hidden.value = JSON.stringify(clean);
       $$('tbody tr', box).forEach(tr => { const l = rows[+tr.dataset.i]; if (!l) return;
         tr.querySelector('[data-c="val"]').textContent = l.item ? money(lineVal(l)) : '';
         const n = tr.querySelector('[data-c="net"]'); if (n) n.textContent = l.item ? money(lineVal(l) + lineVat(l) - lineWht(l)) : ''; });
-      const t = docTotals({ lines: clean }); onTotal?.(clean.length ? t.sub : 0);
+      const t = docTotals({ lines: clean }); onTotal?.(clean.length ? t.sub : 0, null);
       box.querySelector('tfoot').innerHTML = `<tr><td colspan="5">${clean.length} صنف · إجمالي الكميات ${num(t.qty)}</td><td colspan="2"></td>${tax ? '<td colspan="2"></td>' : ''}<td class="num"><b>${money(t.sub)}</b></td>${tax ? `<td class="num"><b>${money(t.net)}</b></td>` : ''}<td></td></tr>`;
       const sm = box.querySelector('.lg-sum');
       if (sm) sm.innerHTML = tax ? `<span>القيمة <b>${money(t.sub)}</b></span><span>+ ضريبة القيمة المضافة <b>${money(t.vat)}</b></span><span>− ضريبة الخصم والإضافة <b>${money(t.wht)}</b></span><span class="net">صافي الفاتورة <b>${money(t.net)}</b></span>`
         : `<span class="net">${items ? 'إجمالي الأصناف (قبل الضريبة)' : 'إجمالي الإذن بالتكلفة'} <b>${money(t.sub)}</b></span>`;
     };
     const draw = () => {
-      box.innerHTML = `${!ITEMS.length && empty ? `<div class="lg-empty">${esc(empty)}</div>` : ''}<datalist id="dl-lg-items">${ITEMS.map(i => `<option value="${esc(i.name)}">${esc([i.code, i.category, i.unit].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
-        <div class="lg-wrap"><table class="lines-grid"><thead><tr><th>#</th><th>الصنف</th><th>الكود</th><th>الوحدة</th><th>الرصيد</th><th>الكمية</th><th>السعر</th>${tax ? '<th>ض.ق.م %</th><th>خصم وإضافة %</th>' : ''}<th>القيمة</th>${tax ? '<th>الصافي</th>' : ''}<th></th></tr></thead>
+      box.innerHTML = `${!ITEMS.length && empty ? `<div class="lg-empty">${esc(empty)}</div>` : ''}${sales ? '<datalist id="dl-lg-itype"></datalist>' : ''}<datalist id="dl-lg-items">${ITEMS.map(i => `<option value="${esc(i.name)}">${esc([i.code, i.category, i.unit].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
+        <div class="lg-wrap"><table class="lines-grid ${sales ? 'sales-grid' : ''}"><thead><tr>${sales
+          ? '<th>#</th><th>كود الصنف</th><th>اسم الصنف</th><th>نوع الصنف</th><th>الوحدة</th><th>الكمية</th><th>العدد</th><th>وزن الوحدة</th><th>إجمالي الوزن</th><th>القيمة</th><th>الخصم</th><th>قيمة مواد التعبئة</th><th>إجمالي القيمة (مدين)</th><th></th>'
+          : `<th>#</th><th>الصنف</th><th>الكود</th><th>الوحدة</th><th>الرصيد</th><th>الكمية</th><th>السعر</th>${tax ? '<th>ض.ق.م %</th><th>خصم وإضافة %</th>' : ''}<th>القيمة</th>${tax ? '<th>الصافي</th>' : ''}<th></th>`}</tr></thead>
         <tbody>${rows.map(rowHTML).join('')}</tbody><tfoot></tfoot></table></div>
         <div class="lg-bar"><button type="button" class="btn ghost" data-addline>＋ صنف جديد</button><span class="hint">Enter للانتقال للخانة التالية — الصف الجديد يُضاف تلقائياً</span><div class="lg-sum"></div></div>`;
       sync();
@@ -2075,6 +2143,21 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     box.addEventListener('input', e => {
       const inp = e.target.closest('[data-k]'), tr = e.target.closest('tr[data-i]'); if (!inp || !tr) return;
       const i = +tr.dataset.i, k = inp.dataset.k, l = rows[i];
+      if (sales) {
+        if (k === 'value') { l.value = inp.value; l._vEdited = inp.value !== ''; }
+        else if (k !== 'code') l[k] = inp.value;
+        if (k === 'item' || k === 'code') {
+          const it = k === 'code' ? ITEMS.find(x => x.code && String(x.code).toLowerCase() === inp.value.trim().toLowerCase()) : findItem(inp.value);
+          if (it) { const changedIt = l._it !== it.name; l.item = it.name; l._it = it.name;
+            if (changedIt || !l.unit) l.unit = it.unit || ''; if (changedIt || !+l.price) l.price = priceOf(it); if (changedIt || l.uw === '') l.uw = +it.weight || '';
+            if (k === 'code') tr.querySelector('[data-k="item"]').value = it.name; else { if (inp.value !== it.name) inp.value = it.name; tr.querySelector('[data-k="code"]').value = it.code || ''; }
+            const ts = typesOf(it); if (changedIt) l.itype = ts[0] || ''; const ti = tr.querySelector('[data-k="itype"]'); ti.value = l.itype || ''; ti.placeholder = ts.length ? 'اختر النوع' : '—';
+            tr.querySelector('[data-k="unit"]').innerHTML = unitOpts(l); tr.querySelector('[data-k="uw"]').value = l.uw; }
+          else if (k === 'item') { l.item = inp.value; }
+          if (i === rows.length - 1 && (l.item || inp.value)) addRow();
+        }
+        sync(); return;
+      }
       l[k] = inp.value;
       if (k === 'item') {
         const it = findItem(inp.value);
@@ -2100,7 +2183,13 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       (all[idx + 1] || all[0]).focus(); all[idx + 1]?.select?.();
     });
     // تحديث عمود الرصيد عند تغيير المخزن
-    form.elements.namedItem('warehouse')?.addEventListener('change', () => $$('tbody tr', box).forEach(tr => { const l = rows[+tr.dataset.i]; if (l?.item) tr.querySelector('[data-c="bal"]').textContent = balOf(l); }));
+    if (!sales) form.elements.namedItem('warehouse')?.addEventListener('change', () => $$('tbody tr', box).forEach(tr => { const l = rows[+tr.dataset.i]; if (l?.item) tr.querySelector('[data-c="bal"]').textContent = balOf(l); }));
+    // قائمة أنواع الصنف تُبنى عند الوقوف على الخانة حسب صنف السطر
+    if (sales) box.addEventListener('focusin', e => { const inp = e.target.closest('[data-k="itype"]'); if (!inp) return; const l = rows[+inp.closest('tr').dataset.i];
+      const dl = box.querySelector('#dl-lg-itype'); if (dl) dl.innerHTML = typesOf(itemOf(l?.item)).map(x => `<option value="${esc(x)}"></option>`).join(''); }, true);
+    // فاتورة المبيعات: أصناف نوع الحساب المختار فقط
+    if (sales && items) form.elements.namedItem('account')?.addEventListener('change', () => { ITEMS = items(); const dl = box.querySelector('#dl-lg-items');
+      if (dl) dl.innerHTML = ITEMS.map(i => `<option value="${esc(i.name)}">${esc([i.code, i.category, i.unit].filter(Boolean).join(' · '))}</option>`).join(''); });
     draw();
   }
 
@@ -3063,11 +3152,19 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     C('balance', 'الرصيد الافتتاحي', { input: 'number', optional: true })],
     validate: d => { if (d.parent && !acc(d.parent)) return `الحساب الأب ${d.parent} غير موجود`; if (d.parent === d.code) return 'الحساب لا يكون أباً لنفسه'; } };
   const LINE_KEYS = ['item', 'unit', 'qty', 'price', 'vatRate', 'whtRate'];
+  const SALES_LK = ['item', 'code', 'itype', 'unit', 'qty', 'count', 'uw', 'value', 'disc', 'pack'];
+  const salesLineCols = () => [C('code', 'كود الصنف', { optional: true, aka: ['الكود'] }), C('item', 'اسم الصنف', { optional: true, aka: ['الصنف'] }), C('itype', 'نوع الصنف', { optional: true, aka: ['النوع'] }), C('unit', 'الوحدة', { optional: true }),
+    C('qty', 'الكمية', { ...N, optional: true }), C('count', 'العدد', { ...N, optional: true }), C('uw', 'وزن الوحدة', { ...N, optional: true }),
+    C('value', 'القيمة', { ...M, optional: true }), C('disc', 'الخصم', { ...M, optional: true }), C('pack', 'قيمة مواد التعبئة', { ...M, optional: true, aka: ['مواد التعبئة', 'مواد تعبئة'] })];
+  // كود الصنف وحده يكفي في ملف الاستيراد
+  const salesLineFix = l => { if (!l.item && l.code) l.item = db.salesItems.find(i => String(i.code) === String(l.code))?.name || db.items.find(i => String(i.code) === String(l.code))?.name || ''; return l; };
   const lineImportCols = (tax, opt) => [C('item', 'الصنف', { optional: !!opt }), C('unit', 'الوحدة', { optional: true }), C('qty', 'الكمية', { ...N, optional: !!opt }), C('price', 'السعر', { ...M, optional: true }),
     ...(tax ? [C('vatRate', 'ض.ق.م %', { ...N, optional: true }), C('whtRate', 'خصم وإضافة %', { ...N, optional: true })] : [])];
   const JL_KEYS = ['acc', 'dr', 'cr', 'note'];
   const importDef = t => t === 'accounts' ? ACC_IMPORT : t === 'journal' ? { ...modules.journal, lineImport: true, lineKey: 'jlines', lineKeys: JL_KEYS,
       cols: [...modules.journal.cols.filter(c => !['jlines', 'amount'].includes(c.key)), C('acc', 'الحساب', { input: 'select', options: leafOpts() }), C('dr', 'مدين', { ...M, optional: true }), C('cr', 'دائن', { ...M, optional: true }), C('note', 'بيان السطر', { optional: true })] }
+    : ['salesInvoices', 'salesReturns'].includes(tbl(t)) && modules[t]?.cols.some(c => c.input === 'lines')
+    ? { ...modules[t], lineImport: true, lineKeys: SALES_LK, lineFix: salesLineFix, cols: [...modules[t].cols.filter(c => c.input !== 'lines' && !c.compute), ...salesLineCols()] }
     : modules[t]?.cols.some(c => c.input === 'lines')
     ? { ...modules[t], lineImport: true, cols: [...modules[t].cols.filter(c => c.input !== 'lines'), ...lineImportCols(modules[t].cols.some(c => c.tax), modules[t].cols.some(c => c.optionalLines))] } : modules[t];
   const importFields = t => importDef(t).cols.filter(c => !c.compute && c.input !== 'lines' && c.input !== 'jlines');
@@ -3184,7 +3281,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         for (const g of groups.values()) {
           const LK = def.lineKeys || LINE_KEYS, key = def.lineKey || 'lines';
           const head = Object.fromEntries(Object.entries(g[0].data).filter(([k, v]) => !LK.includes(k) && !(k in preset && v === '')));
-          const data = { ...(def.defaults?.() || {}), ...head, [key]: g.map(r => Object.fromEntries(LK.map(k => [k, r.data[k] ?? '']))).filter(l => l[LK[0]]) };
+          const data = { ...(def.defaults?.() || {}), ...head, [key]: g.map(r => Object.fromEntries(LK.map(k => [k, r.data[k] ?? '']))).map(l => def.lineFix ? def.lineFix(l) : l).filter(l => l[LK[0]]) };
           if (!data.no) data.no = nextNo(db[t], 'no');
           const err = def.validate?.(data, null);
           if (err) { g.forEach(r => fails.push({ ...r, status: 'error', msg: err })); continue; }
@@ -3220,7 +3317,8 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     const fields = importFields(t), def = importDef(t);
     const sample = db[t][0];
     const head = fields.map(c => c.label + (c.optional ? '' : ' *'));
-    const ex = sample ? fields.map(c => sample[c.key] ?? '') : fields.map(() => '');
+    const exVal = c => { const v = sample[c.key] ?? ''; if (v === '' || c.input !== 'select' || typeof c.options !== 'function') return v; const o = c.options().find(x => Array.isArray(x) && String(x[0]) === String(v)); return o ? o[1] : v; };
+    const ex = sample ? fields.map(exVal) : fields.map(() => '');
     const X = await loadXLSX();
     if (X) {
       const ws = X.utils.aoa_to_sheet([head, ex]);
