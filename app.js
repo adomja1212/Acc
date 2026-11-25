@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 02:45';
+  const APP_VERSION = '26/11/2026, 03:30';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -81,21 +81,40 @@
     pump();
   }
 
+  // الكتابة للسحابة: عدة عمليات متوازية (أسرع كثيراً عند الاستيراد)، مع إعادة المحاولة عند الضغط أو الانقطاع المؤقت،
+  // ولا تُكتب وثيقتان لنفس المسار في نفس الوقت حتى يبقى الترتيب صحيحاً
+  const PUMP_WORKERS = 4;
+  store.inflight = new Map(); // عمليات قيد الإرسال الآن: تُعامل كتعديلات لم تُحفظ بعد حتى لا ترجعها لقطة أقدم من السحابة
+  async function writeOp(op) {
+    const run = () => op.del ? store.cloud.doc(op.path).delete() : store.cloud.doc(op.path).set(op.body);
+    for (let i = 0; ; i++) {
+      try { await run(); return; }
+      catch (e) {
+        const retry = (e?.code === 'unavailable' || e?.code === 'resource_exhausted') && i < 6;
+        if (!retry) { writeFailed(e, op); return; }
+        await sleep(Math.min(8000, 500 * 2 ** i) + Math.random() * 500);
+      }
+    }
+  }
   async function pump() {
     if (store.pumping || !store.queue.length) return;
     store.pumping = true; setSync('saving');
-    while (store.queue.length) {
-      const op = store.queue.shift();
-      const run = () => op.del ? store.cloud.doc(op.path).delete() : store.cloud.doc(op.path).set(op.body);
-      try { await run(); }
-      catch (e) {
-        let err = e;
-        if (err?.code === 'unavailable') { await sleep(600 + Math.random() * 900); try { await run(); continue; } catch (e2) { err = e2; } }
-        writeFailed(err, op);
+    const busy = new Set();
+    const worker = async () => {
+      while (store.queue.length) {
+        const ix = store.queue.findIndex(o => !busy.has(o.path));
+        if (ix < 0) { await sleep(50); continue; }
+        const [op] = store.queue.splice(ix, 1); busy.add(op.path); store.inflight.set(op.path, op);
+        try { await writeOp(op); } finally { busy.delete(op.path); if (store.inflight.get(op.path) === op) store.inflight.delete(op.path); }
+        setSync('saving');
       }
-    }
+    };
+    await Promise.all(Array.from({ length: PUMP_WORKERS }, worker));
     store.pumping = false; store.lastSync = new Date(); setSync('saved');
+    if (store.queue.length) pump();
   }
+  // تحذير عند إغلاق الصفحة قبل اكتمال الحفظ
+  addEventListener('beforeunload', e => { if (store.mode === 'cloud' && (store.queue.length || store.pumping)) { e.preventDefault(); e.returnValue = 'لم يكتمل حفظ البيانات بعد'; return e.returnValue; } });
 
   function writeFailed(e, op) {
     // التراجع عن التعديل في الذاكرة
@@ -145,7 +164,7 @@
       store.cloud.collection(t).onSnapshot(snap => {
         for (const k of [...store.saved.keys()]) if (k.startsWith(t + '/')) store.saved.delete(k);
         db[t] = snap.docs.map(d => { const body = d.data(); store.saved.set(`${t}/${d.id}`, stable(stripMeta(body))); return { ...structuredClone(body), id: d.id }; });
-        for (const op of store.queue) if (op.path.startsWith(t + '/')) { // عمليات لم تُرسل بعد: تبقى ظاهرة
+        for (const op of [...store.inflight.values(), ...store.queue]) if (op.path.startsWith(t + '/')) { // عمليات لم تُرسل بعد أو قيد الإرسال: تبقى ظاهرة
           const id = op.path.split('/')[1]; db[t] = db[t].filter(r => r.id !== id);
           if (!op.del) db[t].push({ ...op.body, id }); if (op.del) store.saved.delete(op.path); else store.saved.set(op.path, op.cmp);
         }
@@ -3578,7 +3597,13 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     if (tab === 'setup' && canSetup) return renderApprSetup();
     const all = APPR_MODULES.flatMap(t => db[t].filter(r => r.appr).map(r => ({ t, r })));
     const pick = { mine: x => canApprove(x.t, x.r), pending: x => x.r.appr.status === 'pending', rejected: x => x.r.appr.status === 'rejected', approved: x => x.r.appr.status === 'approved' }[tab];
-    const list = all.filter(pick).sort((a, b) => String(b.r.date || b.r.month || '').localeCompare(String(a.r.date || a.r.month || '')));
+    const list0 = all.filter(pick).sort((a, b) => String(b.r.date || b.r.month || '').localeCompare(String(a.r.date || a.r.month || '')));
+    // فلتر نوع المستند، والتحديد محفوظ في الحالة فلا يضيع عند تحديث الصفحة من المزامنة
+    const types = [...new Set(list0.map(x => x.t))], ftype = types.includes(state.apprType) ? state.apprType : '';
+    const list = ftype ? list0.filter(x => x.t === ftype) : list0;
+    const selKey = x => `${x.t}|${x.r.id}`, SEL = state.apprSel ||= new Set();
+    const visible = new Set(list.map(selKey)); [...SEL].forEach(k => { if (!visible.has(k)) SEL.delete(k); });
+    const allOn = list.length > 0 && list.every(x => SEL.has(selKey(x)));
     const cnt = k => all.filter({ mine: x => canApprove(x.t, x.r), pending: x => x.r.appr.status === 'pending', rejected: x => x.r.appr.status === 'rejected', approved: x => x.r.appr.status === 'approved' }[k]).length;
     const enabled = APPR_MODULES.filter(apprOn);
     content.innerHTML = `
@@ -3591,11 +3616,15 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         <div class="card-head"><div><h3>${{ mine: 'مستندات بانتظار اعتمادي', pending: 'كل المستندات المعلّقة', rejected: 'المستندات المرفوضة', approved: 'المستندات المعتمدة' }[tab]}</h3>
           <div class="sub">المستند المعلّق لا يُرحّل ولا يؤثر في الأرصدة حتى يُعتمد من كل المستويات</div></div>
           <div class="spacer"></div>
-          ${tab === 'mine' && list.length ? `<div class="toolbar"><button class="btn primary" id="bulkApprove">✓ اعتماد المحدد</button></div>` : ''}</div>
+          <div class="toolbar">
+            ${types.length > 1 ? `<select class="input appr-type" id="apprType" aria-label="نوع المستند"><option value="">كل المستندات (${list0.length})</option>${types.map(t => `<option value="${t}" ${t === ftype ? 'selected' : ''}>${esc(modules[t].title)} (${list0.filter(x => x.t === t).length})</option>`).join('')}</select>` : ''}
+            ${tab === 'mine' && list.length ? `<button class="btn ghost" id="bulkApprove" ${SEL.size ? '' : 'disabled'}>✓ اعتماد المحدد (<span id="selN">${SEL.size}</span>)</button>
+            <button class="btn primary" id="approveAll">✓✓ اعتماد الكل (${list.length})</button>` : ''}
+          </div></div>
         <div class="table-wrap"><table>
-          <thead><tr>${tab === 'mine' ? '<th><label class="pchk"><input type="checkbox" id="selAll"><i>' + IC.check + '</i></label></th>' : ''}<th>المستند</th><th>الرقم</th><th>التاريخ</th><th>الطرف / البيان</th><th>المبلغ</th><th>الحالة</th><th>أنشأه</th><th></th></tr></thead>
-          <tbody>${list.map(({ t, r }) => `<tr>
-            ${tab === 'mine' ? `<td><label class="pchk"><input type="checkbox" class="sel" data-t="${t}" data-id="${r.id}"><i>${IC.check}</i></label></td>` : ''}
+          <thead><tr>${tab === 'mine' ? `<th><label class="pchk" title="تحديد الكل"><input type="checkbox" id="selAll" ${allOn ? 'checked' : ''}><i>${IC.check}</i></label></th>` : ''}<th>المستند</th><th>الرقم</th><th>التاريخ</th><th>الطرف / البيان</th><th>المبلغ</th><th>الحالة</th><th>أنشأه</th><th></th></tr></thead>
+          <tbody>${list.map(({ t, r }) => `<tr class="${tab === 'mine' ? 'appr-row' : ''} ${SEL.has(`${t}|${r.id}`) ? 'picked' : ''}" data-k="${t}|${r.id}">
+            ${tab === 'mine' ? `<td><label class="pchk"><input type="checkbox" class="sel" data-t="${t}" data-id="${r.id}" ${SEL.has(`${t}|${r.id}`) ? 'checked' : ''}><i>${IC.check}</i></label></td>` : ''}
             <td><span class="pill">${EMO[t] || ''} ${esc(modules[t].single)}</span></td><td class="code">${esc(docNo(t, r))}</td><td>${esc(r.date || r.month || '')}</td>
             <td>${esc(docParty(r))}</td><td class="num">${QTY_MODULES.includes(t) ? num(amountOf(t, r)) : money(amountOf(t, r))}</td>
             <td>${apprPill(t, r)}${r.appr.status === 'rejected' && r.appr.steps.at(-1)?.note ? `<small class="hint d-block">السبب: ${esc(r.appr.steps.at(-1).note)}</small>` : ''}</td>
@@ -3613,11 +3642,22 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     $$('[data-print]', content).forEach(b => b.onclick = () => { const [t, id] = split(b.dataset.print); printDoc(t, db[t].find(x => x.id === id)); });
     $$('[data-apr]', content).forEach(b => b.onclick = () => { const [t, id] = split(b.dataset.apr); if (decide(t, id, true)) { save(); renderNav(); renderPage(); toast(afterDecideMsg(t, id)); } });
     $$('[data-rej]', content).forEach(b => b.onclick = () => { const [t, id] = split(b.dataset.rej); rejectDoc(t, id); });
-    $('#selAll')?.addEventListener('change', e => $$('.sel', content).forEach(c => { c.checked = e.target.checked; }));
-    $('#bulkApprove')?.addEventListener('click', () => {
-      const sel = $$('.sel:checked', content); if (!sel.length) return toast('اختر مستنداً واحداً على الأقل');
-      let n = 0; sel.forEach(c => { if (decide(c.dataset.t, c.dataset.id, true)) n++; });
-      save(); renderNav(); renderPage(); toast(`تم اعتماد ${n} مستند`, 3000);
+    $('#apprType')?.addEventListener('change', e => { state.apprType = e.target.value; SEL.clear(); renderPage(); });
+    const syncSel = () => { const n = SEL.size; const s = $('#selN'); if (s) s.textContent = n; const b = $('#bulkApprove'); if (b) b.disabled = !n;
+      const sa = $('#selAll'); if (sa) sa.checked = list.length > 0 && list.every(x => SEL.has(selKey(x))); };
+    const setSel = (k, on) => { if (on) SEL.add(k); else SEL.delete(k); const tr = content.querySelector(`tr[data-k="${CSS.escape(k)}"]`); if (tr) { tr.classList.toggle('picked', on); const c = tr.querySelector('.sel'); if (c) c.checked = on; } };
+    $('#selAll')?.addEventListener('change', e => { list.forEach(x => setSel(selKey(x), e.target.checked)); syncSel(); });
+    $$('.sel', content).forEach(c => c.addEventListener('change', () => { setSel(`${c.dataset.t}|${c.dataset.id}`, c.checked); syncSel(); }));
+    // الضغط على أي مكان في الصف يحدده (ما عدا الأزرار)
+    $$('tr.appr-row', content).forEach(tr => tr.addEventListener('click', e => { if (e.target.closest('button, a, label, input')) return; const k = tr.dataset.k; setSel(k, !SEL.has(k)); syncSel(); }));
+    const approveMany = keys => {
+      let n = 0, fail = 0; keys.forEach(k => { const [t, id] = k.split('|'); if (decide(t, id, true)) n++; else fail++; });
+      SEL.clear(); save(); renderNav(); renderPage(); toast(`تم اعتماد ${n} مستند${fail ? ` — وتعذّر ${fail}` : ''}`, 4000);
+    };
+    $('#bulkApprove')?.addEventListener('click', () => { if (!SEL.size) return toast('اختر مستنداً واحداً على الأقل'); approveMany([...SEL]); });
+    $('#approveAll')?.addEventListener('click', () => {
+      if (!confirm(`اعتماد كل المستندات المعروضة (${list.length} مستند${ftype ? ` — ${modules[ftype].title}` : ''})؟ سيتم ترحيل قيودها.`)) return;
+      approveMany(list.map(selKey));
     });
   }
   const afterDecideMsg = (t, id) => { const r = db[t].find(x => x.id === id); return r?.appr?.status === 'approved' ? `تم الاعتماد النهائي والترحيل — ${docNo(t, r)}` : `تم الاعتماد — المستند انتقل إلى: ${apprText(t, r)}`; };
@@ -4375,7 +4415,8 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     store.status = s;
     const map = { connecting: ['جارٍ الاتصال…', ''], saved: ['متصل — مزامنة لحظية', 'ok'], saving: ['جارٍ الحفظ…', 'busy'], slow: ['الاتصال بطيء — قد تكون البيانات قديمة', 'warn'],
       error: ['انقطع الاتصال بقاعدة البيانات', 'err'], local: ['قاعدة بيانات محلية', 'local'], offline: ['قاعدة البيانات غير متاحة — حفظ مؤقت في المتصفح', 'warn'] };
-    const [txt, cls] = map[s] || map.connecting;
+    let [txt, cls] = map[s] || map.connecting;
+    if (s === 'saving' && store.queue?.length > 5) txt = `جارٍ الحفظ… متبقي ${nf.format(store.queue.length)} سجل — لا تغلق الصفحة`;
     const pill = $('#syncPill'); pill.className = `sync ${cls}`; pill.querySelector('span').textContent = txt;
     $('#onlineDot').className = `online ${cls}`;
     $('#onlineDot').title = txt;
