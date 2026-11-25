@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 02:15';
+  const APP_VERSION = '26/11/2026, 02:45';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -1756,7 +1756,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     $('#tblSearch').addEventListener('input', e => { state.q = e.target.value; renderModule(name); const el = $('#tblSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); });
     $('#tblFilter')?.addEventListener('change', e => { state.filter = e.target.value; renderModule(name); });
     $('#addBtn').onclick = () => openRecordForm(name);
-    $('#importBtn').onclick = () => openImport(T);
+    $('#importBtn').onclick = () => openImport(T, m.fixed?.stype && ['salesInvoices', 'salesReturns'].includes(T) ? { account: catAcc(SYS.customers, 'عملاء ' + m.fixed.stype), _title: m.title } : {});
     $('#exportBtn').onclick = () => downloadCSV(name, cols.map(c => c.label), rows.map(r => cols.map(c => val(r, c))));
     const find = id => db[T].find(r => r.id === id);
     $$('[data-act]', content).forEach(b => b.onclick = () => m.actions[+b.dataset.act].fn(find(b.dataset.id)));
@@ -3374,9 +3374,11 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   }
 
   // ----- الواجهة -----
-  async function downloadTemplate(t) {
-    const fields = importFields(t), def = importDef(t);
-    const sample = db[t][0];
+  async function downloadTemplate(t, preset = {}, title) {
+    const fields = importFields(t), def0 = importDef(t), def = title ? { ...def0, title } : def0;
+    // نموذج نوع مبيعات: المثال من فواتير نفس الحساب، وعمود الحساب مكتوب مسبقاً
+    const sample0 = preset.account ? db[t].find(r => (r.account || custAcc(r.customer)) === preset.account) || db[t][0] : db[t][0];
+    const sample = sample0 && Object.keys(preset).length ? { ...sample0, ...preset } : sample0;
     const head = fields.map(c => c.label + (c.optional ? '' : ' *'));
     const exVal = c => { const v = sample[c.key] ?? ''; if (v === '' || c.input !== 'select' || typeof c.options !== 'function') return v; const o = c.options().find(x => Array.isArray(x) && String(x[0]) === String(v)); return o ? o[1] : v; };
     const ex = sample ? fields.map(exVal) : fields.map(() => '');
@@ -3402,6 +3404,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     const PAGE = 200;
     const reparse = () => { parsed = analyze(t, sheet.rows, sheet.mode || 'add', presetFor(t)); view = 'all'; page = 0; ignoreErr = false; };
     const presetFor = x => Object.fromEntries(Object.entries(preset).filter(([k]) => importFields(x).some(c => c.key === k)));
+    const tplTitle = preset._title;
     // اختيار الورقة الأنسب للجدول (باسم الجدول) عند وجود أكثر من ورقة
     const bestSheet = (sheets, x) => sheets.find(w => normAr(w.name) === normAr(importDef(x).title)) || sheets.find(w => normAr(importDef(x).title).includes(normAr(w.name)) || normAr(w.name).includes(normAr(importDef(x).title))) || sheets[0];
     form.classList.add('wide'); form.classList.remove('info');
@@ -3424,7 +3427,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
           <span class="hint" id="impName">${sheet ? esc(sheet.name) : 'لم يتم اختيار ملف'}</span>
           ${sheet?.sheets?.length > 1 ? `<label class="hint">الورقة: <select class="input" id="impSheet">${sheet.sheets.map((w, i) => `<option value="${i}" ${w.rows === sheet.rows ? 'selected' : ''}>${esc(w.name)} (${w.rows.length - 1} صف)</option>`).join('')}</select></label>` : ''}
         </div>
-        ${Object.keys(presetFor(t)).length ? `<div class="af-note">الأعمدة غير الموجودة في الملف تأخذ: ${Object.entries(presetFor(t)).map(([k, v]) => `<b>${esc(importFields(t).find(c => c.key === k)?.label || k)}</b> = ${esc(v)}`).join('، ')}</div>` : ''}
+        ${Object.keys(presetFor(t)).length ? `<div class="af-note">الأعمدة غير الموجودة في الملف تأخذ: ${Object.entries(presetFor(t)).map(([k, v]) => `<b>${esc(importFields(t).find(c => c.key === k)?.label || k)}</b> = ${esc(k === 'account' && acc(v) ? acc(v).name : v)}`).join('، ')}</div>` : ''}
         ${parsed ? `
           <div class="summary imp-sum"><div><span>صفوف الملف</span><b>${parsed.rows.length}</b></div><div><span>جديد</span><b class="up">${cnt('new')}</b></div>
             <div><span>تحديث</span><b>${cnt('update')}</b></div><div><span>أخطاء (ستُتخطى)</span><b class="${cnt('error') ? 'down' : ''}">${cnt('error')}</b></div></div>
@@ -3457,7 +3460,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       $('#impErrXlsx') && ($('#impErrXlsx').onclick = () => exportGrid(`أخطاء استيراد ${importDef(t).title}`, ['الصف', 'سبب الخطأ', ...fields.map(c => c.label)],
         parsed.rows.filter(r => r.status === 'error').map(r => [r.line, r.msg, ...fields.map(c => r.data[c.key] ?? '')])));
       if (sheet) $('#impMode').value = sheet.mode || 'add';
-      $('#impTpl').onclick = () => downloadTemplate(t);
+      $('#impTpl').onclick = () => downloadTemplate(t, presetFor(t), tplTitle);
       $('#impFile').onchange = async e => {
         const f = e.target.files[0]; if (!f) return;
         $('#impName').textContent = 'جارٍ قراءة الملف…';
