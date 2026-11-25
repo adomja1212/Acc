@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '25/11/2026, 22:45';
+  const APP_VERSION = '25/11/2026, 23:15';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -151,6 +151,8 @@
         }
         cache = {}; if (!snap.metadata.fromCache) store.lastSync = new Date();
         got(t); if (store.ready) scheduleRender();
+        // وصل المستخدمون بعد عرض شاشة الإعداد الأول (اتصال بطيء): أعد اختيار الشاشة الصحيحة
+        if (t === 'appUsers' && store.ready && state.authMode === 'setup' && db.appUsers.length) authGate();
       }, fail);
     }
     store.cloud.doc(SETTINGS_PATH).onSnapshot(snap => {
@@ -2591,7 +2593,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   };
   const roleTitle = u => ROLES[u?.role]?.title || 'مخصص';
 
-  const SESSION_KEY = 'acc-erp-session', LAST_USER_KEY = 'acc-erp-last-user';
+  const SESSION_KEY = 'acc-erp-session', LAST_USER_KEY = 'acc-erp-last-user', REMEMBER_KEY = 'acc-erp-remember';
   let session = null;
   const curUser = () => session ? db.appUsers.find(u => u.id === session.uid) : null;
   const isAdminUser = u => u?.role === 'admin';
@@ -2626,18 +2628,25 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   const checkPass = (p, c) => p.length < 6 ? 'كلمة المرور يجب ألا تقل عن 6 أحرف' : p !== c ? 'كلمتا المرور غير متطابقتين' : '';
 
   // ----- الجلسة -----
-  async function startSession(u, remember) {
-    const exp = Date.now() + (remember ? 30 : 1) * 864e5;
+  // الجلسة تبقى داخل نفس النافذة فقط (التحديث أو تغيير اللغة لا يطلب الدخول)، وفتح البرنامج من جديد يبدأ بشاشة الدخول
+  async function startSession(u) {
+    const exp = Date.now() + 864e5;
     session = { uid: u.id, exp, sig: await sha(u.passHash + exp + (store.me.id || '')) };
     try {
-      (remember ? localStorage : sessionStorage).setItem(SESSION_KEY, JSON.stringify(session));
-      (remember ? sessionStorage : localStorage).removeItem(SESSION_KEY);
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      localStorage.removeItem(SESSION_KEY);
       localStorage.setItem(LAST_USER_KEY, u.username);
     } catch {}
   }
+  // حفظ بيانات الدخول على هذا الجهاز: لا تُحفظ كلمة المرور نفسها، بل مفتاح موقّع مرتبط بها
+  // (يبطل تلقائياً إذا تغيرت كلمة المرور أو أوقف الحساب)
+  const remSig = async (u, exp) => sha('remember|' + u.passHash + '|' + exp + '|' + (store.me.id || ''));
+  async function saveRemember(u) { const exp = Date.now() + 365 * 864e5; try { localStorage.setItem(REMEMBER_KEY, JSON.stringify({ uid: u.id, username: u.username, exp, sig: await remSig(u, exp) })); } catch {} }
+  const clearRemember = () => { try { localStorage.removeItem(REMEMBER_KEY); } catch {} };
+  const getRemember = () => { try { const r = JSON.parse(localStorage.getItem(REMEMBER_KEY) || 'null'); return r && r.exp > Date.now() ? r : null; } catch { return null; } };
   async function restoreSession() {
     let s = null;
-    try { s = JSON.parse(localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY)); } catch {}
+    try { s = JSON.parse(sessionStorage.getItem(SESSION_KEY)); localStorage.removeItem(SESSION_KEY); } catch {}
     if (!s || !(s.exp > Date.now())) return false;
     const u = db.appUsers.find(x => x.id === s.uid);
     if (!u || u.active === false || s.sig !== await sha(u.passHash + s.exp + (store.me.id || ''))) return false;
@@ -2688,7 +2697,9 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     const company = db.settings.company || 'نظام المحاسب';
     const letter = [...company.trim()][0] || 'م';
     const canSetup = store.mode !== 'cloud' || store.canAdmin;
-    const lastUser = (() => { try { return localStorage.getItem(LAST_USER_KEY) || ''; } catch { return ''; } })();
+    const rem = getRemember();
+    const lastUser = rem?.username || (() => { try { return localStorage.getItem(LAST_USER_KEY) || ''; } catch { return ''; } })();
+    const SAVED_PW = '\u2022saved\u2022';
     let form;
     if (mode === 'setup' && !canSetup) {
       form = `<div class="auth-card"><div class="ac-head"><div class="ac-logo">${esc(letter)}</div><h2>النظام لم يُجهّز بعد</h2>
@@ -2712,9 +2723,10 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         <div class="ac-head"><div class="ac-logo">${esc(letter)}</div><h2>تسجيل الدخول</h2><p>أهلاً بعودتك! أدخل بيانات حسابك للمتابعة</p></div>
         ${notice ? `<div class="af-note">${esc(notice)}</div>` : ''}
         <label class="af"><span>اسم المستخدم</span>${inputBox(IC.user, `name="username" required autocomplete="username" dir="ltr" value="${esc(lastUser)}" placeholder="اسم المستخدم"`)}</label>
-        <label class="af"><span>كلمة المرور</span>${inputBox(IC.lock, 'type="password" name="password" required autocomplete="current-password" dir="ltr" placeholder="••••••••"', true)}</label>
+        <label class="af"><span>كلمة المرور</span>${inputBox(IC.lock, `type="password" name="password" required autocomplete="current-password" dir="ltr" placeholder="••••••••" ${rem ? `value="${SAVED_PW}" data-saved="1"` : ''}`, !rem)}</label>
+        ${rem ? '<div class="af-saved">🔐 كلمة المرور محفوظة على هذا الجهاز — اضغط "تسجيل الدخول"</div>' : ''}
         <div class="af-row">
-          <label class="remember"><input type="checkbox" name="remember" ${lastUser ? 'checked' : ''}><i>${IC.check}</i><span>تذكرني لمدة 30 يوماً</span></label>
+          <label class="remember"><input type="checkbox" name="remember" ${rem ? 'checked' : ''}><i>${IC.check}</i><span>حفظ اسم المستخدم وكلمة المرور على هذا الجهاز</span></label>
           <button type="button" class="forgot" id="forgotBtn">نسيت كلمة المرور؟</button>
         </div>
         <div class="af-forgot" id="forgotBox" hidden>
@@ -2757,7 +2769,13 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     $('#ownerReset')?.addEventListener('click', ownerReset);
     const f = $('#authForm');
     if (!f) return;
-    (f.querySelector(mode === 'login' && lastUser ? '[name=password]' : 'input'))?.focus();
+    const pw = f.querySelector('[name=password]');
+    // تعديل كلمة المرور أو اسم المستخدم يلغي استخدام المحفوظة
+    if (pw?.dataset.saved) { const drop = () => { if (!pw.dataset.saved) return; delete pw.dataset.saved; pw.value = ''; f.querySelector('.af-saved')?.remove(); };
+      pw.addEventListener('keydown', e => { if (e.key !== 'Enter' && e.key !== 'Tab') drop(); }); pw.addEventListener('paste', drop);
+      f.querySelector('[name=username]').addEventListener('input', drop); }
+    if (mode === 'login' && pw?.dataset.saved) f.querySelector('.af-submit').focus();
+    else (f.querySelector(mode === 'login' && lastUser ? '[name=password]' : 'input'))?.focus();
     f.addEventListener('submit', async e => {
       e.preventDefault();
       const d = Object.fromEntries(new FormData(f));
@@ -2772,12 +2790,24 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         const u = { id: genId(), name: d.name.trim(), username: uname, role: 'admin', active: true, ...ROLES.admin.build(), createdAt: new Date().toISOString() };
         await setPassword(u, d.password);
         db.appUsers.push(u); save();
-        await startSession(u, true); unlock(); toast(`مرحباً ${u.name} — تم إنشاء حساب مدير النظام`, 3500);
+        await startSession(u); unlock(); toast(`مرحباً ${u.name} — تم إنشاء حساب مدير النظام`, 3500);
         return;
       }
       if (Date.now() < lockUntil) return fail(`محاولات كثيرة خاطئة — انتظر ${Math.ceil((lockUntil - Date.now()) / 1000)} ثانية`);
       const uname = d.username.trim().toLowerCase();
       const u = db.appUsers.find(x => x.username === uname);
+      // الدخول بكلمة المرور المحفوظة على هذا الجهاز
+      if (pw?.dataset.saved) {
+        const r = getRemember();
+        if (u && r && r.uid === u.id && r.sig === await remSig(u, r.exp)) {
+          if (u.active === false) return fail('هذا الحساب موقوف — راجع مدير النظام');
+          if (!d.remember) clearRemember();
+          await startSession(u); if (store.canWrite) { u.lastLogin = new Date().toISOString(); save(); }
+          unlock(); toast(`مرحباً ${u.name}`); return;
+        }
+        clearRemember(); delete pw.dataset.saved; pw.value = ''; f.querySelector('.af-saved')?.remove(); pw.focus();
+        return fail('كلمة المرور المحفوظة لم تعد صالحة (ربما تم تغييرها) — اكتبها من جديد');
+      }
       const h = await hashPass(d.password, u?.salt || 'none', u?.iter || 150000);
       if (!u || h !== u.passHash) {
         failCount++;
@@ -2786,7 +2816,8 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       }
       if (u.active === false) return fail('هذا الحساب موقوف — راجع مدير النظام');
       failCount = 0;
-      await startSession(u, !!d.remember);
+      await startSession(u);
+      if (d.remember) await saveRemember(u); else clearRemember();
       if (store.canWrite) { u.lastLogin = new Date().toISOString(); save(); }
       unlock(); toast(`مرحباً ${u.name}`);
     });
@@ -2821,7 +2852,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
       const live = db.appUsers.find(x => x.id === u.id);
       await setPassword(live, d.password); save();
-      await startSession(live, !!localStorage.getItem(SESSION_KEY));
+      await startSession(live); if (getRemember()?.uid === live.id) await saveRemember(live);
       toast('تم تغيير كلمة المرور');
     });
   }
@@ -2912,7 +2943,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
       const live = db.appUsers.find(x => x.id === u.id); if (!live) return;
       await setPassword(live, d.password); save();
-      if (live.id === session.uid) await startSession(live, !!localStorage.getItem(SESSION_KEY));
+      if (live.id === session.uid) { await startSession(live); if (getRemember()?.uid === live.id) await saveRemember(live); }
       toast('تم تعيين كلمة المرور — ستنتهي جلسات هذا المستخدم المفتوحة', 3500);
     });
   }
