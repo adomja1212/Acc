@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 05:00';
+  const APP_VERSION = '26/11/2026, 05:30';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -3938,12 +3938,23 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         n: { label: 'عدد الفواتير', type: N$, v: g => g.inv.size }, qty: { label: 'الكمية', type: N$, v: g => sum(g.ls, l => l.qty) }, weight: { label: 'إجمالي الوزن', type: N$, v: g => sum(g.ls, l => l.weight) },
         value: { label: 'إجمالي القيمة', type: M$, v: g => sum(g.ls, l => l.value) }, disc: { label: 'الخصم', type: M$, v: g => sum(g.ls, l => l.disc) }, pack: { label: 'مواد التعبئة', type: M$, v: g => sum(g.ls, l => l.pack) },
         total: { label: 'إجمالي مدين', type: M$, v: g => sum(g.ls, l => l.total) },
-        avg: { label: 'متوسط السعر', type: M$, noSum: true, v: g => { const q = sum(g.ls, l => l.qty); return q ? +(sum(g.ls, l => l.value) / q).toFixed(2) : 0; } },
+        // متوسط السعر = إجمالي مدين ÷ إجمالي الوزن
+        avg: { label: 'متوسط السعر (مدين ÷ الوزن)', type: M$, noSum: true, v: g => { const w = sum(g.ls, l => l.weight); return w ? +(sum(g.ls, l => l.total) / w).toFixed(2) : 0; } },
         pct: { label: 'النسبة %', type: N$, noSum: true, v: (g, tot) => tot ? +(sum(g.ls, l => l.total) / tot * 100).toFixed(1) : 0 },
       };
       const grp = ls => ({ ls, inv: new Set(ls.map(l => l.tb + l.r.id)) });
       const subtotalCells = (levels, depth, label, ms, g, tot) => [...levels.map((_, i) => i === depth ? `إجمالي ${label}` : ''), ...ms.map(k => MEAS[k].v(g, tot))];
-      return [{ id: 'salesRep', group: 'المبيعات', title: 'تقرير المبيعات', need: 'salesInvoices', filters: ['stype', 'branch', 'cust', 'item', 'itype'], builder: true, run: (f, t, F) => {
+      const MS0 = ['n', 'qty', 'weight', 'value', 'disc', 'pack', 'total', 'pct'];
+      return [{ id: 'salesRep', group: 'المبيعات', title: 'تقرير المبيعات', need: 'salesInvoices', builder: true, detailLabel: 'تفصيلي (سطر لكل صنف)',
+        defaults: () => ({ stype: 'السوق المحلي', branch: '', cust: '', item: '', itype: '', mode: 'sum', g1: 'branch', g2: '', g3: '', ms: [...MS0] }),
+        dims: [['branch', 'الفرع'], ['cust', 'العميل'], ['item', 'الصنف'], ['itemType', 'الصنف ونوعه'], ['itype', 'نوع الصنف'], ['month', 'الشهر'], ['day', 'اليوم'], ['stype', 'نوع المبيعات']],
+        meas: [['n', 'عدد الفواتير'], ['qty', 'الكمية'], ['weight', 'إجمالي الوزن'], ['value', 'إجمالي القيمة'], ['disc', 'الخصم'], ['pack', 'مواد التعبئة'], ['total', 'إجمالي مدين'], ['avg', 'متوسط السعر'], ['pct', 'النسبة %']],
+        onFilter: (F, k) => { if (k === 'item' || k === 'stype') F.itype = ''; },
+        filterUI: F => { const base = eff('salesInvoices').concat(eff('salesReturns')).filter(r => !F.stype || saleType(r) === F.stype), lines = base.flatMap(r => linesOf(r));
+          return [['stype', 'نوع المبيعات', SALE_TYPES.map(([, t]) => t), 'كل الأنواع'], ['branch', 'الفرع', [...db.branches.map(b => b.name), ['__none', 'بدون فرع']], 'كل الفروع'],
+            ['cust', 'العميل', [...new Set(base.map(r => r.customer).filter(Boolean))].sort(), 'كل العملاء'], ['item', 'الصنف', [...new Set(lines.map(l => l.item).filter(Boolean))].sort(), 'كل الأصناف'],
+            ['itype', 'نوع الصنف', [...new Set(lines.filter(l => !F.item || l.item === F.item).map(l => l.itype).filter(Boolean))].sort(), 'كل الأنواع']]; },
+        run: (f, t, F) => {
         const ls = lmLines(f, t, F), tot = sum(ls, l => l.total);
         const levels = [F.g1, F.g2, F.g3].filter((k, i, arr) => k && DIMS[k] && arr.indexOf(k) === i);
         // في التفصيلي: عدد الفواتير ومتوسط السعر بلا معنى لكل سطر (السعر ظاهر في عمود سعر الوحدة)
@@ -3976,6 +3987,79 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         walk2(ls, 0, []);
         return { cols: [...levels.map(k => col(DIMS[k].label)), ...mcols], rows, note: note + ` · ${ls.length} سطر`, dims: DIMS, meas: MEAS };
       } }];
+    })(),
+    // ===== تقرير المشتريات: نفس المنشئ — فواتير المشتريات واستحقاقات الموردين وأذون الإضافة من مورد، والمرتجعات بالسالب =====
+    ...(() => {
+      const PDOC = { purchaseInvoices: 'فاتورة مشتريات', supplierAccruals: 'استحقاق مورد', stockIn: 'إذن إضافة', purchaseReturns: 'مرتجع مشتريات' };
+      const accName = v => acc(accCode(v))?.name || accCode(v) || '—';
+      const purLines = (f, t, F) => {
+        const out = [];
+        const push = (tb, r, sg, o) => {
+          const x = { r, tb, sg, doc: PDOC[tb], supplier: o.supplier || '—', supAcc: o.supAcc || '—', branch: docBranch(r) || '—', item: o.item || '—', unit: o.unit || '', price: +o.price || 0,
+            qty: sg * (+o.qty || 0), value: sg * (+o.value || 0), vat: sg * (+o.vat || 0), wht: sg * (+o.wht || 0) };
+          x.net = x.value + x.vat - x.wht;
+          if (F.doc && x.tb !== F.doc) return; if (F.supAcc && x.supAcc !== F.supAcc) return; if (F.supplier && x.supplier !== F.supplier) return;
+          if (F.branch && (F.branch === '__none' ? x.branch !== '—' : x.branch !== F.branch)) return; if (F.item && x.item !== F.item) return;
+          out.push(x);
+        };
+        const inR = r => inRange(r.date, f, t);
+        eff('purchaseInvoices').filter(inR).forEach(r => push('purchaseInvoices', r, 1, { supplier: r.supplier, supAcc: accName(r.sacc || suppAcc(r.supplier)), item: accName(r.store || r.expAcc || r.account || SYS.defPurchase), value: r.amount }));
+        eff('supplierAccruals').filter(inR).forEach(r => push('supplierAccruals', r, 1, { supplier: r.party, supAcc: accName(r.account || suppAcc(r.party)), item: accName(r.store || r.expAcc), value: r.amount }));
+        eff('stockIn').filter(r => inR(r) && r.supplier).forEach(r => linesOf(r).forEach(l => push('stockIn', r, 1, { supplier: r.supplier, supAcc: accName(suppAcc(r.supplier)), item: l.item, unit: l.unit, price: l.price, qty: l.qty,
+          value: lineVal(l), vat: lineVat(l), wht: lineWht(l) })));
+        eff('purchaseReturns').filter(inR).forEach(r => push('purchaseReturns', r, -1, { supplier: r.supplier, supAcc: accName(suppAcc(r.supplier)), item: accName(r.account || SYS.defPurchase), value: r.amount }));
+        return out;
+      };
+      const DIMS = {
+        branch: { label: 'الفرع', key: l => l.branch, inv: true }, supplier: { label: 'المورد', key: l => l.supplier, inv: true }, supAcc: { label: 'حساب المورد (نوعه)', key: l => l.supAcc, inv: true },
+        item: { label: 'الصنف / الحساب', key: l => l.item }, doc: { label: 'نوع المستند', key: l => l.doc, inv: true },
+        month: { label: 'الشهر', key: l => String(l.r.date || '').slice(0, 7), inv: true, sort: 'asc' }, day: { label: 'اليوم', key: l => l.r.date || '', inv: true, sort: 'asc' },
+      };
+      const MEAS = {
+        n: { label: 'عدد المستندات', type: N$, v: g => g.inv.size }, qty: { label: 'الكمية', type: N$, v: g => sum(g.ls, l => l.qty) },
+        value: { label: 'القيمة', type: M$, v: g => sum(g.ls, l => l.value) }, vat: { label: 'ض.ق.م', type: M$, v: g => sum(g.ls, l => l.vat) }, wht: { label: 'ض. خصم وإضافة', type: M$, v: g => sum(g.ls, l => l.wht) },
+        net: { label: 'الصافي (دائن للمورد)', type: M$, v: g => sum(g.ls, l => l.net) },
+        avg: { label: 'متوسط السعر', type: M$, noSum: true, v: g => { const q = sum(g.ls, l => l.qty); return q ? +(sum(g.ls, l => l.value) / q).toFixed(2) : 0; } },
+        pct: { label: 'النسبة %', type: N$, noSum: true, v: (g, tot) => tot ? +(sum(g.ls, l => l.net) / tot * 100).toFixed(1) : 0 },
+      };
+      const grp = ls => ({ ls, inv: new Set(ls.map(l => l.tb + l.r.id)) });
+      const MS0 = ['n', 'qty', 'value', 'vat', 'wht', 'net', 'pct'];
+      return [{ id: 'purRep', group: 'المشتريات', title: 'تقرير المشتريات', need: 'purchaseInvoices', builder: true, detailLabel: 'تفصيلي (سطر لكل مستند / صنف)',
+        defaults: () => ({ supAcc: '', branch: '', supplier: '', item: '', doc: '', mode: 'sum', g1: 'supplier', g2: '', g3: '', ms: [...MS0] }),
+        dims: Object.entries(DIMS).map(([k, d]) => [k, d.label]), meas: Object.entries(MEAS).map(([k, m]) => [k, m.label]),
+        filterUI: F => { const all = purLines('', '', {});
+          return [['doc', 'نوع المستند', Object.entries(PDOC), 'كل المستندات'], ['supAcc', 'حساب المورد (نوعه)', [...new Set(all.map(l => l.supAcc))].sort(), 'كل الأنواع'],
+            ['branch', 'الفرع', [...db.branches.map(b => b.name), ['__none', 'بدون فرع']], 'كل الفروع'], ['supplier', 'المورد', [...new Set(all.filter(l => !F.supAcc || l.supAcc === F.supAcc).map(l => l.supplier))].sort(), 'كل الموردين'],
+            ['item', 'الصنف / الحساب', [...new Set(all.map(l => l.item))].sort(), 'الكل']]; },
+        run: (f, t, F) => {
+          const ls = purLines(f, t, F), tot = sum(ls, l => l.net);
+          const levels = [F.g1, F.g2, F.g3].filter((k, i, arr) => k && DIMS[k] && arr.indexOf(k) === i);
+          const ms = (F.ms && F.ms.length ? F.ms : MS0).filter(k => MEAS[k] && !(F.mode === 'detail' && (k === 'n' || k === 'avg')));
+          const invSafe = levels.every(k => DIMS[k].inv);
+          const mcols = ms.map(k => col(MEAS[k].label, MEAS[k].type, { noSum: MEAS[k].noSum || (k === 'n' && !invSafe) }));
+          const note = `${F.mode === 'detail' ? 'تفصيلي' : 'إجمالي'}${levels.length ? ' حسب ' + levels.map(k => DIMS[k].label).join(' ← ') : ''} · ${F.doc ? PDOC[F.doc] : 'كل المستندات'} · ${F.branch ? (F.branch === '__none' ? 'بدون فرع' : F.branch) : 'كل الفروع'}${F.supAcc ? ' · ' + F.supAcc : ''}${F.supplier ? ' · ' + F.supplier : ''}${F.item ? ' · ' + F.item : ''}`;
+          const order = (k, entries) => entries.sort((p, q) => DIMS[k].sort === 'asc' ? String(p[0]).localeCompare(String(q[0])) : sum(q[1], l => l.net) - sum(p[1], l => l.net));
+          const split = (k, arr) => { const m = new Map(); arr.forEach(l => { const v = DIMS[k].key(l); (m.get(v) || m.set(v, []).get(v)).push(l); }); return order(k, [...m]); };
+          if (F.mode === 'detail') {
+            const DET = [col('التاريخ'), col('نوع المستند'), col('الرقم'), col('رقم المستند'), col('الفرع'), col('المورد'), col('الصنف / الحساب'), col('الوحدة'), col('السعر', M$, { noSum: true })];
+            const lineCells = l => [l.r.date, l.doc, l.r.no || '', l.r.docNo || '', l.branch, l.supplier, l.item, l.unit, l.price, ...ms.map(k => k === 'pct' ? (tot ? +(l.net / tot * 100).toFixed(2) : 0) : l[k])];
+            const rows = [];
+            const walk = (arr, d) => { if (d >= levels.length) { arr.forEach(l => rows.push(lineCells(l))); return; }
+              split(levels[d], arr).forEach(([v, sub]) => { rows.push({ cls: 'section', cells: [`${DIMS[levels[d]].label}: ${v}`, ...Array(DET.length + ms.length - 1).fill('')] }); walk(sub, d + 1);
+                const g = grp(sub); rows.push({ cls: 'total', cells: [`إجمالي ${v}`, ...Array(DET.length - 1).fill(''), ...ms.map(k => MEAS[k].v(g, tot))] }); }); };
+            walk([...ls].sort((p, q) => byDate(p.r, q.r) || String(p.r.no).localeCompare(String(q.r.no))), 0);
+            return { cols: [...DET, ...mcols], rows, note: note + ` · ${ls.length} سطر` };
+          }
+          if (!levels.length) { const g = grp(ls); return { cols: [col('البيان'), ...mcols], rows: ls.length ? [['كل المشتريات', ...ms.map(k => MEAS[k].v(g, tot))]] : [], note }; }
+          const rows = [];
+          const walk2 = (arr, d, prefix) => split(levels[d], arr).forEach(([v, sub]) => {
+            if (d === levels.length - 1) { rows.push([...prefix, v, ...ms.map(k => MEAS[k].v(grp(sub), tot))]); prefix = prefix.map(() => ''); return; }
+            walk2(sub, d + 1, [...prefix, v]); prefix = prefix.map(() => '');
+            rows.push({ cls: 'total', cells: [...levels.map((_, i) => i === d ? `إجمالي ${v}` : ''), ...ms.map(k => MEAS[k].v(grp(sub), tot))] });
+          });
+          walk2(ls, 0, []);
+          return { cols: [...levels.map(k => col(DIMS[k].label)), ...mcols], rows, note: note + ` · ${ls.length} سطر` };
+        } }];
     })(),
     // ===== المشتريات =====
     { id: 'purSupp', group: 'المشتريات', title: 'المشتريات حسب المورد', need: 'purchaseInvoices', run: (f, t) => {
@@ -4060,39 +4144,28 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   ];
 
   const fmtCell = (c, v) => c.type === M$ ? money(v) : c.type === N$ ? num(v) : esc(v);
-  // فلاتر التقارير التفصيلية (تُحفظ في الحالة لكل الجلسة)؛ نوع المبيعات الافتراضي: السوق المحلي
+  // فلاتر وتشكيل التقارير القابلة للتشكيل — تُحفظ لكل تقرير طوال الجلسة
   function repFilters(rep) {
-    if (!rep.filters) return {};
-    const F = state.rF ||= { stype: 'السوق المحلي', branch: '', cust: '', item: '', itype: '', mode: 'sum', g1: 'branch', g2: '', g3: '', ms: ['n', 'qty', 'weight', 'value', 'disc', 'pack', 'total', 'pct'] };
-    F.mode ||= 'sum'; F.ms ||= ['n', 'qty', 'weight', 'value', 'disc', 'pack', 'total', 'pct'];
+    if (!rep.builder) return {};
+    const F = (state.rFs ||= {})[rep.id] ||= rep.defaults();
     return { ...F, ms: [...F.ms] };
   }
   function repFiltersHTML(rep) {
-    if (!rep.filters) return '';
-    const F = repFilters(rep), base = eff('salesInvoices').concat(eff('salesReturns')).filter(r => !F.stype || saleType(r) === F.stype);
-    const lines = base.flatMap(r => linesOf(r));
-    const items = [...new Set(lines.map(l => l.item).filter(Boolean))].sort();
-    const types = [...new Set(lines.filter(l => !F.item || l.item === F.item).map(l => l.itype).filter(Boolean))].sort();
-    const custs = [...new Set(base.map(r => r.customer).filter(Boolean))].sort();
+    if (!rep.builder) return '';
+    const F = repFilters(rep), d0 = rep.defaults();
     const sel = (k, label, opts, allLbl) => `<label class="rf"><span>${label}</span><select class="input" data-rf="${k}"><option value="">${allLbl}</option>${opts.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${v === F[k] ? 'selected' : ''}>${esc(l)}</option>`; }).join('')}</select></label>`;
-    return `<div class="rep-filters">
-      ${sel('stype', 'نوع المبيعات', SALE_TYPES.map(([, t]) => t), 'كل الأنواع')}
-      ${sel('branch', 'الفرع', [...db.branches.map(b => b.name), ['__none', 'بدون فرع']], 'كل الفروع')}
-      ${sel('cust', 'العميل', custs, 'كل العملاء')}
-      ${sel('item', 'الصنف', items, 'كل الأصناف')}
-      ${sel('itype', 'نوع الصنف', types, 'كل الأنواع')}
-      ${['branch', 'cust', 'item', 'itype'].some(k => F[k]) || F.stype !== 'السوق المحلي' ? '<button type="button" class="link-btn" id="rfClear">مسح الفلاتر</button>' : ''}
-    </div>${rep.builder ? repBuilderHTML(F) : ''}`;
+    const ui = rep.filterUI(F);
+    return `<div class="rep-filters">${ui.map(x => sel(...x)).join('')}
+      ${ui.some(([k]) => (F[k] || '') !== (d0[k] || '')) ? '<button type="button" class="link-btn" id="rfClear">مسح الفلاتر</button>' : ''}
+    </div>${repBuilderHTML(rep, F)}`;
   }
-  const RB_DIMS = [['branch', 'الفرع'], ['cust', 'العميل'], ['item', 'الصنف'], ['itemType', 'الصنف ونوعه'], ['itype', 'نوع الصنف'], ['month', 'الشهر'], ['day', 'اليوم'], ['stype', 'نوع المبيعات']];
-  const RB_MEAS = [['n', 'عدد الفواتير'], ['qty', 'الكمية'], ['weight', 'إجمالي الوزن'], ['value', 'إجمالي القيمة'], ['disc', 'الخصم'], ['pack', 'مواد التعبئة'], ['total', 'إجمالي مدين'], ['avg', 'متوسط السعر'], ['pct', 'النسبة %']];
-  function repBuilderHTML(F) {
-    const gsel = (k, n) => `<label class="rf"><span>تجميع ${n}</span><select class="input" data-rf="${k}"><option value="">${n === 1 ? '— بدون تجميع —' : '— لا شيء —'}</option>${RB_DIMS.map(([v, l]) => `<option value="${v}" ${F[k] === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+  function repBuilderHTML(rep, F) {
+    const gsel = (k, n) => `<label class="rf"><span>تجميع ${n}</span><select class="input" data-rf="${k}"><option value="">${n === 1 ? '— بدون تجميع —' : '— لا شيء —'}</option>${rep.dims.map(([v, l]) => `<option value="${v}" ${F[k] === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
     return `<div class="rep-builder">
       <div class="rb-mode" role="group" aria-label="نوع التقرير"><span>نوع التقرير:</span>
-        <button type="button" class="df-b ${F.mode !== 'detail' ? 'on' : ''}" data-rmode="sum">إجمالي</button><button type="button" class="df-b ${F.mode === 'detail' ? 'on' : ''}" data-rmode="detail">تفصيلي (سطر لكل صنف)</button></div>
+        <button type="button" class="df-b ${F.mode !== 'detail' ? 'on' : ''}" data-rmode="sum">إجمالي</button><button type="button" class="df-b ${F.mode === 'detail' ? 'on' : ''}" data-rmode="detail">${rep.detailLabel || 'تفصيلي'}</button></div>
       <div class="rb-groups">${gsel('g1', 1)}${F.g1 ? gsel('g2', 2) : ''}${F.g1 && F.g2 ? gsel('g3', 3) : ''}</div>
-      <div class="rb-meas"><span>الأعمدة:</span>${RB_MEAS.map(([k, l]) => `<label class="rb-chip ${F.ms.includes(k) ? 'on' : ''}"><input type="checkbox" data-rms="${k}" ${F.ms.includes(k) ? 'checked' : ''}> ${l}</label>`).join('')}</div>
+      <div class="rb-meas"><span>الأعمدة:</span>${rep.meas.map(([k, l]) => `<label class="rb-chip ${F.ms.includes(k) ? 'on' : ''}"><input type="checkbox" data-rms="${k}" ${F.ms.includes(k) ? 'checked' : ''}> ${l}</label>`).join('')}</div>
     </div>`;
   }
   function runReport(rep) {
@@ -4134,11 +4207,14 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         </section>
       </div>`;
     $$('[data-rep]', content).forEach(b => b.onclick = () => { state.report = b.dataset.rep; renderPage(); });
-    $$('[data-rf]', content).forEach(s => s.addEventListener('change', () => { const F = state.rF ||= {}; F[s.dataset.rf] = s.value; if (s.dataset.rf === 'item' || s.dataset.rf === 'stype') F.itype = '';
-      if (s.dataset.rf === 'g1' && !s.value) { F.g2 = ''; F.g3 = ''; } if (s.dataset.rf === 'g2' && !s.value) F.g3 = ''; renderPage(); }));
-    $('#rfClear')?.addEventListener('click', () => { Object.assign(state.rF, { stype: 'السوق المحلي', branch: '', cust: '', item: '', itype: '' }); renderPage(); });
-    $$('[data-rmode]', content).forEach(b => b.onclick = () => { state.rF.mode = b.dataset.rmode; renderPage(); });
-    $$('[data-rms]', content).forEach(c => c.onchange = () => { const F = state.rF; F.ms = RB_MEAS.map(([k]) => k).filter(k => k === c.dataset.rms ? c.checked : F.ms.includes(k)); if (!F.ms.length) F.ms = ['total']; renderPage(); });
+    if (rep.builder) {
+      const RF = () => (state.rFs ||= {})[rep.id] ||= rep.defaults();
+      $$('[data-rf]', content).forEach(s => s.addEventListener('change', () => { const F = RF(); F[s.dataset.rf] = s.value; rep.onFilter?.(F, s.dataset.rf);
+        if (s.dataset.rf === 'g1' && !s.value) { F.g2 = ''; F.g3 = ''; } if (s.dataset.rf === 'g2' && !s.value) F.g3 = ''; renderPage(); }));
+      $('#rfClear')?.addEventListener('click', () => { const F = RF(), d0 = rep.defaults(); rep.filterUI(F).forEach(([k]) => { F[k] = d0[k] || ''; }); renderPage(); });
+      $$('[data-rmode]', content).forEach(b => b.onclick = () => { RF().mode = b.dataset.rmode; renderPage(); });
+      $$('[data-rms]', content).forEach(c => c.onchange = () => { const F = RF(); F.ms = rep.meas.map(([k]) => k).filter(k => k === c.dataset.rms ? c.checked : F.ms.includes(k)); if (!F.ms.length) F.ms = [rep.meas.at(-2)[0]]; renderPage(); });
+    }
     const setP = () => { state.rFrom = $('#rFrom')?.value || ''; state.rTo = $('#rTo')?.value || ''; renderPage(); };
     $('#rFrom')?.addEventListener('change', setP); $('#rTo')?.addEventListener('change', setP);
     $('#rQuick')?.addEventListener('change', e => {
