@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '29/11/2026, 14:00';
+  const APP_VERSION = '25/11/2026, 10:00';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -1239,6 +1239,210 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   function openLedger(code) { state.ledger = code; closeModal(); goTo('ledger'); }
 
   // ---------- لوحة التحكم ----------
+  // =====================================================================
+  // لوحة التحكم: رسوم بيانية تفاعلية (فلتر الفترة يطبّق على كل الكروت والرسوم)
+  // الألوان: أزرق/برتقالي/أخضر مائي/أصفر بترتيب ثابت (تم فحصها لعمى الألوان)
+  // =====================================================================
+  const DASH_COLORS = ['#257de0', '#f47230', '#00b894', '#f2a600'];
+  const DASH_SEQ = ['#84b9f3', '#519ced', '#257de0', '#1b64be', '#0f4a96'];
+  const DASH_PRESETS = [['m1', 'هذا الشهر'], ['m3', 'آخر 3 شهور'], ['m6', 'آخر 6 شهور'], ['m12', 'آخر 12 شهر'], ['y', 'هذه السنة'], ['all', 'الكل']];
+  let dashP = 'm12'; try { dashP = localStorage.getItem('acc-erp-dashp') || 'm12'; } catch {}
+  const ym = d => d.slice(0, 7);
+  const monthStart = (y, m) => new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+  function dashRange(p) {
+    const t = today(), y = +t.slice(0, 4), m = +t.slice(5, 7) - 1;
+    if (p === 'all') { const d = glEntries().map(e => e.date).filter(Boolean).sort()[0] || t; return { from: d.slice(0, 8) + '01', to: t, all: true }; }
+    if (p === 'y') return { from: `${y}-01-01`, to: t };
+    const n = { m1: 1, m3: 3, m6: 6, m12: 12 }[p] || 12;
+    return { from: monthStart(y, m - n + 1), to: t };
+  }
+  const prevRange = r => { const a = new Date(r.from), b = new Date(r.to), len = b - a; const pe = new Date(a - 864e5); return { from: new Date(pe - len).toISOString().slice(0, 10), to: pe.toISOString().slice(0, 10) }; };
+  const monthsIn = r => { const out = []; let [y, m] = r.from.split('-').map(Number); const [ty, tm] = r.to.split('-').map(Number);
+    while (y < ty || (y === ty && m <= tm)) { out.push(`${y}-${String(m).padStart(2, '0')}`); if (++m > 12) { m = 1; y++; } if (out.length > 120) break; } return out; };
+  // سلسلة آباء الحساب حتى الجذر
+  const ancestors = code => memo('anc:' + code, () => { const out = []; let c = String(code), guard = 0; while (c && guard++ < 12) { out.push(c); c = acc(c)?.parent || ''; } return out; });
+  const rootOf = code => ancestors(code).at(-1);
+  const childOfRoot = (code, root) => { const a = ancestors(code); const i = a.indexOf(root); return i > 0 ? a[i - 1] : null; };
+  // إيرادات/مصروفات فترة من القيود المرحّلة
+  function pl(r) {
+    const o = { rev: 0, exp: 0, byMonth: {}, expBy: {} };
+    glEntries().forEach(e => { if (!e.date || e.date < r.from || e.date > r.to) return; const k = ym(e.date), bm = o.byMonth[k] ||= { rev: 0, exp: 0 };
+      e.lines.forEach(l => { const root = rootOf(l.acc);
+        if (root === SYS.revenue) { const v = l.cr - l.dr; o.rev += v; bm.rev += v; }
+        else if (root === SYS.expenses) { const v = l.dr - l.cr; o.exp += v; bm.exp += v; const g = childOfRoot(l.acc, SYS.expenses) || l.acc; o.expBy[g] = (o.expBy[g] || 0) + v; } }); });
+    return o;
+  }
+  // رصيد النقدية (خزائن + بنوك) في نهاية كل شهر
+  function cashSeries(months) {
+    const isCash = c => { const a = ancestors(c); return a.includes(SYS.cash) || a.includes(SYS.banks); };
+    let bal = sum(db.accounts.filter(a => isCash(a.code)), a => +a.balance || 0);
+    const ents = [...glEntries()].filter(e => e.date).sort(byDate); let i = 0;
+    return months.map(mo => { const end = mo + '-31';
+      while (i < ents.length && ents[i].date <= end) { ents[i].lines.forEach(l => { if (isCash(l.acc)) bal += l.dr - l.cr; }); i++; }
+      return bal; });
+  }
+  const cmp = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+  const monthLabel = (mo, withYear) => { const [y, m] = mo.split('-').map(Number); const d = new Date(Date.UTC(y, m - 1, 15));
+    return d.toLocaleDateString((window.UI_LOCALE || 'ar-EG') + '-u-nu-latn', withYear ? { month: 'short', year: 'numeric', timeZone: 'UTC' } : { month: 'short', timeZone: 'UTC' }); };
+  const niceStep = v => { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; };
+  const niceMax = v => niceStep(v / 4) * 4;
+
+  // ---- التلميح (Tooltip) — نصوص عبر textContent فقط ----
+  let dashTips = [];
+  const tipEl = () => { let t = $('#dashTip'); if (!t) { t = document.createElement('div'); t.id = 'dashTip'; t.className = 'dash-tip'; t.hidden = true; document.body.appendChild(t); } return t; };
+  function showTip(i, ev) {
+    const d = dashTips[i]; if (!d) return; const t = tipEl(); t.textContent = '';
+    const h = document.createElement('div'); h.className = 'dt-h'; h.textContent = d.title; t.appendChild(h);
+    d.rows.forEach(r => { const row = document.createElement('div'); row.className = 'dt-r';
+      const k = document.createElement('i'); if (r.color) k.style.background = r.color; else k.className = 'none'; row.appendChild(k);
+      const v = document.createElement('b'); v.textContent = r.v; row.appendChild(v);
+      const l = document.createElement('span'); l.textContent = r.l; row.appendChild(l); t.appendChild(row); });
+    t.hidden = false; const pad = 14, w = t.offsetWidth, hh = t.offsetHeight;
+    let x = ev.clientX + pad, y = ev.clientY - hh - pad; if (x + w > innerWidth - 8) x = ev.clientX - w - pad; if (y < 8) y = ev.clientY + pad;
+    t.style.left = x + 'px'; t.style.top = y + 'px';
+  }
+  const hideTip = () => { const t = $('#dashTip'); if (t) t.hidden = true; };
+  const tip = (title, rows) => { dashTips.push({ title, rows }); return dashTips.length - 1; };
+
+  // ---- رسم أعمدة (مجمّعة) — يتجه حسب اتجاه الواجهة ----
+  function colChart(el, { cats, catTitles, series, colorsPerBar, extra, height = 240 }) {
+    const W = Math.max(280, el.clientWidth), H = height, rtl = document.documentElement.dir === 'rtl';
+    const padS = 52, padE = 10, top = 14, bot = 26, x0 = rtl ? padE : padS, x1 = rtl ? W - padS : W - padE;
+    const all = series.flatMap(s => s.vals), mx = niceMax(Math.max(0, ...all)), mn = Math.min(0, ...all) < 0 ? -niceMax(-Math.min(...all)) : 0;
+    const y = v => top + (mx - v) / (mx - mn) * (H - top - bot), n = cats.length, bw = (x1 - x0) / Math.max(1, n);
+    const cx = i => rtl ? x1 - (i + 0.5) * bw : x0 + (i + 0.5) * bw;
+    const ns = series.length, w = Math.max(3, Math.min(24, (bw * 0.72 - (ns - 1) * 2) / ns));
+    const ticks = 4; let g = '';
+    for (let k = 0; k <= ticks; k++) { const v = mn + (mx - mn) * k / ticks, yy = y(v);
+      g += `<line class="grid" x1="${x0}" x2="${x1}" y1="${yy}" y2="${yy}"/><text class="ax" x="${rtl ? x1 + 8 : x0 - 8}" y="${yy + 4}" text-anchor="${rtl ? 'start' : 'end'}">${cmp.format(v)}</text>`; }
+    const every = Math.ceil(n / Math.max(1, Math.floor((x1 - x0) / 60)));
+    cats.forEach((c, i) => { if ((i % every === 0 && n - 1 - i >= every) || i === n - 1) g += `<text class="ax" x="${cx(i)}" y="${H - 8}" text-anchor="middle">${esc(c)}</text>`; });
+    const yb = y(0);
+    cats.forEach((c, i) => {
+      const grp = ns * w + (ns - 1) * 2;
+      series.forEach((s, j) => { const v = s.vals[i] || 0; if (!v) return;
+        const off = -grp / 2 + j * (w + 2), xx = rtl ? cx(i) - off - w : cx(i) + off, yv = y(v), hgt = Math.abs(yb - yv), r = Math.min(4, w / 2, hgt);
+        const t = Math.min(yv, yb), color = colorsPerBar ? colorsPerBar[i] : s.color;
+        const d = v >= 0 ? `M${xx},${yb}V${t + r}Q${xx},${t} ${xx + r},${t}H${xx + w - r}Q${xx + w},${t} ${xx + w},${t + r}V${yb}Z`
+          : `M${xx},${yb}V${yb + hgt - r}Q${xx},${yb + hgt} ${xx + r},${yb + hgt}H${xx + w - r}Q${xx + w},${yb + hgt} ${xx + w},${yb + hgt - r}V${yb}Z`;
+        g += `<path class="mk" d="${d}" fill="${color}"/>`; });
+      const ti = tip(catTitles?.[i] || c, [...series.map(s => ({ color: colorsPerBar ? colorsPerBar[i] : s.color, v: money(s.vals[i] || 0), l: s.name })), ...(extra ? [extra(i)] : [])]);
+      g += `<rect class="hit" data-tip="${ti}" x="${cx(i) - bw / 2}" y="${top}" width="${bw}" height="${H - top - bot}" tabindex="0"/>`;
+    });
+    g += `<line class="base" x1="${x0}" x2="${x1}" y1="${yb}" y2="${yb}"/>`;
+    el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(el.dataset.label || '')}">${g}</svg>`;
+  }
+  // ---- خط زمني مع مساحة خفيفة ----
+  function lineChart(el, { cats, catTitles, vals, name, color, height = 240 }) {
+    const W = Math.max(280, el.clientWidth), H = height, rtl = document.documentElement.dir === 'rtl';
+    const padS = 52, padE = 16, top = 22, bot = 26, x0 = rtl ? padE : padS, x1 = rtl ? W - padS : W - padE;
+    const mx = niceMax(Math.max(0, ...vals)), mn = Math.min(0, ...vals) < 0 ? -niceMax(-Math.min(...vals)) : 0;
+    const y = v => top + (mx - v) / (mx - mn) * (H - top - bot), n = vals.length;
+    const px = i => n === 1 ? (x0 + x1) / 2 : rtl ? x1 - i * (x1 - x0) / (n - 1) : x0 + i * (x1 - x0) / (n - 1);
+    let g = '';
+    for (let k = 0; k <= 4; k++) { const v = mn + (mx - mn) * k / 4, yy = y(v);
+      g += `<line class="grid" x1="${x0}" x2="${x1}" y1="${yy}" y2="${yy}"/><text class="ax" x="${rtl ? x1 + 8 : x0 - 8}" y="${yy + 4}" text-anchor="${rtl ? 'start' : 'end'}">${cmp.format(v)}</text>`; }
+    const every = Math.ceil(n / Math.max(1, Math.floor((x1 - x0) / 60)));
+    cats.forEach((c, i) => { if ((i % every === 0 && n - 1 - i >= every) || i === n - 1) g += `<text class="ax" x="${px(i)}" y="${H - 8}" text-anchor="middle">${esc(c)}</text>`; });
+    const pts = vals.map((v, i) => `${px(i)},${y(v)}`).join(' ');
+    g += `<polygon points="${px(0)},${y(Math.max(mn, 0))} ${pts} ${px(n - 1)},${y(Math.max(mn, 0))}" fill="${color}" opacity=".1"/>`;
+    g += `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const li = n - 1; g += `<circle cx="${px(li)}" cy="${y(vals[li])}" r="5" fill="${color}" stroke="#fff" stroke-width="2"/>`;
+    g += `<text class="val" x="${px(li)}" y="${y(vals[li]) - 12}" text-anchor="${rtl ? 'start' : 'end'}">${cmp.format(vals[li])}</text>`;
+    g += `<line class="xh" x1="0" x2="0" y1="${top}" y2="${H - bot}" visibility="hidden"/>`;
+    const bw = n > 1 ? (x1 - x0) / (n - 1) : x1 - x0;
+    vals.forEach((v, i) => { const ti = tip(catTitles?.[i] || cats[i], [{ color, v: money(v), l: name }]);
+      g += `<rect class="hit" data-tip="${ti}" data-x="${px(i)}" x="${px(i) - bw / 2}" y="${top}" width="${bw}" height="${H - top - bot}" tabindex="0"/>`; });
+    el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(el.dataset.label || '')}">${g}</svg>`;
+  }
+  // ---- أشرطة أفقية (HTML) ----
+  const hbars = (rows, color = DASH_COLORS[0]) => { const mx = Math.max(1, ...rows.map(r => Math.abs(r.v)));
+    return rows.length ? `<div class="hb">${rows.map(r => `<div class="hb-row" data-tip="${tip(r.l, [{ color, v: money(r.v), l: r.sub || '' }])}" tabindex="0">
+      <span class="hb-l" title="${esc(r.l)}">${esc(r.l)}</span><span class="hb-t"><i style="width:${Math.max(1.5, Math.abs(r.v) / mx * 100)}%;background:${color}"></i></span><b class="hb-v">${cmp.format(r.v)}</b></div>`).join('')}</div>`
+      : '<div class="dash-empty">لا توجد بيانات في هذه الفترة</div>'; };
+  // ---- شريط مقسّم (الكل وأجزاؤه) ----
+  const segbar = parts => { const tot = sum(parts, p => Math.max(0, p.v)); if (!tot) return '<div class="dash-empty">لا توجد بيانات في هذه الفترة</div>';
+    const ps = parts.filter(p => p.v > 0);
+    return `<div class="seg" role="img" aria-label="${esc(ps.map(p => `${p.l}: ${Math.round(p.v / tot * 100)}%`).join('، '))}">${ps.map(p => `<span class="seg-p" style="flex:${p.v} 1 0;background:${p.color}" data-tip="${tip(p.l, [{ color: p.color, v: money(p.v), l: Math.round(p.v / tot * 100) + '%' }])}" tabindex="0"><em style="color:${p.ink || '#fff'}">${Math.round(p.v / tot * 100)}%</em></span>`).join('')}</div>
+      <ul class="dash-legend">${ps.map(p => `<li><i style="background:${p.color}"></i><span>${esc(p.l)}</span><b>${money(p.v)}</b></li>`).join('')}</ul>`; };
+  // ---- جدول بديل لكل رسم ----
+  const dtable = (head, rows) => `<div class="dash-table" hidden><div class="table-wrap"><table><thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td class="${i ? 'num' : ''}">${i && typeof c === 'number' ? money(c) : esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  const dcard = (title, sub, body, table, cls = '') => `<div class="card dash-card ${cls}"><div class="card-head"><div><h3>${title}</h3>${sub ? `<div class="sub">${sub}</div>` : ''}</div><span class="spacer"></span>
+      <button type="button" class="link-btn dash-tbl-btn" aria-pressed="false">عرض كجدول</button></div><div class="card-body">${body}${table}</div></div>`;
+
+  function dashboardCharts() {
+    dashTips = [];
+    const R = dashRange(dashP), P = pl(R), months = monthsIn(R), multiYear = months[0]?.slice(0, 4) !== months.at(-1)?.slice(0, 4);
+    const PR = R.all ? null : pl(prevRange(R));
+    const cats = months.map(m => monthLabel(m, multiYear && months.length <= 6)), titles = months.map(m => monthLabel(m, true));
+    const revM = months.map(m => P.byMonth[m]?.rev || 0), expM = months.map(m => P.byMonth[m]?.exp || 0);
+    const cashM = cashSeries(months);
+    // المبيعات حسب النوع (صافي بعد المردودات)
+    const inR = r => r.date >= R.from && r.date <= R.to;
+    const salesBy = SALE_TYPES.map(([, ty]) => ({ l: ty, v: sum(eff('salesInvoices').filter(r => inR(r) && saleType(r) === ty), r => r.amount) - sum(eff('salesReturns').filter(r => inR(r) && saleType(r) === ty), r => r.amount) }));
+    // هيكل المصروفات
+    const expParts = childrenOf(SYS.expenses).map((a, i) => ({ l: a.name, v: P.expBy[a.code] || 0, color: DASH_COLORS[i % 4], ink: i === 0 ? '#fff' : '#191919' }));
+    // أعمار ديون العملاء (حتى اليوم)
+    const BK = ['لم تستحق', '1–30', '31–60', '61–90', '+90'], BKT = ['لم تستحق بعد', 'متأخرة 1–30 يوم', 'متأخرة 31–60 يوم', 'متأخرة 61–90 يوم', 'متأخرة أكثر من 90 يوم'], aging = [0, 0, 0, 0, 0], t0 = new Date(today());
+    eff('salesInvoices').forEach(r => { const rem = invTotal(r) - salesPaid(r); if (rem <= 0.005) return; const d = r.due ? Math.floor((t0 - new Date(r.due)) / 864e5) : 0;
+      aging[d <= 0 ? 0 : d <= 30 ? 1 : d <= 60 ? 2 : d <= 90 ? 3 : 4] += rem; });
+    const topCust = db.customers.map(c => ({ l: c.name, v: custBal(c.name), sub: c.category || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 6);
+    const topSupp = db.suppliers.map(s => ({ l: s.name, v: suppBal(s.name), sub: acc(s.account)?.name || '' })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 6);
+    const invRows = [...childrenOf(SYS.inventory), acc(SYS.finished)].filter(Boolean).map(a => ({ l: a.name, v: rollup(a.code), sub: a.code })).filter(x => x.v).sort((a, b) => b.v - a.v);
+    const boxRows = db.cashboxes.map(b => ({ l: b.name, v: acc(b.accountNo) ? ownBal(acc(b.accountNo)) : 0, sub: b.type || '' })).filter(x => x.v).sort((a, b) => b.v - a.v);
+    const cashNow = rollup(SYS.cash) + rollup(SYS.banks), receivable = sum(db.customers, c => custBal(c.name)), payable = sum(db.suppliers, s => suppBal(s.name));
+    const delta = (cur, prev, upGood = true) => { if (prev == null || !PR) return ''; if (!prev) return '';
+      const ch = (cur - prev) / Math.abs(prev) * 100, good = (ch >= 0) === upGood; return `<span class="dl ${Math.abs(ch) < 0.5 ? 'flat' : good ? 'good' : 'bad'}">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch).toFixed(1)}% عن الفترة السابقة</span>`; };
+    const net = P.rev - P.exp, pnet = PR ? PR.rev - PR.exp : null;
+    const stat = (label, value, sub, icon, color) => `<div class="kpi"><div class="kpi-icon ${color}">${icon}</div><div><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-trend">${sub}</div></div></div>`;
+    dashDraw = () => {
+      const c1 = $('[data-chart=revexp]', content); if (c1) colChart(c1, { cats, catTitles: titles, series: [{ name: 'الإيرادات', color: DASH_COLORS[0], vals: revM }, { name: 'المصروفات', color: DASH_COLORS[1], vals: expM }], extra: i => ({ v: money(revM[i] - expM[i]), l: 'صافي الربح' }) });
+      const c2 = $('[data-chart=cash]', content); if (c2) lineChart(c2, { cats, catTitles: titles, vals: cashM, name: 'رصيد النقدية', color: DASH_COLORS[0] });
+      const c3 = $('[data-chart=aging]', content); if (c3) colChart(c3, { cats: BK, catTitles: BKT, series: [{ name: 'المتبقي', color: DASH_SEQ[2], vals: aging }], colorsPerBar: DASH_SEQ, height: 220 });
+      $$('.seg-p em', content).forEach(e => { e.style.visibility = e.offsetWidth + 10 > e.parentElement.offsetWidth ? 'hidden' : ''; });
+    };
+    return `
+      <div class="dash-filters" role="group" aria-label="الفترة">
+        <span class="df-l">الفترة:</span>
+        ${DASH_PRESETS.map(([k, l]) => `<button type="button" class="df-b ${k === dashP ? 'on' : ''}" data-dp="${k}" aria-pressed="${k === dashP}">${k === dashP ? '✓ ' : ''}${l}</button>`).join('')}
+        <span class="df-r">${fmtDMY(R.from)} — ${fmtDMY(R.to)}</span>
+      </div>
+      <div class="kpis">
+        ${stat('الإيرادات', money(P.rev), delta(P.rev, PR?.rev), icons.trend, 'green')}
+        ${stat('المصروفات', money(P.exp), delta(P.exp, PR?.exp, false), icons.down, 'red')}
+        ${stat('صافي الربح', money(net), `${P.rev ? `هامش ربح ${Math.round(net / P.rev * 100)}%` : ''} ${delta(net, pnet)}`, icons.wallet, '')}
+        ${stat('النقدية بالخزائن والبنوك', money(cashNow), `للعملاء ${money(receivable)} · للموردين ${money(payable)}`, icons.cash, 'amber')}
+      </div>
+      <div class="dash-grid">
+        ${dcard('الإيرادات والمصروفات شهرياً', 'من القيود المرحّلة في الفترة',
+          `<ul class="dash-legend top"><li><i style="background:${DASH_COLORS[0]}"></i><span>الإيرادات</span></li><li><i style="background:${DASH_COLORS[1]}"></i><span>المصروفات</span></li></ul>
+           <div class="chart" data-chart="revexp" data-label="الإيرادات والمصروفات شهرياً"></div>`,
+          dtable(['الشهر', 'الإيرادات', 'المصروفات', 'صافي الربح'], months.map((m, i) => [titles[i], revM[i], expM[i], revM[i] - expM[i]])), 'wide')}
+        ${dcard('رصيد النقدية', 'الخزائن والبنوك في نهاية كل شهر', `<div class="chart" data-chart="cash" data-label="رصيد النقدية"></div>`,
+          dtable(['الشهر', 'الرصيد'], months.map((m, i) => [titles[i], cashM[i]])))}
+        ${dcard('المبيعات حسب النوع', 'صافي بعد المردودات — قبل الضريبة', hbars(salesBy.filter(x => x.v)), dtable(['النوع', 'صافي المبيعات'], salesBy.map(x => [x.l, x.v])))}
+        ${dcard('هيكل المصروفات', `إجمالي ${money(P.exp)}`, segbar(expParts), dtable(['المجموعة', 'المبلغ'], expParts.map(x => [x.l, x.v])))}
+        ${dcard('أكبر العملاء رصيداً', 'مستحق من العملاء', hbars(topCust), dtable(['العميل', 'الرصيد'], topCust.map(x => [x.l, x.v])))}
+        ${dcard('أكبر الموردين رصيداً', 'مستحق للموردين', hbars(topSupp, DASH_COLORS[1]), dtable(['المورد', 'الرصيد'], topSupp.map(x => [x.l, x.v])))}
+        ${dcard('قيمة المخزون', 'حسب حساب المخزون في الشجرة', hbars(invRows, DASH_COLORS[2]), dtable(['الحساب', 'القيمة'], invRows.map(x => [x.l, x.v])))}
+        ${dcard('أعمار ديون العملاء', 'المتبقي على الفواتير حتى اليوم — بالأيام بعد الاستحقاق', `<div class="chart" data-chart="aging" data-label="أعمار ديون العملاء"></div>`, dtable(['الفئة', 'المبلغ'], BKT.map((b, i) => [b, aging[i]])))}
+        ${dcard('أرصدة الخزائن والبنوك', 'الرصيد الحالي لكل خزينة وبنك', hbars(boxRows, DASH_COLORS[0]), dtable(['الخزينة / البنك', 'الرصيد'], boxRows.map(x => [x.l, x.v])), 'full')}
+      </div>`;
+  }
+  let dashDraw = null;
+  function wireDashboard() {
+    dashDraw?.();
+    $$('[data-dp]', content).forEach(b => b.onclick = () => { dashP = b.dataset.dp; try { localStorage.setItem('acc-erp-dashp', dashP); } catch {} renderPage(); });
+    $$('.dash-tbl-btn', content).forEach(b => b.onclick = () => { const card = b.closest('.dash-card'), t = $('.dash-table', card), on = t.hidden;
+      t.hidden = !on; b.setAttribute('aria-pressed', on); b.textContent = on ? 'عرض كرسم' : 'عرض كجدول'; $$('.chart, .hb, .seg, .dash-legend', card).forEach(x => x.hidden = on); if (!on) dashDraw?.(); });
+    const onMove = e => { const h = e.target.closest?.('[data-tip]'); if (!h || !content.contains(h)) { hideTip(); $$('.xh', content).forEach(l => l.setAttribute('visibility', 'hidden')); return; }
+      showTip(+h.dataset.tip, e); const svg = h.closest('svg'), xh = svg && $('.xh', svg); if (xh) { xh.setAttribute('x1', h.dataset.x); xh.setAttribute('x2', h.dataset.x); xh.setAttribute('visibility', 'visible'); } };
+    content.onpointermove = onMove; content.onpointerleave = () => hideTip();
+    content.onfocusin = e => { const h = e.target.closest?.('[data-tip]'); if (h) { const r = h.getBoundingClientRect(); showTip(+h.dataset.tip, { clientX: r.left + r.width / 2, clientY: r.top }); } };
+    content.onfocusout = () => hideTip();
+  }
+  let dashRz; addEventListener('resize', () => { clearTimeout(dashRz); dashRz = setTimeout(() => { if (state.page === 'dashboard') dashDraw?.(); }, 150); });
+
   function renderDashboard() {
     const revenue = rollup('4'), expenses = rollup('3'), cash = rollup(SYS.cash) + rollup(SYS.banks);
     const receivable = sum(db.customers, c => custBal(c.name)), payable = sum(db.suppliers, s => suppBal(s.name));
@@ -1267,12 +1471,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     ];
 
     content.innerHTML = `
-      <div class="kpis">
-        ${kpi('إجمالي الإيرادات', money(revenue), `${glEntries().length} قيد مرحّل`, 'up', 'green', icons.trend)}
-        ${kpi('إجمالي المصروفات', money(expenses), `${childrenOf('3').length} مجموعات مصروفات`, 'down', 'red', icons.down)}
-        ${kpi('صافي الربح', money(revenue - expenses), `هامش ربح ${revenue ? Math.round((revenue - expenses) / revenue * 100) : 0}%`, revenue >= expenses ? 'up' : 'down', '', icons.wallet)}
-        ${kpi('النقدية بالخزائن والبنوك', money(cash), `للعملاء ${money(receivable)} · للموردين ${money(payable)}`, '', 'amber', icons.cash)}
-      </div>
+      ${dashboardCharts()}
 
       <div class="section-title">الإدارات</div>
       <div class="tiles">
@@ -1289,21 +1488,6 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
 
       <div class="grid-2">
         <div class="card">
-          <div class="card-head"><div><h3>أرصدة الخزائن والبنوك</h3><div class="sub">من الحسابات المرتبطة في الشجرة</div></div><div class="spacer"></div><a class="btn ghost" href="#cashboxes">التفاصيل</a></div>
-          <div class="card-body dist">
-            ${boxes.map(x => `<div class="dist-row"><span>${esc(x.name)}</span><b>${money(x.v)}</b><div class="track"><span style="width:${Math.max(0, x.v) / boxMax * 100}%"></span></div></div>`).join('')}
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-head"><div><h3>هيكل المصروفات</h3><div class="sub">حسب المجموعة الرئيسية</div></div></div>
-          <div class="card-body dist">
-            ${expGroups.map(x => `<div class="dist-row"><span>${esc(x.name)}</span><b>${money(x.v)}</b><div class="track"><span style="width:${Math.max(0, x.v) / expMax * 100}%"></span></div></div>`).join('')}
-          </div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="card">
           <div class="card-head"><h3>أحدث القيود المرحّلة</h3><div class="spacer"></div><a class="btn ghost" href="#journal">دفتر اليومية</a></div>
           <div class="table-wrap"><table>
             <thead><tr><th>رقم القيد</th><th>التاريخ</th><th>البيان</th><th>المصدر</th><th>المبلغ</th></tr></thead>
@@ -1316,6 +1500,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         </div>
       </div>`;
     $$('[data-go]', content).forEach(a => a.addEventListener('click', e => { e.preventDefault(); goTo(a.dataset.go, a.dataset.q); }));
+    wireDashboard();
   }
   const kpi = (label, value, trend, dir, color, icon) => `
     <div class="kpi"><div class="kpi-icon ${color}">${icon}</div>
