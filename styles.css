@@ -1344,3 +1344,25 @@ tbody tr:hover td { background: #f7f9fc; }
   .lang { height: 24px; }
   .user-menu, .lang-menu { inset-inline-start: 4px; inset-inline-end: auto; width: 200px; }
 }
+
+/* الموبايل: درج القائمة أضيق (نصف الشاشة تقريباً) بخط مدمج */
+@media (max-width: 900px) {
+  .sidebar { width: min(58vw, 210px); }
+  .brand { padding: 6px 8px; }
+  .brand-logo { width: 26px; height: 26px; }
+  .brand-name { font-size: 12px; }
+  .brand-sub { font-size: 9.5px; }
+  .side-quick { padding: 4px 2px; }
+  .sq { height: 30px; }
+  .sq svg { width: 20px; height: 20px; }
+  .nav-tabs button { font-size: 11px; padding: 4px 2px; }
+  .nav-search input { font-size: 11px; padding: 4px 6px; }
+  .nav-head { font-size: 12px; padding: 5px 6px; gap: 6px; }
+  .nav-ico { width: 24px; height: 24px; }
+  .nav-ico svg { width: 14px; height: 14px; }
+  .nav-leaf a { font-size: 11.5px; padding: 4px 6px; padding-inline-start: 10px; gap: 6px; }
+  .emo { width: 22px; height: 22px; font-size: 12px; }
+  .danger-btn { font-size: 10.5px; padding: 5px; }
+  .user-name { font-size: 11.5px; }
+  .user-role { font-size: 9.5px; }
+}
