@@ -62,8 +62,21 @@ jobs:
           KS: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
         run: |
           if [ -n "$KS" ]; then
-            mkdir -p ~/.android
-            echo "$KS" | base64 -d > ~/.android/debug.keystore
+            echo "$KS" | base64 -d > "$HOME/tuk-signing.keystore"
+            keytool -list -keystore "$HOME/tuk-signing.keystore" -storepass android -alias androiddebugkey
+            # point the build at the saved key explicitly
+            cat >> android/app/build.gradle <<GRADLE
+          android {
+              signingConfigs {
+                  debug {
+                      storeFile file("$HOME/tuk-signing.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+          }
+          GRADLE
             echo "Signing with the saved key"
           else
             echo "::warning::ANDROID_DEBUG_KEYSTORE is not set, so this APK gets a new key and will not install over older ones"
@@ -95,6 +108,15 @@ jobs:
             echo "Build failed, retrying in 60s ($i/3)"; sleep 60
           done
           cp app/build/outputs/apk/debug/app-debug.apk ../tuktuk-rally.apk
+
+      - name: Check the APK carries the saved key
+        env:
+          KS: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
+        run: |
+          keytool -printcert -jarfile tuktuk-rally.apk | tee cert.txt
+          if [ -n "$KS" ] && ! grep -q "TukTuk Rally" cert.txt; then
+            echo "::error::The APK is not signed with the saved key"; exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
