@@ -171,20 +171,23 @@ setTimeout(() => { const A = capApp(); if (A && A.addListener) { $('exitApp').hi
 const APP_BUILD=0; // the APK build number, filled in by the GitHub build
 const REPO = 'adomja1212/Acc';
 if (APP_BUILD) $('ver').textContent = 'نسخة ' + AD(APP_BUILD);
+// The latest GitHub release is the source of truth for the newest version.
+let lastCheck = 0, offered = 0;
 async function checkUpdate() {
-  if (!APP_BUILD) return;
+  if (!APP_BUILD || Date.now() - lastCheck < 30000) return;
+  lastCheck = Date.now();
   try {
-    const r = await fetch('https://api.github.com/repos/' + REPO + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+    const r = await fetch('https://api.github.com/repos/' + REPO + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
     if (!r.ok) return;
     const j = await r.json(); const m = /^apk-(\d+)$/.exec(j.tag_name || ''); if (!m) return;
-    const n = +m[1]; if (n <= APP_BUILD) return;
-    let later = 0; try { later = +localStorage.getItem('tuk-upd-later') || 0; } catch (e) {}
-    if (later === n) return;
+    const n = +m[1]; if (n <= APP_BUILD || !$('confirm').hidden) return;
+    offered = n;
     const url = 'https://github.com/' + REPO + '/releases/download/' + j.tag_name + '/tuktuk-rally.apk';
-    askConfirm('فيه تحديث جديد!', 'نسخة ' + AD(n) + ' من ألعاب جماعية جاهزة (إنت على نسخة ' + AD(APP_BUILD) + '). دوس «حدّث دلوقتي» هيتنزّل الملف، وبعدين افتحه ودوس «تحديث».', () => { location.href = url; }, 'حدّث دلوقتي', 'بعدين');
-    $('cfNo').onclick = () => { try { localStorage.setItem('tuk-upd-later', n); } catch (e) {} $('confirm').hidden = true; $('cfNo').onclick = () => { $('confirm').hidden = true; }; };
+    askConfirm('فيه تحديث جديد!', 'نسخة ' + AD(n) + ' من ألعاب جماعية جاهزة (إنت على نسخة ' + AD(APP_BUILD) + '). دوس «حدّث دلوقتي» هيتنزّل الملف، افتحه ودوس «تحديث». لو الموبايل رفض التثبيت، امسح النسخة القديمة الأول وبعدين ثبّت الجديدة.', () => { location.href = url; }, 'حدّث دلوقتي', 'بعدين');
   } catch (e) {}
 }
+// check on open and every time the app comes back to the front
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 setTimeout(checkUpdate, 1200);
 </script>
 </body>
