@@ -18,6 +18,7 @@
 *{box-sizing:border-box;min-width:0}
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hidden;font:16px/1.5 Cairo,system-ui,sans-serif;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+html.rot,html.rot body{overflow:hidden}html.rot body{position:fixed;top:0;left:0;transform-origin:0 0}
 #stage{position:fixed;inset:0}#stage canvas{display:block;width:100%;height:100%}
 .disp{font-family:Lalezar,Cairo,sans-serif;font-weight:400}
 .truck{height:10px;background:repeating-linear-gradient(90deg,var(--red) 0 22px,var(--sf) 22px 44px,var(--tq) 44px 66px,#1f7a3a 66px 88px)}
@@ -119,7 +120,9 @@ body.touch #weap .slots{display:none}
 body.touch #ammo{font-size:30px}
 body.touch #hpBox{bottom:auto;top:calc(168px + env(safe-area-inset-top,0px));width:150px}
 body.touch #feed{top:calc(60px + env(safe-area-inset-top,0px))}
-@media (max-width:600px){ #score{top:calc(62px + env(safe-area-inset-top,0px));padding:2px 12px} #score b{font-size:20px} #feed{top:calc(100px + env(safe-area-inset-top,0px))!important} #mini{width:110px;height:110px} body.touch #hpBox{top:calc(128px + env(safe-area-inset-top,0px));width:110px} #feed{font-size:12px} }
+html.rot body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}html.rot body.touch #tRun{bottom:calc(150px + env(safe-area-inset-bottom,0px))}html.rot body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}html.rot body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}
+@media (orientation:landscape) and (max-height:500px){body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}body.touch #tRun{bottom:calc(150px + env(safe-area-inset-bottom,0px))}body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}}
+@media (max-width:600px){ html:not(.rot) #score{top:calc(62px + env(safe-area-inset-top,0px));padding:2px 12px} html:not(.rot) #score b{font-size:20px} html:not(.rot) #feed{top:calc(100px + env(safe-area-inset-top,0px))!important} html:not(.rot) #mini{width:110px;height:110px} html:not(.rot) body.touch #hpBox{top:calc(128px + env(safe-area-inset-top,0px));width:110px} html:not(.rot) #feed{font-size:12px} }
 </style>
 </head>
 <body>
@@ -195,17 +198,33 @@ const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const wrapA=a=>{ while(a>Math.PI)a-=2*Math.PI; while(a<-Math.PI)a+=2*Math.PI; return a; };
 const R2=v=>Math.round(v*100)/100;
 const isTouch=matchMedia('(pointer:coarse)').matches; if(isTouch) document.body.classList.add('touch');
+// ---- landscape only (like PUBG): when a phone is held upright the whole game is turned sideways ----
+const ROT={on:false};
+const VW=()=>ROT.on?innerHeight:innerWidth, VH=()=>ROT.on?innerWidth:innerHeight;
+const PX=e=>ROT.on?e.clientY:e.clientX, PY=e=>ROT.on?innerWidth-e.clientX:e.clientY;
+function applyRot(){ ROT.on=isTouch&&innerHeight>innerWidth; document.documentElement.classList.toggle('rot',ROT.on); const b=document.body.style;
+ if(ROT.on){ b.width=innerHeight+'px'; b.height=innerWidth+'px'; b.transform=`translateX(${innerWidth}px) rotate(90deg)`; } else { b.width=b.height=b.transform=''; } }
+applyRot();
+// sideways menus: turn finger drags into scrolling along the rotated screen
+{ let sc=null,lx=0,ly=0;
+  const findSc=el=>{ for(;el&&el!==document.body;el=el.parentElement){ const o=getComputedStyle(el).overflowY; if((o==='auto'||o==='scroll')&&el.scrollHeight>el.clientHeight+2) return el; } return null; };
+  addEventListener('touchstart',e=>{ sc=ROT.on?findSc(e.target):null; const t=e.touches[0]; lx=t.clientX; ly=t.clientY; },{passive:true});
+  addEventListener('touchmove',e=>{ if(!sc||!ROT.on) return; const t=e.touches[0]; sc.scrollTop+=t.clientX-lx; lx=t.clientX; ly=t.clientY; e.preventDefault(); },{passive:false});
+  addEventListener('touchend',()=>{ sc=null; }); }
+// on phones also ask the browser for real full-screen landscape (works in Chrome; harmless where it isn't supported)
+let triedLock=false;
+if(isTouch) addEventListener('pointerdown',()=>{ if(triedLock) return; triedLock=true; try{ const d=document.documentElement, fs=d.requestFullscreen||d.webkitRequestFullscreen; const p=fs&&fs.call(d,{navigationUI:'hide'}); Promise.resolve(p).then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape')).catch(()=>{}); }catch(e){} },{capture:true});
 const PROFILE=myProfile();
 const TEAMC={r:0xd62828,b:0x1c1c22};
 
 // ================= renderer =================
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,isTouch?1.5:2)); renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,isTouch?1.5:2)); renderer.setSize(VW(),VH());
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.9;
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 $('stage').appendChild(renderer.domElement);
 const scene=new THREE.Scene(); scene.fog=new THREE.Fog(0xe9b98c,90,420);
-const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.05,3000);
+const camera=new THREE.PerspectiveCamera(70,VW()/VH(),0.05,3000);
 const sky=new Sky(); sky.scale.setScalar(2500); scene.add(sky);
 { const u=sky.material.uniforms; u.turbidity.value=5; u.rayleigh.value=1.6; u.mieCoefficient.value=0.006; u.mieDirectionalG.value=0.85; u.sunPosition.value.setFromSphericalCoords(1,THREE.MathUtils.degToRad(76),THREE.MathUtils.degToRad(210)); }
 const pmrem=new THREE.PMREMGenerator(renderer);
@@ -216,7 +235,7 @@ const sun=new THREE.DirectionalLight(0xffc89a,3.0); sun.castShadow=true; sun.sha
 Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45,near:1,far:260}); sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.03;
 const lightDir=new THREE.Vector3().setFromSphericalCoords(1,THREE.MathUtils.degToRad(50),THREE.MathUtils.degToRad(210));
 scene.add(sun,sun.target);
-addEventListener('resize',()=>{ renderer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); });
+addEventListener('resize',()=>{ applyRot(); renderer.setSize(VW(),VH()); camera.aspect=VW()/VH(); camera.updateProjectionMatrix(); });
 
 // ================= textures =================
 const TL=new THREE.TextureLoader();
@@ -686,7 +705,7 @@ function look(dx,dy,k){ if(!me) return; const z=me.aim?1/W[me.w].zoom*1.2:1; me.
 // touch: dynamic joystick on the left, drag to look on the right, buttons
 const TP={joy:null,look:null,fire:null};
 const joy=$('joy');
-function tbtn(id,down,up){ const b=$(id); b.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); initAudio(); b.classList.add('on'); down&&down(e); if(id==='tFire'){ TP.fire={id:e.pointerId,x:e.clientX,y:e.clientY}; } },{passive:false});
+function tbtn(id,down,up){ const b=$(id); b.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); initAudio(); b.classList.add('on'); down&&down(e); if(id==='tFire'){ TP.fire={id:e.pointerId,x:PX(e),y:PY(e)}; } },{passive:false});
  const end=e=>{ b.classList.remove('on'); up&&up(e); if(id==='tFire'&&TP.fire&&TP.fire.id===e.pointerId) TP.fire=null; }; b.addEventListener('pointerup',end); b.addEventListener('pointercancel',end); }
 tbtn('tFire',()=>{ IN.fire=true; },()=>{ IN.fire=false; });
 tbtn('tAim',()=>{ if(me) me.aimToggle=!me.aimToggle; });
@@ -696,9 +715,9 @@ tbtn('tWeap',()=>{ if(me) selectWeapon((me.w+1)%5); });
 tbtn('tVeh',()=>toggleVehicle());
 tbtn('tRun',()=>{ IN.runLock=!IN.runLock; IN.sprint=IN.runLock; setTimeout(()=>$('tRun').classList.toggle('on',IN.runLock),0); });
 const tz=$('touch');
-tz.addEventListener('pointerdown',e=>{ if(e.target!==tz) return; initAudio(); if(e.clientX<innerWidth*0.45&&!TP.joy){ TP.joy={id:e.pointerId,x:e.clientX,y:e.clientY}; joy.hidden=false; joy.style.left=(e.clientX-60)+'px'; joy.style.top=(e.clientY-60)+'px'; } else if(!TP.look){ TP.look={id:e.pointerId,x:e.clientX,y:e.clientY}; } });
-addEventListener('pointermove',e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ let dx=e.clientX-TP.joy.x, dy=e.clientY-TP.joy.y; const L=Math.hypot(dx,dy), m=50; if(L>m){ dx*=m/L; dy*=m/L; } joy.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`; IN.mx=dx/m; IN.my=-dy/m; IN.sprint=IN.runLock||Math.hypot(dx,dy)>=m*0.95; }
- for(const k of ['look','fire']){ const p=TP[k]; if(p&&e.pointerId===p.id){ look(e.clientX-p.x,e.clientY-p.y,0.006); p.x=e.clientX; p.y=e.clientY; } } });
+tz.addEventListener('pointerdown',e=>{ if(e.target!==tz) return; initAudio(); if(PX(e)<VW()*0.45&&!TP.joy){ TP.joy={id:e.pointerId,x:PX(e),y:PY(e)}; joy.hidden=false; joy.style.left=(PX(e)-60)+'px'; joy.style.top=(PY(e)-60)+'px'; } else if(!TP.look){ TP.look={id:e.pointerId,x:PX(e),y:PY(e)}; } });
+addEventListener('pointermove',e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ let dx=PX(e)-TP.joy.x, dy=PY(e)-TP.joy.y; const L=Math.hypot(dx,dy), m=50; if(L>m){ dx*=m/L; dy*=m/L; } joy.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`; IN.mx=dx/m; IN.my=-dy/m; IN.sprint=IN.runLock||Math.hypot(dx,dy)>=m*0.95; }
+ for(const k of ['look','fire']){ const p=TP[k]; if(p&&e.pointerId===p.id){ look(PX(e)-p.x,PY(e)-p.y,0.006); p.x=PX(e); p.y=PY(e); } } });
 const tEnd=e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ TP.joy=null; joy.hidden=true; IN.mx=IN.my=0; IN.sprint=!!IN.runLock; joy.firstElementChild.style.transform=''; } if(TP.look&&e.pointerId===TP.look.id) TP.look=null; };
 addEventListener('pointerup',tEnd); addEventListener('pointercancel',tEnd);
 function readKeys(){ if(isTouch) return; IN.mx=(K.KeyD?1:0)-(K.KeyA?1:0); IN.my=(K.KeyW?1:0)-(K.KeyS?1:0); IN.fire=mouseDown||K.KeyF; IN.jump=IN.jump||K.Space; IN.sprint=K.ShiftLeft||K.ShiftRight; }
