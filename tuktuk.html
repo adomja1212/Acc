@@ -45,6 +45,14 @@ button{font:inherit;color:inherit;cursor:pointer}
 .go{display:block;width:100%;margin-top:8px;border:0;border-radius:14px;background:var(--red);font-family:Lalezar,Cairo,sans-serif;font-size:34px;padding:8px 0 4px;box-shadow:0 5px 0 #8f1520;transition:transform .08s}
 .go:active{transform:translateY(4px);box-shadow:0 1px 0 #8f1520}
 .go:focus-visible,.seg button:focus-visible,.sw button:focus-visible{outline:3px solid var(--tq);outline-offset:2px}
+.settings{margin:6px 0 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,183,3,.3);border-radius:14px;padding:4px 12px}
+.settings summary{cursor:pointer;font-weight:800;color:var(--sf);padding:8px 0;list-style:none;font-size:17px}
+.settings summary::before{content:"⚙ ";}
+.settings[open] summary{border-bottom:1px solid rgba(255,183,3,.2);margin-bottom:8px}
+.vehpic{display:block;width:100%;border:2px solid rgba(255,183,3,.45);border-radius:14px;background:radial-gradient(ellipse at 50% 85%,rgba(255,183,3,.22),transparent 60%),rgba(0,0,0,.25);padding:0;position:relative;margin-bottom:8px;overflow:hidden}
+.vehpic canvas{display:block;width:100%;height:auto;aspect-ratio:480/280}
+.vehpic span{position:absolute;bottom:6px;right:10px;background:rgba(34,9,15,.8);border-radius:8px;padding:0 10px;font-weight:800;font-size:14px}
+.vehpic:active{transform:scale(.98)}
 .tsub{margin:6px 0 0;font-size:13.5px;color:#ffe3b0;opacity:.9}
 .seg#tracks button{font-size:14px;padding:8px 4px}
 .quitapp{display:block;margin:12px auto 0;background:none;border:0;color:#ffd98a;font:600 15px Cairo,sans-serif;text-decoration:underline;padding:8px 12px;min-height:44px}
@@ -152,12 +160,16 @@ body.touch #touch{display:block}
    <h1 class="disp">توكتوك رالي</h1>
    <p class="sub">سباق ٦ تكاتك في شوارع المحروسة وقت المغرب. الأهرامات وراك، والخط قدامك.</p>
    <div class="row"><label for="pname">اسم السوّاق</label><input id="pname" class="tin" maxlength="14" autocomplete="off" placeholder="اكتب اسمك"></div>
-   <div class="row" id="steerRow" hidden><label>السواقة على الموبايل</label><div class="seg" id="steer"><button data-v="btn" aria-pressed="true">بالأزرار</button><button data-v="tilt">بإمالة الموبايل</button></div><p class="tsub" id="steerMsg"></p></div>
-   <div class="row"><label>لون التوكتوك</label><div class="sw" id="colors"></div></div>
    <div class="row"><label>الحلبة</label><div class="seg" id="tracks"></div><p class="tsub" id="tsub"></p></div>
-   <div class="row"><label>الجو</label><div class="seg" id="wx"><button data-v="day">نهار</button><button data-v="sunset">مغرب</button><button data-v="night">ليل</button><button data-v="rain">مطر</button><button data-v="snow">تلج</button></div></div>
    <div class="row"><label>عدد اللفّات</label><div class="seg" id="laps"><button data-v="1">لفة</button><button data-v="3" aria-pressed="true">٣ لفّات</button><button data-v="5">٥ لفّات</button></div></div>
-   <div class="row"><label>جودة الجرافيك</label><div class="seg" id="qual"><button data-v="high">عالية</button><button data-v="med">متوسطة</button><button data-v="low">خفيفة</button></div></div>
+   <details class="settings" id="settings"><summary>الإعدادات</summary>
+    <div class="row"><label>عربيتك: دوس على الصورة يتغيّر اللون</label>
+     <button class="vehpic" id="vehPic" aria-label="غيّر اللون"><canvas id="vehCv" width="480" height="280"></canvas><span id="vehCol">أحمر</span></button>
+     <div class="seg" id="vehType"><button data-v="tuk">توكتوك</button><button data-v="moto">موتوسيكل</button><button data-v="deliv">دليفري</button></div></div>
+    <div class="row"><label>الجو</label><div class="seg" id="wx"><button data-v="day">نهار</button><button data-v="sunset">مغرب</button><button data-v="night">ليل</button><button data-v="rain">مطر</button><button data-v="snow">تلج</button></div></div>
+    <div class="row" id="steerRow" hidden><label>السواقة على الموبايل</label><div class="seg" id="steer"><button data-v="btn" aria-pressed="true">بالأزرار</button><button data-v="tilt">بإمالة الموبايل</button></div><p class="tsub" id="steerMsg"></p></div>
+    <div class="row"><label>جودة الجرافيك</label><div class="seg" id="qual"><button data-v="high">عالية</button><button data-v="med">متوسطة</button><button data-v="low">خفيفة</button></div></div>
+   </details>
    <button class="go" id="start">يلّا بينا!</button>
    <button class="go alt online" id="online">العب أونلاين مع صحابك</button>
    <button class="quitapp" id="exitApp">رجوع لقايمة الألعاب</button>
@@ -676,6 +688,7 @@ function tukShared(){
  TT.flame=new THREE.ConeGeometry(0.09,0.6,10).rotateX(-Math.PI/2);
  TT.stripe=new THREE.BoxGeometry(1.37,0.05,2.3);
  TT.shadow=new THREE.PlaneGeometry(2.1,3.4).rotateX(-Math.PI/2);
+ TT.delivLabel=new THREE.PlaneGeometry(0.46,0.4);
  { const parts=[], cols=[0xd62828,0xffb703,0x1f9d55,0x22c3b5,0xffffff];
    const add=(x,z,k)=>{ const g=new THREE.BoxGeometry(0.035,0.1,0.035).translate(x,1.74,z); const c=new THREE.Color(cols[k%cols.length]); const ca=[]; for(let i=0;i<g.attributes.position.count;i++) ca.push(c.r,c.g,c.b); g.setAttribute('color',new THREE.Float32BufferAttribute(ca,3)); parts.push(g); };
    let k=0; for(let x=-0.7;x<=0.7;x+=0.07) add(x,1.25,k++); for(let z=-1.4;z<=1.2;z+=0.08){ add(0.74,z,k++); add(-0.74,z,k++); }
@@ -687,6 +700,7 @@ function tukShared(){
   skin:new THREE.MeshStandardMaterial({color:0x8d5a3b,roughness:.7}), hair:new THREE.MeshStandardMaterial({color:0x1a1210,roughness:.9}),
   fringe:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.6}), gold:new THREE.MeshStandardMaterial({color:0xffc94a,metalness:1,roughness:.3}),
   plate:new THREE.MeshStandardMaterial({map:TX.plate,roughness:.6}), flame:new THREE.MeshBasicMaterial({color:0xffa040,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}),
+ delivLabel:new THREE.MeshStandardMaterial({map:ctex(256,224,(g,w,h)=>{ g.fillStyle='#ff6a13'; g.fillRect(0,0,w,h); g.fillStyle='#fff'; g.beginPath(); g.roundRect?g.roundRect(14,14,w-28,h-28,24):g.rect(14,14,w-28,h-28); g.fill(); g.fillStyle='#ff6a13'; g.font='64px Lalezar, Cairo'; g.textAlign='center'; g.direction='rtl'; g.fillText('توصيل',w/2,104); g.font='800 34px Cairo'; g.fillText('سريع ١٩٠٠٠',w/2,170); },{rep:false}),roughness:.6}),
   shadow:new THREE.MeshBasicMaterial({map:TX.shadow,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4}) };
 }
 function makeTuk(hex,shirt){
@@ -718,6 +732,45 @@ function makeTuk(hex,shirt){
  scene.add(root);
  return {root,tilt,wheels,steer,flame,paint};
 }
+// a motorcycle (or a delivery scooter with a box) with its rider; same shape as makeTuk's result
+function makeMoto(hex,shirt,deliv,toScene=true){
+ const m=TT.m, root=new THREE.Group(), tilt=new THREE.Group(); root.add(tilt);
+ const paint=new THREE.MeshPhysicalMaterial({color:hex,roughness:.28,metalness:.25,clearcoat:1,clearcoatRoughness:.06});
+ const black=m.canopy, metal=new THREE.MeshStandardMaterial({color:0x6c7076,metalness:.8,roughness:.35}), pants=new THREE.MeshStandardMaterial({color:0x22252e,roughness:.85}), shirtM=new THREE.MeshStandardMaterial({color:shirt,roughness:.8});
+ const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0,par=tilt)=>{ const o=new THREE.Mesh(geo,mat); o.position.set(x,y,z); o.rotation.set(rx,ry,rz); o.castShadow=true; o.receiveShadow=true; par.add(o); return o; };
+ const wheels=[];
+ const wheel=(par,z,r)=>{ const g=new THREE.Group(); g.position.set(0,r,z); par.add(g); add(new THREE.CylinderGeometry(r,r,0.12,24).rotateZ(Math.PI/2),m.tire,0,0,0,0,0,0,g); add(new THREE.CylinderGeometry(r*0.62,r*0.62,0.13,18).rotateZ(Math.PI/2),m.chrome,0,0,0,0,0,0,g); for(let k=0;k<3;k++) add(new THREE.BoxGeometry(0.02,r*1.2,0.03),metal,0,0,0,k*Math.PI/3,0,0,g); wheels.push(g); return g; };
+ const steer=new THREE.Group(); tilt.add(steer);
+ if(!deliv){
+  wheel(tilt,-0.72,0.33); steer.position.set(0,0,0.72); wheel(steer,0,0.33);
+  add(new RoundedBoxGeometry(0.36,0.27,0.56,3,0.11),paint,0,1.0,0.25); add(new RoundedBoxGeometry(0.3,0.1,0.62,2,0.04),black,0,0.93,-0.27);
+  add(new RoundedBoxGeometry(0.26,0.13,0.5,2,0.05),paint,0,0.97,-0.7,-0.25); add(new THREE.BoxGeometry(0.32,0.34,0.42),metal,0,0.56,0.04);
+  add(new THREE.BoxGeometry(0.07,0.07,1.0),black,0,0.78,-0.05,0.3); add(new THREE.CylinderGeometry(0.045,0.055,0.9,10).rotateX(Math.PI/2),m.chrome,0.17,0.44,-0.42);
+  add(new RoundedBoxGeometry(0.4,0.3,0.18,2,0.06),paint,0,0.98,0.62,-0.4,0,0,tilt);
+ } else {
+  wheel(tilt,-0.62,0.26); steer.position.set(0,0,0.6); wheel(steer,0,0.26);
+  add(new RoundedBoxGeometry(0.44,0.48,0.78,3,0.14),paint,0,0.62,-0.4); add(new THREE.BoxGeometry(0.34,0.07,0.62),black,0,0.4,0.15); add(new RoundedBoxGeometry(0.32,0.1,0.58,2,0.04),black,0,0.9,-0.38);
+  add(new RoundedBoxGeometry(0.44,0.78,0.13,3,0.05),paint,0,0.8,0.5,-0.2);
+  const boxM=new THREE.MeshStandardMaterial({color:0xff6a13,roughness:.6}); add(new RoundedBoxGeometry(0.56,0.5,0.5,2,0.04),boxM,0,1.25,-0.8);
+  for(const [x,z,ry] of [[0.285,-0.8,Math.PI/2],[-0.285,-0.8,-Math.PI/2],[0,-1.056,Math.PI]]) add(TT.delivLabel,TT.m.delivLabel,x,1.25,z,0,ry,0);
+  add(new THREE.CylinderGeometry(0.035,0.045,0.5,10).rotateX(Math.PI/2),m.chrome,0.17,0.32,-0.62);
+ }
+ add(new THREE.CylinderGeometry(0.025,0.025,0.78,8),m.chrome,0.08,0.66,-0.12,-0.32,0,0,steer); add(new THREE.CylinderGeometry(0.025,0.025,0.78,8),m.chrome,-0.08,0.66,-0.12,-0.32,0,0,steer);
+ add(new THREE.CylinderGeometry(0.022,0.022,0.72,8).rotateZ(Math.PI/2),m.chrome,0,1.12,-0.24,0,0,0,steer);
+ add(TT.hlH,m.chrome,0,0.95,0.02,0,0,0,steer); add(TT.hlL,m.light,0,0.95,0.075,0,0,0,steer);
+ add(TT.tail,m.tail,0,deliv?0.9:1.0,deliv?-0.8:-0.95);
+ // rider leaning on the handlebar, with a helmet in the bike's colour
+ const rz=deliv?-0.3:-0.15;
+ add(TT.torso,shirtM,0,1.33,rz,0.35); add(new THREE.SphereGeometry(0.16,18,14),paint,0,1.73,rz+0.16); add(new THREE.BoxGeometry(0.22,0.08,0.06),black,0,1.72,rz+0.3);
+ for(const sx of [-1,1]){ add(TT.arm,m.skin,sx*0.2,1.3,rz+0.32,1.15,0,sx*-0.2); add(new THREE.CylinderGeometry(0.07,0.07,0.5,8),pants,sx*0.16,0.98,rz+0.2,1.35); add(new THREE.CylinderGeometry(0.06,0.06,0.48,8),pants,sx*0.18,0.66,rz+0.42,0.25); }
+ const flame=add(TT.flame,m.flame,0.17,deliv?0.32:0.44,deliv?-0.95:-0.95); flame.visible=false; flame.castShadow=false;
+ const sh=new THREE.Mesh(TT.shadow,m.shadow); sh.scale.set(0.45,1,0.75); sh.position.y=0.04; root.add(sh);
+ if(toScene) scene.add(root);
+ return {root,tilt,wheels,steer,flame,paint,bike:true};
+}
+const VEHTYPES={tuk:'توكتوك',moto:'موتوسيكل',deliv:'دليفري'};
+let vehType='tuk'; try{ const v=localStorage.getItem('tuk-veh'); if(VEHTYPES[v]) vehType=v; }catch(e){}
+function makeVehicle(type,hex,shirt,toScene=true){ if(type==='moto'||type==='deliv') return makeMoto(hex,shirt,type==='deliv',toScene); const t=makeTuk(hex,shirt); if(!toScene) scene.remove(t.root); return t; }
 function nameSprite(text,col){ const t=ctex(256,64,(g)=>{ g.font='800 30px Cairo'; g.textAlign='center'; g.textBaseline='middle'; g.direction='rtl'; g.lineWidth=7; g.strokeStyle='rgba(20,5,9,.85)'; g.strokeText(text,128,34); g.fillStyle=col; g.fillText(text,128,34); },{rep:false});
  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false})); sp.scale.set(2.6,0.65,1); sp.position.y=2.55; return sp; }
 
@@ -881,7 +934,7 @@ function renderNet(){
   $('netPlayers').innerHTML=ps.map(p=>`<li><i style="background:${COLORS[(p.presence.c|0)%COLORS.length][0]}"></i><span>${esc(p.presence.n)}${p.sameTab?' (إنت)':''}</span>${p.presence.hs===1?'<small>صاحب السباق</small>':''}</li>`).join('');
   $('netInvite').hidden=NET.mode!=='p2p'; $('netGo').hidden=!NET.host; $('netGo').disabled=ps.length<2; $('netGo').textContent=ps.length<2?'استنى لاعب تاني على الأقل':'ابدأ السباق'; if(!NET.host&&!hp) $('netInfo').textContent='صاحب السباق خرج. اخرج وادخل سباق تاني.'; else if(!NET.host) $('netInfo').textContent+=(hp.presence.ph==='race'&&!NET.inRace)?'، السباق شغال دلوقتي، هتدخل الجولة الجاية':'، مستنيين صاحب السباق يبدأ'; }
 }
-function netSend(){ if(!NET.room) return; const p={n:NET.name,c:playerColor,hs:NET.host?1:0,jt:NET.jt||0,hn:NET.hornN,hit:NET.hit};
+function netSend(){ if(!NET.room) return; const p={n:NET.name,c:playerColor,vt:vehType,hs:NET.host?1:0,jt:NET.jt||0,hn:NET.hornN,hit:NET.hit};
  if(NET.inRace&&player) p.s=packR(player);
  if(NET.host){ p.ph=NET.phase; p.rid=NET.rid; p.tr=trackIdx; p.lp=LAPS; p.wx=CUR.time; p.seats=NET.seatPeers; p.cd=state==='count'?R2(countT):0;
   if(NET.inRace){ p.ai=racers.filter(r=>r.aiK!==undefined&&!r.ghost).map(packR); p.tf=traffic.map(t=>[R2(t.s),R2(t.lane),R2(t.v)]); } }
@@ -951,7 +1004,7 @@ function buildRacers(){
  const list=[]; for(let k=0;k<nAI;k++) list.push({ai:k}); humans.forEach((h,j)=>list.push({h,j}));
  list.forEach((e,k)=>{
   const isP=!!(e.h&&e.h.me); const ci=e.h?hcols[e.j]:aiCols[e.ai];
-  const tuk=makeTuk(new THREE.Color(COLORS[ci][0]),SHIRTS[k]);
+  const vt=isP?vehType:(e.h&&VEHTYPES[e.h.vt]?e.h.vt:'tuk'); const tuk=makeVehicle(vt,new THREE.Color(COLORS[ci][0]),SHIRTS[k]);
   const name=isP?(NET.name||'إنت'):e.h?String(e.h.n||'لاعب').slice(0,14):AINAMES[e.ai];
   const r={name,col:COLORS[ci][0],tuk,isP,ghost:!!online&&!isP&&(!!e.h||!NET.host),peer:e.h&&!isP?e.h.peer:null,aiK:e.h?undefined:e.ai,
    x:0,z:0,h:0,vx:0,vz:0,vf:0,vl:0,idx:0,lap:0,finished:false,ft:Infinity,nitro:0.4,boosting:false,stun:0,spin:0,imm:0,
@@ -1086,9 +1139,9 @@ function visual(r,inp,dt){
  const T=r.tuk; T.root.position.set(r.x,0,r.z); T.root.rotation.y=r.h;
  const lat=r.vf*r.yaw; const acc=(r.vf-r.lastVf)/Math.max(dt,1e-4); r.lastVf=r.vf;
  const k=1-Math.exp(-dt*7);
- r.roll+=(clamp(-lat*0.011,-0.22,0.22)-r.roll)*k; r.pitch+=(clamp(-acc*0.006,-0.06,0.08)-r.pitch)*k;
+ r.roll+=((T.bike?clamp(lat*0.022,-0.6,0.6):clamp(-lat*0.011,-0.22,0.22))-r.roll)*k; r.pitch+=(clamp(-acc*0.006,-0.06,0.08)-r.pitch)*k;
  const bump=r.surface?Math.sin(clock*60)*0.012*Math.min(1,Math.abs(r.vf)/10):0;
- T.tilt.rotation.set(r.pitch,0,r.roll); T.tilt.position.y=Math.abs(Math.sin(r.roll))*0.62+bump;
+ T.tilt.rotation.set(r.pitch,0,r.roll); T.tilt.position.y=(T.bike?0:Math.abs(Math.sin(r.roll))*0.62)+bump;
  r.wr+=r.vf*dt/0.27; T.wheels.forEach(w=>w.rotation.x=r.wr);
  r.steerV+=((inp?inp.steer:0)*-0.5-r.steerV)*k; T.steer.rotation.y=r.steerV;
  T.flame.visible=r.boosting; if(r.boosting){ const f=0.8+Math.random()*0.5; T.flame.scale.set(f,f,0.8+Math.random()*0.9); }
@@ -1177,7 +1230,7 @@ let state='menu', paused=false, raceT=0, countT=0, clock=0;
 function startRace(){
  initAudio(); seed=777;
  if(NET.room&&NET.seatPeers){ const me=myPeer(); const ps=NET.room.peers(); let seats=NET.seatPeers.slice(0,MAXP); if(me&&!seats.includes(me)) seats[Math.min(seats.length,MAXP-1)]=me;
-  NET.seats=seats.map(pe=>{ const P=ps.find(p=>p.peer===pe); return {peer:pe,me:pe===me,n:P&&P.presence?P.presence.n:'لاعب',c:P&&P.presence?P.presence.c:0}; }); NET.inRace=true; }
+  NET.seats=seats.map(pe=>{ const P=ps.find(p=>p.peer===pe); return {peer:pe,me:pe===me,n:P&&P.presence?P.presence.n:'لاعب',c:P&&P.presence?P.presence.c:0,vt:P&&P.presence?P.presence.vt:'tuk'}; }); NET.inRace=true; }
  else { NET.seats=null; NET.inRace=false; }
  buildRacers(); if(!NET.inRace||NET.host) resetTraffic(); state='count'; countT=3.99; raceT=0; paused=false; countShown=-1;
  $('menu').hidden=true; $('results').hidden=true; $('hud').hidden=false; $('tools').hidden=false; camMode=0; camPos.set(player.x-Math.sin(player.h)*12,5,player.z-Math.cos(player.h)*12);
@@ -1212,8 +1265,8 @@ addEventListener('resize',onResize);
 
 // ================= UI =================
 function setupUI(){
- $('colors').innerHTML=COLORS.map((c,i)=>`<button style="background:${c[0]}" aria-label="${c[1]}" aria-pressed="${i===playerColor}" data-i="${i}"></button>`).join('');
- $('colors').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; playerColor=+b.dataset.i; try{ localStorage.setItem('tuk-color',playerColor); }catch(er){} document.querySelectorAll('#colors button').forEach(x=>x.setAttribute('aria-pressed',x===b)); seed=777; buildRacers(); };
+ $('vehPic').onclick=()=>{ playerColor=(playerColor+1)%COLORS.length; try{ localStorage.setItem('tuk-color',playerColor); }catch(er){} seed=777; buildRacers(); drawPreview(); };
+ $('vehType').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; vehType=b.dataset.v; try{ localStorage.setItem('tuk-veh',vehType); }catch(er){} seed=777; buildRacers(); drawPreview(); };
  $('laps').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; LAPS=+b.dataset.v; document.querySelectorAll('#laps button').forEach(x=>x.setAttribute('aria-pressed',x===b)); };
  $('qual').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; applyQuality(b.dataset.v); };
  $('start').onclick=startRace; $('again').onclick=()=>{ if(NET.inRace&&NET.host) netHostStart(); else startRace(); }; $('toMenu').onclick=toMenu; $('quit').onclick=toMenu; $('resume').onclick=togglePause;
@@ -1240,6 +1293,15 @@ function setupUI(){
  $('netInvite').onclick=async()=>{ const base=(location.protocol==='https:'&&location.hostname!=='localhost')?location.origin+location.pathname:'https://adomja1212.github.io/Acc/tuktuk.html'; const url=base+'?race='+NET.code; try{ await navigator.clipboard.writeText(url); $('netInvMsg').textContent='اتنسخ! ابعته لصحابك: '+url; }catch(e){ $('netInvMsg').textContent='ابعت الرابط ده لصحابك: '+url; } };
  $('bSnd').onclick=toggleSound; $('bSnd').textContent=AU.on?'🔊':'🔇'; $('bCam').onclick=()=>camMode=(camMode+1)%3; $('bPause').onclick=togglePause;
 }
+
+// ================= vehicle picture =================
+let PV=null;
+function drawPreview(){ document.querySelectorAll('#vehType button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===vehType)); $('vehCol').textContent=VEHTYPES[vehType]+' '+COLORS[playerColor][1];
+ try{ if(!PV){ const cv=$('vehCv'); const r=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true}); r.setPixelRatio(1); r.setSize(cv.width,cv.height,false); r.toneMapping=THREE.ACESFilmicToneMapping;
+   const sc=new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xfff1e0,0x403028,1.7)); const d=new THREE.DirectionalLight(0xffffff,2.8); d.position.set(3,5,4); sc.add(d); const d2=new THREE.DirectionalLight(0xffc89a,1.4); d2.position.set(-4,2,-3); sc.add(d2);
+   const cam=new THREE.PerspectiveCamera(30,cv.width/cv.height,0.1,50); PV={r,sc,cam,obj:null}; }
+  if(PV.obj) PV.sc.remove(PV.obj); const v=makeVehicle(vehType,new THREE.Color(COLORS[playerColor][0]),SHIRTS[5],false); PV.obj=v.root; v.root.rotation.y=vehType==='tuk'?0.75:1.15; PV.sc.add(v.root);
+  const big=vehType==='tuk'; PV.cam.position.set(big?4.6:3.6,big?2.2:1.8,big?3.2:2.5); PV.cam.lookAt(0,big?0.9:0.8,0); PV.r.render(PV.sc,PV.cam); }catch(e){} }
 
 // ================= tilt steering =================
 let steerMode='btn'; const tilt={ok:false,raw:0,off:0};
@@ -1332,6 +1394,7 @@ function loop(now){ requestAnimationFrame(loop); const dt=Math.min((now-last)/10
 async function init(){
  try{ await Promise.race([Promise.all([document.fonts.load('800 40px Cairo'),document.fonts.load('40px Lalezar')]),new Promise(r=>setTimeout(r,3000))]); }catch(e){}
  buildTextures(); tukShared(); buildVehicleTypes(); setupUI();
+ drawPreview();
  let ti=0; try{ ti=clamp(+localStorage.getItem('tuk-track')||0,0,TRACKS.length-1); const w=localStorage.getItem('tuk-wx'); if(w&&ATM[w]) weather=w; }catch(e){}
  await loadTrack(ti); applyQuality(quality);
  camera.position.set(player.x+8,3,player.z+8);

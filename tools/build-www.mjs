@@ -15,11 +15,17 @@ for (const d of ['objects', 'geometries', 'postprocessing', 'shaders', 'utils'])
   fs.cpSync(nm('three/examples/jsm/' + d), path.join(out, 'lib/three/examples/jsm', d), { recursive: true });
 }
 
+fs.mkdirSync(path.join(out, 'lib/three/examples/jsm/loaders'), { recursive: true });
+for (const f of ['GLTFLoader.js', 'RGBELoader.js']) fs.copyFileSync(nm('three/examples/jsm/loaders/' + f), path.join(out, 'lib/three/examples/jsm/loaders', f));
+
 await build({
   entryPoints: [nm('trystero/dist/index.mjs')],
   bundle: true, format: 'esm', platform: 'browser', minify: true,
   outfile: path.join(out, 'lib/trystero.js'),
 });
+
+// models, textures and images the games load at run time
+if (fs.existsSync(path.join(root, 'assets'))) fs.cpSync(path.join(root, 'assets'), path.join(out, 'assets'), { recursive: true });
 
 const fontDir = path.join(out, 'fonts');
 fs.mkdirSync(path.join(fontDir, 'files'), { recursive: true });
