@@ -111,6 +111,8 @@ body.touch #help{display:none}
 #tJump{right:calc(max(16px,env(safe-area-inset-right,0px)) + 20px);bottom:calc(150px + env(safe-area-inset-bottom,0px));width:58px;height:58px}
 #tGren{right:calc(max(16px,env(safe-area-inset-right,0px)) + 110px);bottom:calc(108px + env(safe-area-inset-bottom,0px));width:58px;height:58px;font-size:15px}
 #tWeap{right:calc(max(16px,env(safe-area-inset-right,0px)) + 92px);bottom:calc(178px + env(safe-area-inset-bottom,0px));width:64px;height:64px;font-size:14px}
+#tRun{left:max(18px,env(safe-area-inset-left,0px));bottom:calc(170px + env(safe-area-inset-bottom,0px));width:58px;height:58px;font-size:16px}
+#tRun.on{background:rgba(255,183,3,.85);color:#2a0f00}
 #tVeh{right:calc(max(16px,env(safe-area-inset-right,0px)) + 20px);bottom:calc(220px + env(safe-area-inset-bottom,0px));width:58px;height:58px;font-size:15px;border-color:var(--sf)}
 body.touch #weap{bottom:auto;top:calc(170px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}
 body.touch #weap .slots{display:none}
@@ -161,14 +163,14 @@ body.touch #feed{top:calc(60px + env(safe-area-inset-top,0px))}
  <div id="spect" hidden></div>
  <div id="big" hidden></div>
  <div id="endBtns" hidden><button class="go" id="again">جولة تانية</button><button class="go alt" id="toRoom">رجوع للأوضة</button></div>
- <div id="help">دوس على الشاشة عشان تمسك الماوس · <b>WASD</b> مشي · <b>Shift</b> جري · <b>مسافة</b> نط · كليك ضرب · كليك يمين زووم · <b>1-5</b> السلاح · <b>G</b> قنبلة · <b>E</b> اركب/انزل · <b>V</b> الكاميرا · <b>R</b> تعمير</div>
+ <div id="help">دوس على الشاشة عشان تمسك الماوس · <b>WASD</b> مشي · <b>Shift</b> جري سريع · اطلع السلم للدور التاني والسطح · <b>مسافة</b> نط · كليك ضرب · كليك يمين زووم · <b>1-5</b> السلاح · <b>G</b> قنبلة · <b>E</b> اركب/انزل · <b>V</b> الكاميرا · <b>R</b> تعمير</div>
 </div>
 <div id="tools" hidden><button id="bSnd" aria-label="الصوت">🔊</button><button id="bCam" aria-label="الكاميرا">📷</button><button id="bExit" aria-label="خروج">✕</button></div>
 
 <div id="touch">
  <div id="joy" hidden><i></i></div>
  <button class="tb" id="tFire">ضرب</button><button class="tb" id="tAim">زووم</button><button class="tb" id="tJump">نط</button>
- <button class="tb" id="tGren">قنبلة</button><button class="tb" id="tWeap">سلاح</button><button class="tb" id="tVeh" hidden>اركب</button>
+ <button class="tb" id="tGren">قنبلة</button><button class="tb" id="tWeap">سلاح</button><button class="tb" id="tVeh" hidden>اركب</button><button class="tb" id="tRun">جري</button>
 </div>
 
 <div class="ov" id="confirm" hidden><div class="card"><div class="truck"></div><div class="in"><h2 id="cfT">خروج</h2><p id="cfQ"></p><div class="row2"><button class="go" id="cfYes">نعم</button><button class="go alt" id="cfNo">لا</button></div></div></div></div>
@@ -273,6 +275,7 @@ const MAT={
 // ================= map =================
 const ZONE=96;
 const COL=[]; // axis-aligned boxes: {x0,x1,y0,y1,z0,z1}
+const STEPS=[]; // stair treads you can stand on (not walls)
 const BUCK=new Map();
 const world=new THREE.Group(); scene.add(world);
 function bucket(key,mat,g){ if(!BUCK.has(key)) BUCK.set(key,{mat,geos:[]}); const n=g.index?g.toNonIndexed():g; if(n.attributes.uv===undefined) return; BUCK.get(key).geos.push(n); }
@@ -313,8 +316,28 @@ function house(cx,cz,w,d,door,ci){
  // concrete corner columns
  for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) box('frame',MAT.frame,0.42,H+0.2,0.42,cx+sx*(w/2-0.15),(H+0.2)/2,cz+sz*(d/2-0.15),false);
  // ceilings / roof, parapet, rebar and the water tank
- for(let f=1;f<=floors;f++) box('roof',MAT.roof,w,0.25,d,cx,f*FH-0.12,cz,f===floors||f===1);
- box('roof',MAT.roof,w+0.2,0.6,0.15,cx,H+0.3,cz+d/2,false); box('roof',MAT.roof,w+0.2,0.6,0.15,cx,H+0.3,cz-d/2,false); box('roof',MAT.roof,0.15,0.6,d,cx+w/2,H+0.3,cz,false); box('roof',MAT.roof,0.15,0.6,d,cx-w/2,H+0.3,cz,false);
+ // a switchback staircase in the back corner, from the ground floor up to the roof
+ const back={n:'s',s:'n',e:'w',w:'e'}[door], alongX=back==='n'||back==='s', sb=(back==='n'||back==='e')?1:-1, RUN=3.6, LW=1.2, NS=14, rise=FH/NS;
+ const inner=alongX?cz+sb*(d/2-T):cx+sb*(w/2-T), a0=alongX?cx-w/2+T+0.9:cz-d/2+T+0.9;
+ const laneC=k=>{ const p=inner-sb*LW*k, q=inner-sb*LW*(k+1); return [Math.min(p,q),Math.max(p,q)]; }; // two lanes side by side
+ for(let f=0;f<floors;f++){ const dir=f%2===0?1:-1, start=dir>0?a0:a0+RUN, [c0,c1]=laneC(f%2), cc=(c0+c1)/2;
+  for(let k=0;k<NS;k++){ const top=f*FH+(k+1)*rise, a=start+dir*(k+0.5)*RUN/NS, hgt=Math.min(top-f*FH,1.0), cy=top-hgt/2;
+   if(alongX){ box('stairs',MAT.frame,RUN/NS,hgt,LW,a,cy,cc,false,1.5); STEPS.push({x0:a-RUN/NS/2,x1:a+RUN/NS/2,z0:c0,z1:c1,y1:top}); }
+   else { box('stairs',MAT.frame,LW,hgt,RUN/NS,cc,cy,a,false,1.5); STEPS.push({x0:c0,x1:c1,z0:a-RUN/NS/2,z1:a+RUN/NS/2,y1:top}); } } }
+ // floor slabs and the roof, with an opening over both stair lanes
+ const [h0]=laneC(sb>0?1:0), [,h1]=laneC(sb>0?0:1);
+ const hole=alongX?{x0:a0-0.3,x1:a0+RUN+0.3,z0:Math.min(h0,h1)-0.05,z1:Math.max(h0,h1)+0.05}:{x0:Math.min(h0,h1)-0.05,x1:Math.max(h0,h1)+0.05,z0:a0-0.3,z1:a0+RUN+0.3};
+ { const cs=[...laneC(0),...laneC(1)]; const lo=Math.min(...cs)-0.1, hi=Math.max(...cs)+0.1; if(alongX){ hole.z0=lo; hole.z1=hi; } else { hole.x0=lo; hole.x1=hi; } }
+ // landings where each flight ends, so the gap at the end of the opening can't swallow you
+ { const cs=[...laneC(0),...laneC(1)]; const lo=Math.min(...cs), hi=Math.max(...cs);
+  for(let L=1;L<=floors;L++){ const atEnd=(L-1)%2===0, a1=atEnd?a0+RUN:a0-0.3, a2=atEnd?a0+RUN+0.3:a0, top=L*FH;
+   if(alongX){ box('stairs',MAT.frame,a2-a1,0.25,hi-lo,(a1+a2)/2,top-0.125,(lo+hi)/2,false,1.5); STEPS.push({x0:a1,x1:a2,z0:lo,z1:hi,y1:top}); }
+   else { box('stairs',MAT.frame,hi-lo,0.25,a2-a1,(lo+hi)/2,top-0.125,(a1+a2)/2,false,1.5); STEPS.push({x0:lo,x1:hi,z0:a1,z1:a2,y1:top}); } } }
+ const X0=cx-w/2,X1=cx+w/2,Z0=cz-d/2,Z1=cz+d/2;
+ for(let f=1;f<=floors;f++){ const y=f*FH-0.12; const slab=(x0,x1,z0,z1)=>{ if(x1-x0>0.05&&z1-z0>0.05) box('roof',MAT.roof,x1-x0,0.25,z1-z0,(x0+x1)/2,y,(z0+z1)/2,true,2.5); };
+  slab(X0,hole.x0,Z0,Z1); slab(hole.x1,X1,Z0,Z1); slab(hole.x0,hole.x1,Z0,hole.z0); slab(hole.x0,hole.x1,hole.z1,Z1); }
+ HOUSES[HOUSES.length-1].stair=hole;
+ box('roof',MAT.roof,w+0.2,0.9,0.15,cx,H+0.45,cz+d/2); box('roof',MAT.roof,w+0.2,0.9,0.15,cx,H+0.45,cz-d/2); box('roof',MAT.roof,0.15,0.9,d,cx+w/2,H+0.45,cz); box('roof',MAT.roof,0.15,0.9,d,cx-w/2,H+0.45,cz);
  for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) for(let k=0;k<4;k++) cyl('rebar',MAT.rebar,0.02,0.02,1.1,cx+sx*(w/2-0.15)+((k%2)-.5)*0.18,H+0.75,cz+sz*(d/2-0.15)+((k>>1)-.5)*0.18,5);
  if(rnd()<0.8){ cyl('tank',MAT.tank,0.6,0.6,1.2,cx+rr(-w/4,w/4),H+0.6,cz+rr(-d/4,d/4),14); }
  if(rnd()<0.7){ const g=new THREE.SphereGeometry(0.5,14,8,0,Math.PI*2,0,Math.PI/3); g.rotateX(1.1); g.translate(cx+rr(-w/3,w/3),H+0.7,cz+rr(-d/3,d/3)); bucket('white',MAT.white,g); }
@@ -327,7 +350,7 @@ function house(cx,cz,w,d,door,ci){
  // inner wall with a doorway
  if(w>=11){ const ix=cx+(door==='e'?-1:1)*1.2, a=-d/2+T, b=d/2-T, gap=1.4, m=rr(-d/4,d/4); box('inner',MAT.inner,0.2,FH,(m-gap/2)-a,ix,FH/2,cz+(a+m-gap/2)/2); box('inner',MAT.inner,0.2,FH,b-(m+gap/2),ix,FH/2,cz+(m+gap/2+b)/2); }
  // furniture
- for(const kind of ['sofa','table','cab','sofa']){ if(rnd()<0.3) continue; const ex=w/2-1.6, ez=d/2-1.4; const x=cx+rr(-ex,ex), z=cz+rr(-ez,ez); if(Math.abs(x-cx)<1.6&&Math.abs(z-cz)<1.6) continue;
+ for(const kind of ['sofa','table','cab','sofa']){ if(rnd()<0.3) continue; const ex=w/2-1.6, ez=d/2-1.4; const x=cx+rr(-ex,ex), z=cz+rr(-ez,ez); if(Math.abs(x-cx)<1.6&&Math.abs(z-cz)<1.6) continue; if(x>hole.x0-1.2&&x<hole.x1+1.2&&z>hole.z0-1&&z<hole.z1+1) continue;
   if(kind==='sofa'){ const si=Math.floor(rnd()*4), m=MAT.sofa[si]; box('sofa'+si,m,2.0,0.45,0.85,x,0.23,z); box('nossofa'+si,m,2.0,0.5,0.2,x,0.7,z-0.33,false); box('nossofa'+si,m,0.2,0.3,0.85,x-0.95,0.6,z,false); box('nossofa'+si,m,0.2,0.3,0.85,x+0.95,0.6,z,false); }
   else if(kind==='table'){ box('wood',MAT.wood,1.4,0.06,0.8,x,0.75,z); for(const [a,b] of [[-.6,-.32],[.6,-.32],[-.6,.32],[.6,.32]]) box('wood',MAT.wood,0.06,0.72,0.06,x+a,0.36,z+b,false); }
   else box('wood',MAT.wood,1.3,2.0,0.6,x,1.0,z); }
@@ -592,11 +615,12 @@ tbtn('tJump',()=>{ IN.jump=true; });
 tbtn('tGren',()=>throwGrenade());
 tbtn('tWeap',()=>{ if(me) selectWeapon((me.w+1)%5); });
 tbtn('tVeh',()=>toggleVehicle());
+tbtn('tRun',()=>{ IN.runLock=!IN.runLock; IN.sprint=IN.runLock; setTimeout(()=>$('tRun').classList.toggle('on',IN.runLock),0); });
 const tz=$('touch');
 tz.addEventListener('pointerdown',e=>{ if(e.target!==tz) return; initAudio(); if(e.clientX<innerWidth*0.45&&!TP.joy){ TP.joy={id:e.pointerId,x:e.clientX,y:e.clientY}; joy.hidden=false; joy.style.left=(e.clientX-60)+'px'; joy.style.top=(e.clientY-60)+'px'; } else if(!TP.look){ TP.look={id:e.pointerId,x:e.clientX,y:e.clientY}; } });
-addEventListener('pointermove',e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ let dx=e.clientX-TP.joy.x, dy=e.clientY-TP.joy.y; const L=Math.hypot(dx,dy), m=50; if(L>m){ dx*=m/L; dy*=m/L; } joy.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`; IN.mx=dx/m; IN.my=-dy/m; }
+addEventListener('pointermove',e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ let dx=e.clientX-TP.joy.x, dy=e.clientY-TP.joy.y; const L=Math.hypot(dx,dy), m=50; if(L>m){ dx*=m/L; dy*=m/L; } joy.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`; IN.mx=dx/m; IN.my=-dy/m; IN.sprint=IN.runLock||Math.hypot(dx,dy)>=m*0.95; }
  for(const k of ['look','fire']){ const p=TP[k]; if(p&&e.pointerId===p.id){ look(e.clientX-p.x,e.clientY-p.y,0.006); p.x=e.clientX; p.y=e.clientY; } } });
-const tEnd=e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ TP.joy=null; joy.hidden=true; IN.mx=IN.my=0; joy.firstElementChild.style.transform=''; } if(TP.look&&e.pointerId===TP.look.id) TP.look=null; };
+const tEnd=e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ TP.joy=null; joy.hidden=true; IN.mx=IN.my=0; IN.sprint=!!IN.runLock; joy.firstElementChild.style.transform=''; } if(TP.look&&e.pointerId===TP.look.id) TP.look=null; };
 addEventListener('pointerup',tEnd); addEventListener('pointercancel',tEnd);
 function readKeys(){ if(isTouch) return; IN.mx=(K.KeyD?1:0)-(K.KeyA?1:0); IN.my=(K.KeyW?1:0)-(K.KeyS?1:0); IN.fire=mouseDown||K.KeyF; IN.jump=IN.jump||K.Space; IN.sprint=K.ShiftLeft||K.ShiftRight; }
 
@@ -653,11 +677,13 @@ function nearVehicle(){ if(!me) return null; let best=null, bd=3.2; for(const v 
 function collideCircle(o,r,y0,y1){ for(const b of COL){ if(b.y1<=y0+0.3||b.y0>=y1) continue; const cx=clamp(o.x,b.x0,b.x1), cz=clamp(o.z,b.z0,b.z1); let dx=o.x-cx, dz=o.z-cz; const d2=dx*dx+dz*dz; if(d2>=r*r) continue;
   if(d2<1e-8){ const px=[o.x-b.x0,b.x1-o.x], pz=[o.z-b.z0,b.z1-o.z]; const m=Math.min(...px,...pz); if(m===px[0]) o.x=b.x0-r; else if(m===px[1]) o.x=b.x1+r; else if(m===pz[0]) o.z=b.z0-r; else o.z=b.z1+r; o.hit=true; continue; }
   const d=Math.sqrt(d2); o.x=cx+dx/d*r; o.z=cz+dz/d*r; o.hit=true; } }
+// the highest surface under (x,z) that you can step onto from height y
+function groundAt(x,z,y){ let g=0; const lim=y+0.5; for(const b of COL){ if(b.y1>g&&b.y1<=lim&&x>b.x0&&x<b.x1&&z>b.z0&&z<b.z1) g=b.y1; } for(const b of STEPS){ if(b.y1>g&&b.y1<=lim&&x>b.x0&&x<b.x1&&z>b.z0&&z<b.z1) g=b.y1; } return g; }
 function moveFighter(f,mx,my,sprint,jump,dt){ const fx=Math.sin(f.yaw), fz=Math.cos(f.yaw), rx=-fz, rz=fx; const w=W[f.w];
- let sp=f.aim?2.8:sprint?7.4:4.7; if(w.melee&&!f.aim) sp*=1.08; const L=Math.hypot(mx,my); if(L>1){ mx/=L; my/=L; }
+ let sp=f.aim?2.8:sprint?10.5:5.0; if(w.melee&&!f.aim) sp*=1.08; const L=Math.hypot(mx,my); if(L>1){ mx/=L; my/=L; }
  const tx=(fx*my+rx*mx)*sp, tzv=(fz*my+rz*mx)*sp; const a=Math.min(1,dt*12); f.vx+=(tx-f.vx)*a; f.vz+=(tzv-f.vz)*a;
  f.x+=f.vx*dt; f.z+=f.vz*dt;
- if(jump&&f.y<=0.001){ f.vy=6.3; } f.vy-=18*dt; f.y=Math.max(0,f.y+f.vy*dt); if(f.y<=0) f.vy=0;
+ const g=groundAt(f.x,f.z,f.y), onG=f.y<=g+0.02; if(jump&&onG) f.vy=6.3; f.vy-=18*dt; f.y+=f.vy*dt; if(f.y<=g){ f.y=g; f.vy=0; }
  collideCircle(f,0.35,f.y,f.y+1.8);
  for(const v of VEH){ if(v.driver===f) continue; const dx=f.x-v.x, dz=f.z-v.z, d=Math.hypot(dx,dz), R=v.r+0.35; if(d<R&&d>1e-4){ f.x=v.x+dx/d*R; f.z=v.z+dz/d*R; } }
  for(const o of fighters()){ if(o===f||!o.alive||o.veh) continue; const dx=f.x-o.x, dz=f.z-o.z, d=Math.hypot(dx,dz); if(d<0.7&&d>1e-4){ f.x=o.x+dx/d*0.7; f.z=o.z+dz/d*0.7; } }
