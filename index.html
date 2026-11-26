@@ -131,7 +131,9 @@ setTimeout(() => { const A = capApp(); if (A && A.addListener) { $('exitApp').hi
 // The copy inside the app is used when there is no internet or the site can't be reached.
 const APP_BUILD=0; // the APK build number, filled in by the GitHub build (0 on the web)
 const LIVE = 'https://adomja1212.github.io/Acc/';
-if (APP_BUILD) $('ver').textContent = 'نسخة ' + AD(APP_BUILD);
+if (APP_BUILD) $('ver').textContent = 'نسخة ' + AD(APP_BUILD) + ' · من غير نت';
+// opened by the app from the web: say so, so people can see they have the newest version
+{ const q = new URLSearchParams(location.search).get('app'); if (q && !APP_BUILD) $('ver').textContent = 'نسخة ' + AD(q) + ' · محدّثة أونلاين ✓'; }
 async function goLive() {
   if (!APP_BUILD || !navigator.onLine || /[?&]offline=1/.test(location.search)) return;
   try {
