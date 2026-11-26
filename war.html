@@ -11,10 +11,10 @@
 /* VOICE occasion: a street-war arcade, loud but readable
    IDEA a Cairo neighbourhood at golden hour turned into a paintball-style arena
    PICTURE the live 3D match, full screen
-   COLOUR night maroon #22090f, saffron #ffb703, team red #e63946, team blue #2f7fe0
+   COLOUR night maroon #22090f, saffron #ffb703, team red #e63946, team black #1c1c22
    TYPE Lalezar display + Cairo text
    LAYOUT full-bleed 3D; lobby card centred; HUD on the corners; touch pads at the bottom */
-:root{--bg:#22090f;--ink:#fff6e6;--sf:#ffb703;--red:#e63946;--blue:#2f7fe0;--tq:#22c3b5;--card:rgba(34,9,15,.92)}
+:root{--bg:#22090f;--ink:#fff6e6;--sf:#ffb703;--red:#e63946;--blue:#1c1c22;--tq:#22c3b5;--card:rgba(34,9,15,.92)}
 *{box-sizing:border-box;min-width:0}
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hidden;font:16px/1.5 Cairo,system-ui,sans-serif;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
@@ -48,19 +48,19 @@ button{font:inherit;color:inherit;cursor:pointer}
 .nlist .empty{opacity:.7;background:none;padding-inline:0}
 .teams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .team{border-radius:14px;padding:10px;min-height:120px}
-.team.r{background:rgba(230,57,70,.22);border:2px solid var(--red)}.team.b{background:rgba(47,127,224,.22);border:2px solid var(--blue)}
+.team.r{background:rgba(230,57,70,.22);border:2px solid var(--red)}.team.b{background:rgba(10,10,14,.55);border:2px solid #8a8a94}
 .team h3{margin:0 0 6px;font-family:Lalezar,Cairo;font-weight:400;font-size:26px}
 .team ul{list-style:none;margin:0 0 8px;padding:0;font-weight:600}
 .team button{width:100%;border:0;border-radius:10px;padding:7px;font-weight:800;min-height:40px}
-.team.r button{background:var(--red)}.team.b button{background:var(--blue)}
+.team.r button{background:var(--red)}.team.b button{background:#2a2a32;border:1px solid #8a8a94!important}
 .back{background:none;border:0;color:#ffd98a;text-decoration:underline;font-weight:600;min-height:44px;padding:0}
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
 #score{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;background:rgba(34,9,15,.75);border-radius:999px;padding:4px 16px;font-weight:800;white-space:nowrap}
-#score .r{color:#ff6b75}#score .b{color:#7fb4ff}
+#score .r{color:#ff6b75}#score .b{color:#d6d6de}
 #score b{font-family:Lalezar,Cairo;font-weight:400;font-size:26px;line-height:1.2}
 #feed{position:absolute;top:calc(56px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));list-style:none;margin:0;padding:0;display:grid;gap:4px;justify-items:end;font-size:14px;font-weight:700}
 #feed li{background:rgba(34,9,15,.72);border-radius:8px;padding:2px 10px}
-#feed .r{color:#ff8a92}#feed .b{color:#9cc5ff}
+#feed .r{color:#ff8a92}#feed .b{color:#d6d6de}
 #mini{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));width:150px;height:150px;border-radius:14px;background:rgba(34,9,15,.6);border:2px solid rgba(255,183,3,.5)}
 #hpBox{position:absolute;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:240px}
 #hpBox .bar{height:16px;border-radius:8px;background:rgba(34,9,15,.75);overflow:hidden;border:2px solid rgba(255,255,255,.3)}
@@ -143,7 +143,7 @@ body.touch #feed{top:calc(60px + env(safe-area-inset-top,0px))}
  <div class="seg" id="modeSeg"><button data-v="team">فريق ضد فريق</button><button data-v="duel">واحد ضد واحد</button></div>
  <div class="teams" style="margin-top:12px">
   <div class="team r"><h3>الأحمر</h3><ul id="tR"></ul><button id="joinR">انضم للأحمر</button></div>
-  <div class="team b"><h3>الأزرق</h3><ul id="tB"></ul><button id="joinB">انضم للأزرق</button></div>
+  <div class="team b"><h3>الأسود</h3><ul id="tB"></ul><button id="joinB">انضم للأسود</button></div>
  </div>
  <button class="go" id="startM">ابدأ الماتش</button>
  <div class="row2"><button class="go alt" id="invite">انسخ رابط الدعوة</button><button class="go ghost" id="leaveR">اخرج</button></div>
@@ -151,7 +151,7 @@ body.touch #feed{top:calc(60px + env(safe-area-inset-top,0px))}
 </div></div></div>
 
 <div id="hud" hidden>
- <div id="score"><span class="r"><b id="aR">٠</b> أحمر</span><span>ضد</span><span class="b">أزرق <b id="aB">٠</b></span></div>
+ <div id="score"><span class="r"><b id="aR">٠</b> أحمر</span><span>ضد</span><span class="b">أسود <b id="aB">٠</b></span></div>
  <canvas id="mini" width="300" height="300"></canvas>
  <ul id="feed"></ul>
  <div id="hpBox"><b id="hpN">١٠٠</b><div class="bar"><i id="hpBar" style="width:100%"></i></div></div>
@@ -196,7 +196,7 @@ const wrapA=a=>{ while(a>Math.PI)a-=2*Math.PI; while(a<-Math.PI)a+=2*Math.PI; re
 const R2=v=>Math.round(v*100)/100;
 const isTouch=matchMedia('(pointer:coarse)').matches; if(isTouch) document.body.classList.add('touch');
 const PROFILE=myProfile();
-const TEAMC={r:0xd62828,b:0x2f7fe0};
+const TEAMC={r:0xd62828,b:0x1c1c22};
 
 // ================= renderer =================
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
@@ -392,24 +392,86 @@ function buildMap(){
 // ================= vehicles =================
 const VEH=[];
 let CARMODEL=null;
-function makeTukModel(color){
- const g=new THREE.Group();
- const paint=new THREE.MeshPhysicalMaterial({color,roughness:.3,metalness:.15,clearcoat:1,clearcoatRoughness:.08});
- const dark=pm({color:0x1d1b20,roughness:.85}), chrome=pm({color:0xe8e8e8,metalness:1,roughness:.18}), tire=pm({color:0x141414,roughness:.92}), seat=pm({color:0x7a3b1f,roughness:.55}), gold=pm({color:0xffc94a,metalness:1,roughness:.3});
- const add=(geo,m,x,y,z,rx=0)=>{ const o=new THREE.Mesh(geo,m); o.position.set(x,y,z); o.rotation.x=rx; o.castShadow=true; o.receiveShadow=true; g.add(o); return o; };
- const s=new THREE.Shape(); s.moveTo(-1.25,0.34); s.lineTo(0.62,0.34); s.lineTo(0.8,0.62); s.lineTo(1.2,0.62); s.quadraticCurveTo(1.42,0.68,1.38,0.88); s.quadraticCurveTo(1.33,1.07,1.02,1.1); s.lineTo(0.74,1.04); s.lineTo(0.56,0.66); s.lineTo(-0.32,0.66); s.lineTo(-0.48,1.0); s.lineTo(-1.25,1.06); s.closePath();
- const body=new THREE.ExtrudeGeometry(s,{depth:1.2,bevelEnabled:true,bevelThickness:0.06,bevelSize:0.05,bevelSegments:3,curveSegments:12}); body.rotateY(-Math.PI/2); body.translate(0.6,0,0); add(body,paint,0,0,0);
- add(new THREE.BoxGeometry(1.37,0.05,2.3),gold,0,0.52,-0.3);
- add(new RoundedBoxGeometry(1.46,0.1,2.72,2,0.04),dark,0,1.88,-0.1); add(new THREE.BoxGeometry(1.48,0.09,2.74),paint,0,1.8,-0.1);
- add(new THREE.BoxGeometry(1.3,0.78,0.05),dark,0,1.42,-1.27);
- const pil=new THREE.CylinderGeometry(0.028,0.028,0.8,6); for(const sx of [-1,1]){ add(pil,chrome,sx*0.6,1.45,0.95,-0.12); add(pil,chrome,sx*0.65,1.42,-0.42); add(pil,chrome,sx*0.65,1.42,-1.24); add(new THREE.BoxGeometry(0.04,0.74,0.62),dark,sx*0.66,1.42,-0.97); }
- add(new THREE.PlaneGeometry(1.16,0.7),MAT.glass,0,1.46,0.98,-0.1);
- add(new THREE.CylinderGeometry(0.13,0.13,0.1,18).rotateX(Math.PI/2),chrome,0,0.97,1.33); add(new THREE.CylinderGeometry(0.1,0.1,0.02,18).rotateX(Math.PI/2),new THREE.MeshBasicMaterial({color:0xfff6dd}),0,0.97,1.385);
- add(new RoundedBoxGeometry(0.52,0.12,0.4,2,0.04),seat,0,0.86,0.18); add(new RoundedBoxGeometry(1.12,0.13,0.5,2,0.05),seat,0,0.84,-0.8); add(new RoundedBoxGeometry(1.12,0.42,0.09,2,0.04),seat,0,1.12,-1.13);
- const tg=new THREE.CylinderGeometry(0.27,0.27,0.17,22).rotateZ(Math.PI/2); for(const [x,z] of [[0.6,-0.8],[-0.6,-0.8],[0,1.08]]) add(tg,tire,x,0.27,z);
- { const parts=[], cols=[0xd62828,0xffb703,0x1f9d55,0x22c3b5,0xffffff]; let k=0; const addF=(x,z)=>{ const b=new THREE.BoxGeometry(0.035,0.1,0.035).translate(x,1.74,z); const c=new THREE.Color(cols[k++%5]), ca=[]; for(let i=0;i<b.attributes.position.count;i++) ca.push(c.r,c.g,c.b); b.setAttribute('color',new THREE.Float32BufferAttribute(ca,3)); parts.push(b); };
-  for(let x=-0.7;x<=0.7;x+=0.07) addF(x,1.25); for(let z=-1.4;z<=1.2;z+=0.08){ addF(0.74,z); addF(-0.74,z); } add(mergeGeometries(parts),pm({vertexColors:true,roughness:.6}),0,0,0); }
- return g; }
+// ---- realistic vehicles: a Bajaj-style tuk-tuk and a sport bike (shared parts are built once) ----
+const VX={};
+function vxShared(){ if(VX.ready) return; VX.ready=true;
+ const ext=(pts,depth,bevel=0.05)=>{ const sh=new THREE.Shape(); pts.forEach((p,i)=>{ if(p.length===4) sh.quadraticCurveTo(p[0],p[1],p[2],p[3]); else if(i) sh.lineTo(p[0],p[1]); else sh.moveTo(p[0],p[1]); }); sh.closePath();
+  const g=new THREE.ExtrudeGeometry(sh,{depth,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,bevelSegments:4,curveSegments:16}); g.rotateY(-Math.PI/2); g.translate(depth/2,0,0); return g; };
+ VX.ext=ext;
+ // tuk-tuk: side shell with the rear quarter, the open door cut and the low driver panel
+ VX.tukBody=ext([[-1.32,0.4],[-1.32,1.04],[-0.98,1.07],[-0.86,1.03,-0.84,0.66],[0.2,0.6],[0.36,0.8],[0.88,0.84],[0.92,0.4]],1.24,0.05);
+ VX.tukSkirt=new RoundedBoxGeometry(1.36,0.16,2.34,2,0.05);
+ VX.nose=new RoundedBoxGeometry(0.92,0.66,0.5,4,0.14);
+ VX.dash=new RoundedBoxGeometry(1.24,0.1,0.36,2,0.04);
+ VX.roof=new RoundedBoxGeometry(1.44,0.1,2.56,2,0.045); VX.roofLip=new THREE.CylinderGeometry(0.07,0.07,1.44,14).rotateZ(Math.PI/2);
+ VX.tube=new THREE.CylinderGeometry(0.026,0.026,1,8);
+ VX.mud=new THREE.TorusGeometry(0.31,0.055,8,20,Math.PI).rotateY(Math.PI/2); VX.mud.scale(1.4,1,1);
+ VX.tire=new THREE.CylinderGeometry(0.27,0.27,0.17,26).rotateZ(Math.PI/2); VX.rim=new THREE.CylinderGeometry(0.16,0.16,0.18,18).rotateZ(Math.PI/2);
+ VX.bezel=new THREE.CylinderGeometry(0.115,0.12,0.06,24).rotateX(Math.PI/2); VX.lens=new THREE.CylinderGeometry(0.095,0.095,0.02,24).rotateX(Math.PI/2);
+ VX.grille=new RoundedBoxGeometry(0.52,0.22,0.04,2,0.02); VX.slat=new THREE.BoxGeometry(0.48,0.018,0.02);
+ VX.ind=new THREE.SphereGeometry(0.035,12,8); VX.mirror=new THREE.SphereGeometry(0.06,12,8);
+ VX.wind=new THREE.PlaneGeometry(1.14,0.62); VX.frameH=new THREE.BoxGeometry(1.2,0.04,0.04); VX.frameV=new THREE.BoxGeometry(0.04,0.66,0.04);
+ VX.back=new THREE.BoxGeometry(1.3,0.8,0.04); VX.backWin=new THREE.PlaneGeometry(0.8,0.3); VX.quarter=new THREE.BoxGeometry(0.04,0.8,0.44);
+ VX.seat=new RoundedBoxGeometry(0.56,0.12,0.42,2,0.04); VX.bench=new RoundedBoxGeometry(1.14,0.14,0.52,2,0.05); VX.benchB=new RoundedBoxGeometry(1.14,0.44,0.1,2,0.04);
+ VX.bar=new THREE.CylinderGeometry(0.022,0.022,0.62,8).rotateZ(Math.PI/2);
+ VX.tail=new THREE.BoxGeometry(0.16,0.12,0.04);
+ // sport bike: fairing, tank and tail cut from one side profile, with a darker belly pan
+ VX.fairing=ext([[0.52,0.6],[0.8,0.74,0.86,0.96],[0.7,1.14],[0.5,1.12],[0.34,0.98],[0.12,0.9],[0.02,0.7],[0.2,0.56]],0.24,0.06);
+ VX.tank=new RoundedBoxGeometry(0.34,0.22,0.52,3,0.1);
+ VX.tailP=ext([[-0.18,0.98],[-0.82,1.14],[-0.92,1.08],[-0.6,0.92],[-0.24,0.88]],0.18,0.05);
+ VX.belly=ext([[0.3,0.5],[0.18,0.4],[-0.14,0.44],[-0.16,0.58],[0.1,0.58]],0.22,0.04);
+ VX.engine=new RoundedBoxGeometry(0.28,0.32,0.4,2,0.05); VX.stripe=ext([[0.78,0.9],[0.5,0.84],[0.2,0.82],[0.48,0.9]],0.25,0.015);
+ VX.screen=new THREE.PlaneGeometry(0.34,0.26);
+ VX.btire=new THREE.TorusGeometry(0.26,0.075,14,30).rotateY(Math.PI/2); VX.brim=new THREE.CylinderGeometry(0.2,0.2,0.07,24).rotateZ(Math.PI/2); VX.disc=new THREE.CylinderGeometry(0.15,0.15,0.012,24).rotateZ(Math.PI/2);
+ VX.spoke=new THREE.BoxGeometry(0.03,0.36,0.035); VX.caliper=new THREE.BoxGeometry(0.04,0.08,0.1);
+ VX.can=new THREE.CylinderGeometry(0.075,0.065,0.46,18); VX.canTip=new THREE.CylinderGeometry(0.045,0.045,0.06,14);
+ VX.fork=new THREE.CylinderGeometry(0.03,0.03,0.72,10); VX.clip=new THREE.CylinderGeometry(0.02,0.02,0.2,8).rotateZ(Math.PI/2);
+ VX.eye=new THREE.SphereGeometry(0.05,14,10); VX.bseat=new RoundedBoxGeometry(0.28,0.07,0.42,2,0.03); VX.spar=new THREE.BoxGeometry(0.05,0.1,0.62);
+ VX.helmet=new THREE.SphereGeometry(0.16,22,16); VX.visor=new THREE.SphereGeometry(0.162,22,12,Math.PI/2-0.75,1.5,0.32*Math.PI,0.32*Math.PI);
+ VX.limb=new THREE.CapsuleGeometry(0.065,0.34,4,10); VX.torso=new THREE.CapsuleGeometry(0.17,0.3,4,12); VX.boot=new RoundedBoxGeometry(0.1,0.1,0.24,2,0.03);
+ VX.m={ black:new THREE.MeshStandardMaterial({color:0x151517,roughness:.6}), blackGloss:new THREE.MeshPhysicalMaterial({color:0x0e0e10,roughness:.25,clearcoat:1}),
+  canvas:new THREE.MeshStandardMaterial({color:0x1b1b1e,roughness:.9}), chrome:new THREE.MeshStandardMaterial({color:0xf2f2f2,metalness:1,roughness:.12}),
+  steel:new THREE.MeshStandardMaterial({color:0xb9bec5,metalness:.9,roughness:.28}), tire:new THREE.MeshStandardMaterial({color:0x121212,roughness:.9}),
+  glass:new THREE.MeshPhysicalMaterial({color:0x9fc6e8,roughness:.04,metalness:0,transparent:true,opacity:.3,side:THREE.DoubleSide}),
+  tint:new THREE.MeshPhysicalMaterial({color:0x223040,roughness:.05,transparent:true,opacity:.6,side:THREE.DoubleSide}),
+  light:new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xfff3d6,emissiveIntensity:4}), amber:new THREE.MeshStandardMaterial({color:0xffa000,emissive:0xff8a00,emissiveIntensity:1.4}),
+  red:new THREE.MeshStandardMaterial({color:0x550000,emissive:0xff1a1a,emissiveIntensity:2}), seat:new THREE.MeshStandardMaterial({color:0x2a1a14,roughness:.6}),
+  leather:new THREE.MeshPhysicalMaterial({color:0x121214,roughness:.45,clearcoat:.6}), white:new THREE.MeshStandardMaterial({color:0xeeeeee,roughness:.4}),
+  caliper:new THREE.MeshStandardMaterial({color:0xc8102e,roughness:.4,metalness:.3}) };
+}
+function vxPaint(hex){ return new THREE.MeshPhysicalMaterial({color:hex,roughness:.26,metalness:.2,clearcoat:1,clearcoatRoughness:.06}); }
+// returns {root,tilt,wheels,steer,flame,paint}
+function buildBajaj(hex,shirt,extra){ vxShared(); const m=VX.m, root=new THREE.Group(), tilt=new THREE.Group(); root.add(tilt); const paint=vxPaint(hex);
+ const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0,par=tilt,sx=1,sy=1,sz=1)=>{ const o=new THREE.Mesh(geo,mat); o.position.set(x,y,z); o.rotation.set(rx,ry,rz); o.scale.set(sx,sy,sz); o.castShadow=true; o.receiveShadow=true; par.add(o); return o; };
+ add(VX.tukBody,paint,0,0,0); add(VX.tukSkirt,m.black,0,0.4,-0.2);
+ add(VX.nose,paint,0,0.86,1.05); add(VX.dash,m.black,0,1.16,0.86);
+ add(VX.bezel,m.chrome,0,1.0,1.31); add(VX.lens,m.light,0,1.0,1.345);
+ add(VX.grille,m.black,0,0.72,1.3); for(let k=0;k<3;k++) add(VX.slat,m.chrome,0,0.66+k*0.06,1.325);
+ for(const sx of [-1,1]){ add(VX.ind,m.amber,sx*0.37,1.04,1.24); }
+ // windshield with a black frame and a wiper
+ add(VX.wind,m.glass,0,1.5,0.94,-0.12); add(VX.frameH,m.black,0,1.19,0.98); add(VX.frameH,m.black,0,1.8,0.9); for(const sx of [-1,1]) add(VX.frameV,m.black,sx*0.6,1.5,0.94,-0.12);
+ add(new THREE.BoxGeometry(0.5,0.015,0.015),m.black,-0.15,1.27,0.99,0,0,0.35);
+ // canopy on black tubes, rounded lip over the windshield
+ add(VX.roof,m.canvas,0,1.86,-0.24); add(VX.roofLip,m.canvas,0,1.83,1.0);
+ for(const [x,z] of [[0.64,-0.25],[-0.64,-0.25],[0.64,-1.26],[-0.64,-1.26]]) add(VX.tube,m.black,x,1.43,z,0,0,0,tilt,1,0.86,1);
+ add(VX.back,m.canvas,0,1.42,-1.3); add(VX.backWin,m.glass,0,1.52,-1.325,0,Math.PI);
+ for(const sx of [-1,1]){ add(VX.quarter,m.canvas,sx*0.65,1.42,-1.06); add(VX.tube,m.chrome,sx*0.67,1.24,-0.4,Math.PI/2,0,0,tilt,1,0.85,1);
+  add(new THREE.CylinderGeometry(0.008,0.008,0.22,6),m.black,sx*0.62,1.3,1.0,0,0,sx*0.7); add(VX.mirror,m.black,sx*0.72,1.38,1.0,0,0,0,tilt,0.6,1,0.4);
+  add(VX.tail,m.red,sx*0.5,0.8,-1.34); }
+ add(new THREE.BoxGeometry(1.3,0.04,1.9),m.chrome,0,0.72,-0.25,0,0,0,tilt,1.005,1,1);
+ // seats, handlebar and the driver
+ add(VX.seat,m.seat,0,0.86,0.2); add(VX.bench,m.seat,0,0.84,-0.8); add(VX.benchB,m.seat,0,1.12,-1.14); add(VX.bar,m.chrome,0,1.2,0.76);
+ const shirtM=new THREE.MeshStandardMaterial({color:shirt,roughness:.8}), skin=new THREE.MeshStandardMaterial({color:0x8d5a3b,roughness:.7});
+ add(VX.torso,shirtM,0,1.22,0.22); add(new THREE.SphereGeometry(0.12,16,12),skin,0,1.6,0.25); add(new THREE.SphereGeometry(0.125,16,8,0,Math.PI*2,0,Math.PI/2),VX.m.black,0,1.62,0.23);
+ for(const sx of [-1,1]) add(VX.limb,shirtM,sx*0.24,1.3,0.5,1.15,0,sx*-0.25,tilt,0.8,0.9,0.8);
+ if(extra) extra(add,paint);
+ // wheels: two at the back, one under the nose behind a black mudguard
+ const wheels=[]; const wheel=(par,x,y,z)=>{ const g=new THREE.Group(); g.position.set(x,y,z); par.add(g); add(VX.tire,m.tire,0,0,0,0,0,0,g); add(VX.rim,m.steel,0,0,0,0,0,0,g); wheels.push(g); return g; };
+ wheel(tilt,0.6,0.27,-0.82); wheel(tilt,-0.6,0.27,-0.82);
+ const steer=new THREE.Group(); steer.position.set(0,0,1.1); tilt.add(steer); wheel(steer,0,0.27,0); add(VX.mud,m.black,0,0.3,0,0,0,0,steer);
+ add(new THREE.CylinderGeometry(0.025,0.025,0.42,6),m.chrome,0.1,0.48,-0.04,0.2,0,0,steer); add(new THREE.CylinderGeometry(0.025,0.025,0.42,6),m.chrome,-0.1,0.48,-0.04,0.2,0,0,steer);
+ return {root,tilt,wheels,steer,paint}; }
+function makeTukModel(color){ return buildBajaj(color,0xf2f2f2).root; }
 function makeCarModel(color){ const m=CARMODEL.clone(true); m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; if(o.material&&o.material.name==='Body_Color'){ o.material=o.material.clone(); o.material.color.set(color); } } }); const g=new THREE.Group(); g.add(m); return g; }
 const VSPOTS=[['tuk',-74,-30,Math.PI/2,0xd62828],['tuk',-74,30,Math.PI/2,0xf4b400],['car',74,-30,-Math.PI/2,0xe9e4d8],['car',74,30,-Math.PI/2,0x2b2f36],['tuk',0,-60,Math.PI/2,0x1f9d55],['car',0,60,-Math.PI/2,0x8a1c1c],['tuk',-60,0,0,0x7b3fb3],['car',60,0,Math.PI,0x1d4f8f]];
 function buildVehicles(){ VSPOTS.forEach(([type,x,z,h,col],id)=>{ const group=type==='car'&&CARMODEL?makeCarModel(col):makeTukModel(col); scene.add(group); VEH.push({id,type,x,z,h,v:0,r:type==='car'?1.4:1.0,max:type==='car'?26:17,group,driver:null,home:[x,z,h],hitCd:{}}); }); resetVehicles(); }
@@ -462,15 +524,32 @@ function findBone(root,n){ return root.getObjectByName('mixamorig'+n)||root.getO
 function makeChar(team,capCol,name,isMe){
  const root=new THREE.Group(); root.rotation.order='YXZ';
  const model=SkeletonUtils.clone(SOLDIER.scene); model.rotation.y=Math.PI; root.add(model);
- const tint=new THREE.Color(team==='r'?0xff8f8f:0x8fb0ff);
- model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; o.material=o.material.clone(); if(/Body/i.test(o.material.name)) o.material.color.copy(tint); } });
+ const blackTeam=team==='b', tint=new THREE.Color(blackTeam?0x2a2a30:0xff8f8f);
+ model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; o.material=o.material.clone(); if(/Body/i.test(o.material.name)) o.material.color.copy(tint); else if(blackTeam&&/Visor/i.test(o.material.name)){ o.material.color.set(0x0b0b0d); } } });
  const mixer=new THREE.AnimationMixer(model), A={}; for(const c of SOLDIER.animations) A[c.name]=mixer.clipAction(c);
  for(const n of ['Idle','Walk','Run']) if(A[n]){ A[n].play(); A[n].setEffectiveWeight(n==='Idle'?1:0); }
  const bones={}; for(const k in BN) bones[k]=findBone(model,BN[k]);
- // a team band on the helmet
- const band=new THREE.Mesh(new THREE.TorusGeometry(0.13,0.025,8,20),pm({color:TEAMC[team],emissive:TEAMC[team],emissiveIntensity:0.4})); band.rotation.x=Math.PI/2; if(bones.head){ const hs=new THREE.Vector3(); bones.head.getWorldScale(hs); band.scale.setScalar(1/hs.x); band.position.y=0.12/hs.x; bones.head.add(band); }
+ // gear hung on the bones in a frame lined up with the world (character facing +Z, metres)
+ model.updateMatrixWorld(true);
+ const gear=bone=>{ const g=new THREE.Group(); if(!bone) return g; const q=new THREE.Quaternion(), sc=new THREE.Vector3(); bone.getWorldQuaternion(q); bone.getWorldScale(sc); g.quaternion.copy(q.invert()); g.scale.setScalar(1/sc.x); bone.add(g); return g; };
+ const put=(g,geo,mat,x,y,z,sx=1,sy=1,sz=1)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.scale.set(sx,sy,sz); m.castShadow=true; g.add(m); return m; };
+ const vestM=pm({color:blackTeam?0x141417:0x6e1a1e,roughness:.9}), pouchM=pm({color:blackTeam?0x1b1b1f:0x7f2025,roughness:.85});
+ const chest=gear(bones.spine2);
+ put(chest,new RoundedBoxGeometry(0.38,0.34,0.07,2,0.02),vestM,0,0.03,0.155); put(chest,new RoundedBoxGeometry(0.38,0.34,0.07,2,0.02),vestM,0,0.03,-0.155);
+ for(const sx of [-1,1]){ put(chest,new THREE.BoxGeometry(0.06,0.2,0.3),vestM,sx*0.2,-0.04,0); put(chest,new THREE.BoxGeometry(0.07,0.04,0.33),vestM,sx*0.12,0.2,0); }
+ for(const x of [-0.12,0,0.12]) put(chest,new RoundedBoxGeometry(0.1,0.13,0.06,2,0.015),pouchM,x,-0.1,0.205);
+ put(chest,new RoundedBoxGeometry(0.12,0.08,0.05,2,0.015),pouchM,0.1,0.1,0.205);
+ const head=gear(bones.head);
+ if(blackTeam){ // black hood, a glossy mask and glowing red eyes
+  const hood=pm({color:0x0f0f12,roughness:.95,side:THREE.DoubleSide});
+  put(head,new THREE.SphereGeometry(0.175,22,16,Math.PI/2+0.62,Math.PI*2-1.24,0,Math.PI*0.78),hood,0,0.1,-0.01,1,1.12,1.06);
+  put(head,new THREE.CylinderGeometry(0.2,0.3,0.16,18,1,true),hood,0,-0.06,-0.02);
+  put(head,new THREE.SphereGeometry(0.14,22,16,Math.PI/2-0.78,1.56,0.32*Math.PI,0.55*Math.PI),new THREE.MeshPhysicalMaterial({color:0x08080a,roughness:.18,metalness:.4,clearcoat:1}),0,0.1,0.015,1,1.08,1);
+  const eye=new THREE.MeshBasicMaterial({color:new THREE.Color(2.4,0.0,0.0),toneMapped:false});
+  for(const sx of [-1,1]) put(head,new THREE.SphereGeometry(0.02,12,8),eye,sx*0.045,0.125,0.142,1.7,0.6,0.5);
+ } else put(head,new THREE.TorusGeometry(0.13,0.025,8,20).rotateX(Math.PI/2),pm({color:TEAMC.r,emissive:TEAMC.r,emissiveIntensity:0.4}),0,0.12,0);
  const wg=new THREE.Group(); wg.scale.setScalar(1.2); scene.add(wg); const wm=weaponMeshes(wg);
- if(!isMe) root.add(nameTag(name,team==='r'?'#ff8a92':'#9cc5ff'));
+ if(!isMe) root.add(nameTag(name,team==='r'?'#ff8a92':'#e4e4ea'));
  scene.add(root);
  return {root,model,mixer,A,bones,wg,wm,head:model,cur:null,fallT:0,wt:{Idle:1,Walk:0,Run:0},t:0};
 }
@@ -851,7 +930,7 @@ function prepMini(){ const c=document.createElement('canvas'); c.width=c.height=
  g.fillStyle='#e9d6b8'; g.strokeStyle='#5b361c'; g.lineWidth=2; for(const h of HOUSES){ const [x,y]=mp(h.x0,h.z1); g.fillRect(x,y,(h.x1-h.x0)*s,(h.z1-h.z0)*s); g.strokeRect(x,y,(h.x1-h.x0)*s,(h.z1-h.z0)*s); }
  miniBase={c,mp}; }
 function drawMini(){ mg.drawImage(miniBase.c,0,0); const mp=miniBase.mp;
- for(const f of fighters()){ if(!f.alive||(f!==me&&me&&f.team!==me.team)) continue; const [x,y]=mp(f.x,f.z); mg.fillStyle=f.team==='r'?'#ff4d5a':'#4d9aff'; mg.beginPath(); mg.arc(x,y,f===me?8:6,0,7); mg.fill(); if(f===me){ mg.strokeStyle='#fff'; mg.lineWidth=3; mg.stroke(); mg.beginPath(); mg.moveTo(x,y); mg.lineTo(x+Math.sin(f.yaw)*18,y-Math.cos(f.yaw)*18); mg.stroke(); } }
+ for(const f of fighters()){ if(!f.alive||(f!==me&&me&&f.team!==me.team)) continue; const [x,y]=mp(f.x,f.z); mg.fillStyle=f.team==='r'?'#ff4d5a':'#101014'; mg.beginPath(); mg.arc(x,y,f===me?8:6,0,7); mg.fill(); if(f===me){ mg.strokeStyle='#fff'; mg.lineWidth=3; mg.stroke(); mg.beginPath(); mg.moveTo(x,y); mg.lineTo(x+Math.sin(f.yaw)*18,y-Math.cos(f.yaw)*18); mg.stroke(); } }
  for(const v of VEH){ const [x,y]=mp(v.x,v.z); mg.fillStyle='rgba(30,30,30,.8)'; mg.fillRect(x-4,y-4,8,8); } }
 let hudT=0;
 function updHUD(dt){ if(!me) return; $('aR').textContent=AD(aliveCount('r')); $('aB').textContent=AD(aliveCount('b'));

@@ -703,37 +703,114 @@ function tukShared(){
  delivLabel:new THREE.MeshStandardMaterial({map:ctex(256,224,(g,w,h)=>{ g.fillStyle='#ff6a13'; g.fillRect(0,0,w,h); g.fillStyle='#fff'; g.beginPath(); g.roundRect?g.roundRect(14,14,w-28,h-28,24):g.rect(14,14,w-28,h-28); g.fill(); g.fillStyle='#ff6a13'; g.font='64px Lalezar, Cairo'; g.textAlign='center'; g.direction='rtl'; g.fillText('توصيل',w/2,104); g.font='800 34px Cairo'; g.fillText('سريع ١٩٠٠٠',w/2,170); },{rep:false}),roughness:.6}),
   shadow:new THREE.MeshBasicMaterial({map:TX.shadow,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4}) };
 }
+// ---- realistic vehicles: a Bajaj-style tuk-tuk and a sport bike (shared parts are built once) ----
+const VX={};
+function vxShared(){ if(VX.ready) return; VX.ready=true;
+ const ext=(pts,depth,bevel=0.05)=>{ const sh=new THREE.Shape(); pts.forEach((p,i)=>{ if(p.length===4) sh.quadraticCurveTo(p[0],p[1],p[2],p[3]); else if(i) sh.lineTo(p[0],p[1]); else sh.moveTo(p[0],p[1]); }); sh.closePath();
+  const g=new THREE.ExtrudeGeometry(sh,{depth,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,bevelSegments:4,curveSegments:16}); g.rotateY(-Math.PI/2); g.translate(depth/2,0,0); return g; };
+ VX.ext=ext;
+ // tuk-tuk: side shell with the rear quarter, the open door cut and the low driver panel
+ VX.tukBody=ext([[-1.32,0.4],[-1.32,1.04],[-0.98,1.07],[-0.86,1.03,-0.84,0.66],[0.2,0.6],[0.36,0.8],[0.88,0.84],[0.92,0.4]],1.24,0.05);
+ VX.tukSkirt=new RoundedBoxGeometry(1.36,0.16,2.34,2,0.05);
+ VX.nose=new RoundedBoxGeometry(0.92,0.66,0.5,4,0.14);
+ VX.dash=new RoundedBoxGeometry(1.24,0.1,0.36,2,0.04);
+ VX.roof=new RoundedBoxGeometry(1.44,0.1,2.56,2,0.045); VX.roofLip=new THREE.CylinderGeometry(0.07,0.07,1.44,14).rotateZ(Math.PI/2);
+ VX.tube=new THREE.CylinderGeometry(0.026,0.026,1,8);
+ VX.mud=new THREE.TorusGeometry(0.31,0.055,8,20,Math.PI).rotateY(Math.PI/2); VX.mud.scale(1.4,1,1);
+ VX.tire=new THREE.CylinderGeometry(0.27,0.27,0.17,26).rotateZ(Math.PI/2); VX.rim=new THREE.CylinderGeometry(0.16,0.16,0.18,18).rotateZ(Math.PI/2);
+ VX.bezel=new THREE.CylinderGeometry(0.115,0.12,0.06,24).rotateX(Math.PI/2); VX.lens=new THREE.CylinderGeometry(0.095,0.095,0.02,24).rotateX(Math.PI/2);
+ VX.grille=new RoundedBoxGeometry(0.52,0.22,0.04,2,0.02); VX.slat=new THREE.BoxGeometry(0.48,0.018,0.02);
+ VX.ind=new THREE.SphereGeometry(0.035,12,8); VX.mirror=new THREE.SphereGeometry(0.06,12,8);
+ VX.wind=new THREE.PlaneGeometry(1.14,0.62); VX.frameH=new THREE.BoxGeometry(1.2,0.04,0.04); VX.frameV=new THREE.BoxGeometry(0.04,0.66,0.04);
+ VX.back=new THREE.BoxGeometry(1.3,0.8,0.04); VX.backWin=new THREE.PlaneGeometry(0.8,0.3); VX.quarter=new THREE.BoxGeometry(0.04,0.8,0.44);
+ VX.seat=new RoundedBoxGeometry(0.56,0.12,0.42,2,0.04); VX.bench=new RoundedBoxGeometry(1.14,0.14,0.52,2,0.05); VX.benchB=new RoundedBoxGeometry(1.14,0.44,0.1,2,0.04);
+ VX.bar=new THREE.CylinderGeometry(0.022,0.022,0.62,8).rotateZ(Math.PI/2);
+ VX.tail=new THREE.BoxGeometry(0.16,0.12,0.04);
+ // sport bike: fairing, tank and tail cut from one side profile, with a darker belly pan
+ VX.fairing=ext([[0.52,0.6],[0.8,0.74,0.86,0.96],[0.7,1.14],[0.5,1.12],[0.34,0.98],[0.12,0.9],[0.02,0.7],[0.2,0.56]],0.24,0.06);
+ VX.tank=new RoundedBoxGeometry(0.34,0.22,0.52,3,0.1);
+ VX.tailP=ext([[-0.18,0.98],[-0.82,1.14],[-0.92,1.08],[-0.6,0.92],[-0.24,0.88]],0.18,0.05);
+ VX.belly=ext([[0.3,0.5],[0.18,0.4],[-0.14,0.44],[-0.16,0.58],[0.1,0.58]],0.22,0.04);
+ VX.engine=new RoundedBoxGeometry(0.28,0.32,0.4,2,0.05); VX.stripe=ext([[0.78,0.9],[0.5,0.84],[0.2,0.82],[0.48,0.9]],0.25,0.015);
+ VX.screen=new THREE.PlaneGeometry(0.34,0.26);
+ VX.btire=new THREE.TorusGeometry(0.26,0.075,14,30).rotateY(Math.PI/2); VX.brim=new THREE.CylinderGeometry(0.2,0.2,0.07,24).rotateZ(Math.PI/2); VX.disc=new THREE.CylinderGeometry(0.15,0.15,0.012,24).rotateZ(Math.PI/2);
+ VX.spoke=new THREE.BoxGeometry(0.03,0.36,0.035); VX.caliper=new THREE.BoxGeometry(0.04,0.08,0.1);
+ VX.can=new THREE.CylinderGeometry(0.075,0.065,0.46,18); VX.canTip=new THREE.CylinderGeometry(0.045,0.045,0.06,14);
+ VX.fork=new THREE.CylinderGeometry(0.03,0.03,0.72,10); VX.clip=new THREE.CylinderGeometry(0.02,0.02,0.2,8).rotateZ(Math.PI/2);
+ VX.eye=new THREE.SphereGeometry(0.05,14,10); VX.bseat=new RoundedBoxGeometry(0.28,0.07,0.42,2,0.03); VX.spar=new THREE.BoxGeometry(0.05,0.1,0.62);
+ VX.helmet=new THREE.SphereGeometry(0.16,22,16); VX.visor=new THREE.SphereGeometry(0.162,22,12,Math.PI/2-0.75,1.5,0.32*Math.PI,0.32*Math.PI);
+ VX.limb=new THREE.CapsuleGeometry(0.065,0.34,4,10); VX.torso=new THREE.CapsuleGeometry(0.17,0.3,4,12); VX.boot=new RoundedBoxGeometry(0.1,0.1,0.24,2,0.03);
+ VX.m={ black:new THREE.MeshStandardMaterial({color:0x151517,roughness:.6}), blackGloss:new THREE.MeshPhysicalMaterial({color:0x0e0e10,roughness:.25,clearcoat:1}),
+  canvas:new THREE.MeshStandardMaterial({color:0x1b1b1e,roughness:.9}), chrome:new THREE.MeshStandardMaterial({color:0xf2f2f2,metalness:1,roughness:.12}),
+  steel:new THREE.MeshStandardMaterial({color:0xb9bec5,metalness:.9,roughness:.28}), tire:new THREE.MeshStandardMaterial({color:0x121212,roughness:.9}),
+  glass:new THREE.MeshPhysicalMaterial({color:0x9fc6e8,roughness:.04,metalness:0,transparent:true,opacity:.3,side:THREE.DoubleSide}),
+  tint:new THREE.MeshPhysicalMaterial({color:0x223040,roughness:.05,transparent:true,opacity:.6,side:THREE.DoubleSide}),
+  light:new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xfff3d6,emissiveIntensity:4}), amber:new THREE.MeshStandardMaterial({color:0xffa000,emissive:0xff8a00,emissiveIntensity:1.4}),
+  red:new THREE.MeshStandardMaterial({color:0x550000,emissive:0xff1a1a,emissiveIntensity:2}), seat:new THREE.MeshStandardMaterial({color:0x2a1a14,roughness:.6}),
+  leather:new THREE.MeshPhysicalMaterial({color:0x121214,roughness:.45,clearcoat:.6}), white:new THREE.MeshStandardMaterial({color:0xeeeeee,roughness:.4}),
+  caliper:new THREE.MeshStandardMaterial({color:0xc8102e,roughness:.4,metalness:.3}) };
+}
+function vxPaint(hex){ return new THREE.MeshPhysicalMaterial({color:hex,roughness:.26,metalness:.2,clearcoat:1,clearcoatRoughness:.06}); }
+// returns {root,tilt,wheels,steer,flame,paint}
+function buildBajaj(hex,shirt,extra){ vxShared(); const m=VX.m, root=new THREE.Group(), tilt=new THREE.Group(); root.add(tilt); const paint=vxPaint(hex);
+ const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0,par=tilt,sx=1,sy=1,sz=1)=>{ const o=new THREE.Mesh(geo,mat); o.position.set(x,y,z); o.rotation.set(rx,ry,rz); o.scale.set(sx,sy,sz); o.castShadow=true; o.receiveShadow=true; par.add(o); return o; };
+ add(VX.tukBody,paint,0,0,0); add(VX.tukSkirt,m.black,0,0.4,-0.2);
+ add(VX.nose,paint,0,0.86,1.05); add(VX.dash,m.black,0,1.16,0.86);
+ add(VX.bezel,m.chrome,0,1.0,1.31); add(VX.lens,m.light,0,1.0,1.345);
+ add(VX.grille,m.black,0,0.72,1.3); for(let k=0;k<3;k++) add(VX.slat,m.chrome,0,0.66+k*0.06,1.325);
+ for(const sx of [-1,1]){ add(VX.ind,m.amber,sx*0.37,1.04,1.24); }
+ // windshield with a black frame and a wiper
+ add(VX.wind,m.glass,0,1.5,0.94,-0.12); add(VX.frameH,m.black,0,1.19,0.98); add(VX.frameH,m.black,0,1.8,0.9); for(const sx of [-1,1]) add(VX.frameV,m.black,sx*0.6,1.5,0.94,-0.12);
+ add(new THREE.BoxGeometry(0.5,0.015,0.015),m.black,-0.15,1.27,0.99,0,0,0.35);
+ // canopy on black tubes, rounded lip over the windshield
+ add(VX.roof,m.canvas,0,1.86,-0.24); add(VX.roofLip,m.canvas,0,1.83,1.0);
+ for(const [x,z] of [[0.64,-0.25],[-0.64,-0.25],[0.64,-1.26],[-0.64,-1.26]]) add(VX.tube,m.black,x,1.43,z,0,0,0,tilt,1,0.86,1);
+ add(VX.back,m.canvas,0,1.42,-1.3); add(VX.backWin,m.glass,0,1.52,-1.325,0,Math.PI);
+ for(const sx of [-1,1]){ add(VX.quarter,m.canvas,sx*0.65,1.42,-1.06); add(VX.tube,m.chrome,sx*0.67,1.24,-0.4,Math.PI/2,0,0,tilt,1,0.85,1);
+  add(new THREE.CylinderGeometry(0.008,0.008,0.22,6),m.black,sx*0.62,1.3,1.0,0,0,sx*0.7); add(VX.mirror,m.black,sx*0.72,1.38,1.0,0,0,0,tilt,0.6,1,0.4);
+  add(VX.tail,m.red,sx*0.5,0.8,-1.34); }
+ add(new THREE.BoxGeometry(1.3,0.04,1.9),m.chrome,0,0.72,-0.25,0,0,0,tilt,1.005,1,1);
+ // seats, handlebar and the driver
+ add(VX.seat,m.seat,0,0.86,0.2); add(VX.bench,m.seat,0,0.84,-0.8); add(VX.benchB,m.seat,0,1.12,-1.14); add(VX.bar,m.chrome,0,1.2,0.76);
+ const shirtM=new THREE.MeshStandardMaterial({color:shirt,roughness:.8}), skin=new THREE.MeshStandardMaterial({color:0x8d5a3b,roughness:.7});
+ add(VX.torso,shirtM,0,1.22,0.22); add(new THREE.SphereGeometry(0.12,16,12),skin,0,1.6,0.25); add(new THREE.SphereGeometry(0.125,16,8,0,Math.PI*2,0,Math.PI/2),VX.m.black,0,1.62,0.23);
+ for(const sx of [-1,1]) add(VX.limb,shirtM,sx*0.24,1.3,0.5,1.15,0,sx*-0.25,tilt,0.8,0.9,0.8);
+ if(extra) extra(add,paint);
+ // wheels: two at the back, one under the nose behind a black mudguard
+ const wheels=[]; const wheel=(par,x,y,z)=>{ const g=new THREE.Group(); g.position.set(x,y,z); par.add(g); add(VX.tire,m.tire,0,0,0,0,0,0,g); add(VX.rim,m.steel,0,0,0,0,0,0,g); wheels.push(g); return g; };
+ wheel(tilt,0.6,0.27,-0.82); wheel(tilt,-0.6,0.27,-0.82);
+ const steer=new THREE.Group(); steer.position.set(0,0,1.1); tilt.add(steer); wheel(steer,0,0.27,0); add(VX.mud,m.black,0,0.3,0,0,0,0,steer);
+ add(new THREE.CylinderGeometry(0.025,0.025,0.42,6),m.chrome,0.1,0.48,-0.04,0.2,0,0,steer); add(new THREE.CylinderGeometry(0.025,0.025,0.42,6),m.chrome,-0.1,0.48,-0.04,0.2,0,0,steer);
+ return {root,tilt,wheels,steer,paint}; }
+function buildSportBike(hex){ vxShared(); const m=VX.m, root=new THREE.Group(), tilt=new THREE.Group(); root.add(tilt); const paint=vxPaint(hex);
+ const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0,par=tilt,sx=1,sy=1,sz=1)=>{ const o=new THREE.Mesh(geo,mat); o.position.set(x,y,z); o.rotation.set(rx,ry,rz); o.scale.set(sx,sy,sz); o.castShadow=true; o.receiveShadow=true; par.add(o); return o; };
+ add(VX.fairing,paint,0,0,0); add(VX.stripe,m.blackGloss,0,0,0); add(VX.tank,paint,0,1.03,0.1,0.12); add(VX.tailP,paint,0,0,0); add(VX.belly,m.blackGloss,0,0,0);
+ add(VX.screen,m.tint,0,1.14,0.64,-1.0); for(const sx of [-1,1]) add(VX.eye,m.light,sx*0.07,0.86,0.83,0,0,0,tilt,1,0.6,0.7);
+ add(VX.bseat,m.black,0,1.0,-0.32,0.08); for(const sx of [-1,1]) add(VX.spar,m.steel,sx*0.17,0.82,0.05,0.3);
+ add(VX.engine,m.steel,0,0.58,0.02); add(VX.can,m.chrome,0.2,0.8,-0.68,-1.15); add(VX.canTip,m.black,0.2,1.0,-0.9,-1.15); add(VX.tail,m.red,0,1.08,-0.9);
+ // wheels with spokes, discs and red calipers
+ const wheels=[]; const wheel=(par,z)=>{ const g=new THREE.Group(); g.position.set(0,0.33,z); par.add(g); add(VX.btire,m.tire,0,0,0,0,0,0,g); add(VX.brim,m.black,0,0,0,0,0,0,g,1,1,1); add(VX.disc,m.steel,0.06,0,0,0,0,0,g); for(let k=0;k<5;k++) add(VX.spoke,m.steel,0,0,0,k*Math.PI/5,0,0,g); wheels.push(g); return g; };
+ wheel(tilt,-0.72); add(VX.caliper,m.caliper,0.08,0.43,-0.62);
+ const steer=new THREE.Group(); steer.position.set(0,0,0.74); tilt.add(steer); wheel(steer,0); add(VX.caliper,m.caliper,0.08,0.42,-0.1,0,0,0,steer);
+ for(const sx of [-1,1]){ add(VX.fork,m.steel,sx*0.08,0.68,-0.12,-0.38,0,0,steer); add(VX.clip,m.black,sx*0.22,1.04,-0.32,0,0,0,steer); }
+ add(new THREE.TorusGeometry(0.3,0.04,8,16,Math.PI*0.7).rotateY(Math.PI/2),paint,0,0.36,0.02,0,0,-0.4,steer);
+ // rider tucked in, black leathers and a full-face helmet in the bike's colour with a dark visor
+ const L=m.leather;
+ add(VX.torso,L,0,1.27,-0.12,0.95); add(VX.helmet,paint,0,1.5,0.17); add(VX.visor,m.blackGloss,0,1.5,0.17);
+ add(new THREE.TorusGeometry(0.162,0.012,8,24),m.white,0,1.5,0.17,0.15,Math.PI/2,0);
+ for(const sx of [-1,1]){ add(VX.limb,L,sx*0.2,1.21,0.22,2.28,0,0); add(VX.limb,L,sx*0.18,0.99,-0.11,1.9,0,0); add(VX.limb,L,sx*0.2,0.77,-0.07,-2.36,0,0); add(VX.boot,m.black,sx*0.2,0.6,-0.25); }
+ return {root,tilt,wheels,steer,paint}; }
+
 function makeTuk(hex,shirt){
- const m=TT.m, root=new THREE.Group(), tilt=new THREE.Group(); root.add(tilt);
- const paint=new THREE.MeshPhysicalMaterial({color:hex,roughness:.3,metalness:.15,clearcoat:1,clearcoatRoughness:.08});
- const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0,par=tilt)=>{ const o=new THREE.Mesh(geo,mat); o.position.set(x,y,z); o.rotation.set(rx,ry,rz); o.castShadow=true; o.receiveShadow=true; par.add(o); return o; };
- add(TT.body,paint,0,0,0);
- add(TT.stripe,m.gold,0,0.52,-0.3);
- add(TT.roof,m.canopy,0,1.88,-0.1); add(TT.rim,paint,0,1.8,-0.1);
- add(TT.fringe,m.fringe,0,0,0);
- add(TT.back,m.canopy,0,1.42,-1.27); add(TT.rwin,m.glass,0,1.52,-1.3,0,Math.PI);
- for(const sx of [-1,1]){ add(TT.sidePanel,m.canopy,sx*0.66,1.42,-0.97); add(TT.pillar,m.chrome,sx*0.6,1.45,0.95,-0.12); add(TT.pillar,m.chrome,sx*0.65,1.42,-0.42); add(TT.pillar,m.chrome,sx*0.65,1.42,-1.24);
-  add(TT.sig,m.sig,sx*0.42,1.02,1.27); add(TT.tail,m.tail,sx*0.48,0.8,-1.32); add(TT.arm,m.skin,sx*0.24,1.3,0.48,1.1,0,sx*-0.25); }
- add(TT.wind,m.glass,0,1.46,0.98,-0.1);
- add(TT.hlH,m.chrome,0,0.97,1.33); add(TT.hlL,m.light,0,0.97,1.385);
- add(TT.seat,m.seat,0,0.86,0.18); add(TT.bench,m.seat,0,0.84,-0.8); add(TT.benchB,m.seat,0,1.12,-1.13);
- add(TT.bar,m.chrome,0,1.2,0.78);
- add(TT.torso,new THREE.MeshStandardMaterial({color:shirt,roughness:.8}),0,1.2,0.2);
- add(TT.head,m.skin,0,1.58,0.22); add(TT.hair,m.hair,0,1.6,0.2);
- add(TT.plate,m.plate,0,0.55,-1.33,0,Math.PI);
- add(TT.pipe,m.chrome,0.42,0.3,-1.38);
- const flame=add(TT.flame,m.flame,0.42,0.3,-1.85); flame.visible=false; flame.castShadow=false;
- const wheels=[];
- const wheel=(par,x,y,z)=>{ const g=new THREE.Group(); g.position.set(x,y,z); par.add(g); add(TT.tire,m.tire,0,0,0,0,0,0,g); add(TT.hub,m.chrome,0,0,0,0,0,0,g); wheels.push(g); return g; };
- wheel(tilt,0.6,0.27,-0.8); wheel(tilt,-0.6,0.27,-0.8);
- const steer=new THREE.Group(); steer.position.set(0,0,1.08); tilt.add(steer); wheel(steer,0,0.27,0);
- add(TT.fork,m.chrome,0.1,0.46,-0.04,0.2,0,0,steer); add(TT.fork,m.chrome,-0.1,0.46,-0.04,0.2,0,0,steer);
- const sh=new THREE.Mesh(TT.shadow,m.shadow); sh.position.y=0.04; root.add(sh);
- scene.add(root);
- return {root,tilt,wheels,steer,flame,paint};
+ const v=buildBajaj(hex,shirt,add=>{ add(TT.fringe,TT.m.fringe,0,0.06,-0.2); add(TT.plate,TT.m.plate,0,0.56,-1.345,0,Math.PI); add(TT.pipe,VX.m.chrome,0.42,0.3,-1.38); });
+ const flame=new THREE.Mesh(TT.flame,TT.m.flame); flame.position.set(0.42,0.3,-1.85); flame.visible=false; v.tilt.add(flame);
+ const sh=new THREE.Mesh(TT.shadow,TT.m.shadow); sh.position.y=0.04; v.root.add(sh);
+ scene.add(v.root); return {...v,flame};
 }
 // a motorcycle (or a delivery scooter with a box) with its rider; same shape as makeTuk's result
 function makeMoto(hex,shirt,deliv,toScene=true){
+ if(!deliv){ const v=buildSportBike(hex); const flame=new THREE.Mesh(TT.flame,TT.m.flame); flame.position.set(0.2,0.98,-1.0); flame.visible=false; v.tilt.add(flame);
+  const sh=new THREE.Mesh(TT.shadow,TT.m.shadow); sh.scale.set(0.45,1,0.75); sh.position.y=0.04; v.root.add(sh); if(toScene) scene.add(v.root); return {...v,flame,bike:true}; }
  const m=TT.m, root=new THREE.Group(), tilt=new THREE.Group(); root.add(tilt);
  const paint=new THREE.MeshPhysicalMaterial({color:hex,roughness:.28,metalness:.25,clearcoat:1,clearcoatRoughness:.06});
  const black=m.canopy, metal=new THREE.MeshStandardMaterial({color:0x6c7076,metalness:.8,roughness:.35}), pants=new THREE.MeshStandardMaterial({color:0x22252e,roughness:.85}), shirtM=new THREE.MeshStandardMaterial({color:shirt,roughness:.8});
