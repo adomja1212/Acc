@@ -1,6 +1,8 @@
 {
   "appId": "eg.tuktuk.rally",
-  "appName": "توكتوك رالي",
+  "appName": "ألعاب جماعية",
   "webDir": "www",
-  "android": { "backgroundColor": "#22090f" }
+  "android": {
+    "backgroundColor": "#22090f"
+  }
 }

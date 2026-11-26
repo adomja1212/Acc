@@ -4,7 +4,8 @@ on:
   push:
     branches: [ccr-7b1fff8c-9wqli9, main]
     paths:
-      - index.html
+      - '*.html'
+      - net.js
       - android-res/**
       - tools/**
       - package.json
@@ -37,7 +38,7 @@ jobs:
         run: |
           node tools/build-www.mjs
           # stamp the build number so the app can tell when a newer release exists
-          sed -i "s/const APP_BUILD=0;/const APP_BUILD=${{ github.run_number }};/" www/index.html
+          sed -i "s/const APP_BUILD=0;/const APP_BUILD=${{ github.run_number }};/" www/*.html
           grep -q "const APP_BUILD=${{ github.run_number }};" www/index.html
 
       - name: Create the Android project
@@ -104,7 +105,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_number }}
-          name: توكتوك رالي للأندرويد (نسخة ${{ github.run_number }})
+          name: ألعاب جماعية للأندرويد (نسخة ${{ github.run_number }})
           target_commitish: ${{ github.sha }}
           make_latest: true
           files: tuktuk-rally.apk

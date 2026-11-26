@@ -33,15 +33,21 @@ for (const [pkg, weights] of [['@fontsource/lalezar', ['400']], ['@fontsource/ca
 css = css.replace(/,\s*url\([^)]*\.woff\)\s*format\(['"]woff['"]\)/g, '');
 fs.writeFileSync(path.join(fontDir, 'fonts.css'), css);
 
-let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const swap = (from, to) => {
-  if (!html.includes(from)) throw new Error('index.html is missing: ' + from);
-  html = html.split(from).join(to);
-};
-swap('<link rel="preconnect" href="https://fonts.googleapis.com">\n', '');
-swap('https://fonts.googleapis.com/css2?family=Lalezar&family=Cairo:wght@400;600;800&display=swap', 'fonts/fonts.css');
-swap('https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js', './lib/three/build/three.module.js');
-swap('https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/', './lib/three/examples/jsm/');
-swap('https://cdn.jsdelivr.net/npm/trystero@0.26.0/+esm', './lib/trystero.js');
-fs.writeFileSync(path.join(out, 'index.html'), html);
-console.log('www/ ready');
+// every page plus the shared net.js get local copies of the libraries and fonts
+const SWAPS = [
+  ['<link rel="preconnect" href="https://fonts.googleapis.com">\n', ''],
+  ['https://fonts.googleapis.com/css2?family=Lalezar&family=Cairo:wght@400;600;800&display=swap', 'fonts/fonts.css'],
+  ['https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js', './lib/three/build/three.module.js'],
+  ['https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/', './lib/three/examples/jsm/'],
+  ['https://cdn.jsdelivr.net/npm/trystero@0.26.0/+esm', './lib/trystero.js'],
+];
+const pages = fs.readdirSync(root).filter((f) => f.endsWith('.html')).concat(['net.js']);
+for (const name of pages) {
+  let text = fs.readFileSync(path.join(root, name), 'utf8');
+  for (const [from, to] of SWAPS) text = text.split(from).join(to);
+  const left = text.match(/https:\/\/(cdn\.jsdelivr\.net|fonts\.googleapis\.com)[^'"\s)]*/);
+  if (left) throw new Error(name + ' still loads ' + left[0]);
+  fs.writeFileSync(path.join(out, name), text);
+}
+if (!fs.existsSync(path.join(out, 'index.html'))) throw new Error('index.html missing');
+console.log('www/ ready:', pages.join(', '));
