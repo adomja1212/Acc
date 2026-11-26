@@ -29,7 +29,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-          cache: gradle
 
       - name: Install packages
         run: npm install --no-audit --no-fund
