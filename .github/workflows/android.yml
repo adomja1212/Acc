@@ -29,6 +29,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
       - name: Install packages
         run: npm install --no-audit --no-fund
@@ -50,11 +51,31 @@ jobs:
           done
           cp android-res/MainActivity.java android/app/src/main/java/eg/tuktuk/rally/MainActivity.java
 
+      - name: Use Google's Maven Central mirror first (Maven Central rate-limits CI)
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/mirror.gradle <<'GRADLE'
+          def mirror = { repos ->
+            repos.maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
+          }
+          settingsEvaluated { s ->
+            s.pluginManagement.repositories { mirror(delegate) }
+          }
+          allprojects {
+            buildscript { repositories { mirror(delegate) } }
+            repositories { mirror(delegate) }
+          }
+          GRADLE
+
       - name: Build the APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          for i in 1 2 3; do
+            ./gradlew assembleDebug --no-daemon && break
+            if [ $i = 3 ]; then exit 1; fi
+            echo "Build failed, retrying in 60s ($i/3)"; sleep 60
+          done
           cp app/build/outputs/apk/debug/app-debug.apk ../tuktuk-rally.apk
 
       - uses: actions/upload-artifact@v4
