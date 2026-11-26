@@ -48,15 +48,13 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tsub{margin:6px 0 0;font-size:13.5px;color:#ffe3b0;opacity:.9}
 .seg#tracks button{font-size:14px;padding:8px 4px}
 .go.online{font-size:22px;margin-top:10px;padding:8px 0 6px}
-#net input{width:100%;font:600 16px Cairo,sans-serif;padding:9px 12px;border-radius:10px;border:2px solid rgba(255,183,3,.5);background:rgba(255,255,255,.08);color:var(--ink)}
+#net input,.tin{width:100%;font:600 16px Cairo,sans-serif;padding:9px 12px;border-radius:10px;border:2px solid rgba(255,183,3,.5);background:rgba(255,255,255,.08);color:var(--ink)}
 .nlist{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto}
 .nlist li{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);border-radius:10px;padding:8px 12px;margin-bottom:6px}
 .nlist li span{flex:1}
 .nlist li i{width:12px;height:12px;border-radius:50%;flex:none}
 .nlist li button{border:0;border-radius:9px;background:var(--sf);color:#2a0f00;font-weight:800;padding:6px 14px;min-height:36px}
 .nlist .empty{opacity:.7;background:none;padding-inline:0}
-.th{right:calc(max(16px,env(safe-area-inset-right,0px)) + 178px);bottom:calc(24px + env(safe-area-inset-bottom,0px));width:56px;height:56px;font-size:15px!important;border-color:var(--sf)!important}
-.tb{line-height:1.05;font-size:15px!important}
 .keys{margin:14px 0 0;font-size:13.5px;opacity:.8;line-height:1.7}
 kbd{font:600 12.5px Cairo,sans-serif;background:rgba(255,255,255,.12);border-radius:5px;padding:0 6px;border-bottom:2px solid rgba(255,255,255,.2)}
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
@@ -84,15 +82,18 @@ kbd{font:600 12.5px Cairo,sans-serif;background:rgba(255,255,255,.12);border-rad
 #msg{position:absolute;top:34%;left:0;right:0;text-align:center;font-family:Lalezar,Cairo;font-size:clamp(60px,14vw,140px);line-height:1;color:var(--sf);text-shadow:4px 4px 0 var(--red),0 0 30px rgba(0,0,0,.4);transition:opacity .25s,transform .25s}
 #msg.small{font-size:clamp(30px,6vw,52px)}
 #msg.hide{opacity:0;transform:scale(.8)}
-#touch{position:fixed;inset:auto 0 0 0;height:190px;z-index:12;display:none;pointer-events:none}
+#touch{position:fixed;inset:auto 0 0 0;height:290px;z-index:12;display:none;pointer-events:none}
 #touch button{position:absolute;pointer-events:auto;border:0;border-radius:50%;background:rgba(34,9,15,.55);border:2px solid rgba(255,255,255,.35);font-family:Lalezar,Cairo;font-size:28px;touch-action:none;color:#fff}
 #touch button.on{background:rgba(255,183,3,.8);color:#2a0f00}
 .tl{left:max(16px,env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));width:78px;height:78px}
 .tr{left:calc(max(16px,env(safe-area-inset-left,0px)) + 92px);bottom:calc(24px + env(safe-area-inset-bottom,0px));width:78px;height:78px}
 .tg{right:max(16px,env(safe-area-inset-right,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));width:92px;height:92px;background:rgba(31,122,58,.7)!important}
-.tb{right:calc(max(16px,env(safe-area-inset-right,0px)) + 104px);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:62px;height:62px;font-size:20px!important}
-.tn{right:max(22px,env(safe-area-inset-right,0px));bottom:calc(128px + env(safe-area-inset-bottom,0px));width:62px;height:62px;font-size:18px!important;border-color:var(--tq)!important}
-.td{right:calc(max(16px,env(safe-area-inset-right,0px)) + 104px);bottom:calc(96px + env(safe-area-inset-bottom,0px));width:56px;height:56px;font-size:16px!important}
+.tb{right:calc(max(16px,env(safe-area-inset-right,0px)) + 104px);bottom:calc(20px + env(safe-area-inset-bottom,0px));width:64px;height:64px;font-size:17px!important;background:rgba(160,30,40,.6)!important}
+.tv{right:calc(max(16px,env(safe-area-inset-right,0px)) + 108px);bottom:calc(98px + env(safe-area-inset-bottom,0px));width:56px;height:56px;font-size:16px!important}
+.tn{right:calc(max(16px,env(safe-area-inset-right,0px)) + 10px);bottom:calc(128px + env(safe-area-inset-bottom,0px));width:66px;height:66px;font-size:18px!important;border-color:var(--tq)!important}
+.td{right:calc(max(16px,env(safe-area-inset-right,0px)) + 108px);bottom:calc(166px + env(safe-area-inset-bottom,0px));width:56px;height:56px;font-size:15px!important}
+.th{right:calc(max(16px,env(safe-area-inset-right,0px)) + 14px);bottom:calc(208px + env(safe-area-inset-bottom,0px));width:60px;height:60px;font-size:16px!important;border-color:var(--sf)!important;background:rgba(255,183,3,.35)!important}
+body.tilt .tl,body.tilt .tr{display:none}
 #unit.rev{color:#7ff7ee;font-size:15px}
 #tools{position:fixed;z-index:15;bottom:calc(14px + env(safe-area-inset-bottom,0px));right:max(14px,env(safe-area-inset-right,0px));display:flex;gap:6px}
 #tools button{width:44px;height:44px;border-radius:12px;border:2px solid rgba(255,183,3,.5);background:rgba(34,9,15,.7);font-size:15px;font-weight:800}
@@ -126,7 +127,9 @@ td i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-inline
  #speedo{transform:translateX(-50%) scale(.78);transform-origin:bottom center}
  #tools{bottom:auto;top:calc(76px + env(safe-area-inset-top,0px))}
 }
-body.touch #speedo{bottom:calc(4px + env(safe-area-inset-bottom,0px))}
+body.touch #speedo{left:max(10px,env(safe-area-inset-left,0px));bottom:calc(108px + env(safe-area-inset-bottom,0px));transform:scale(.62);transform-origin:bottom left}
+body.touch.tilt #speedo{bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+@media (max-height:520px){ body.touch #board{display:none} }
 body.touch #touch{display:block}
 </style>
 </head>
@@ -141,13 +144,15 @@ body.touch #touch{display:block}
   <div class="in">
    <h1 class="disp">توكتوك رالي</h1>
    <p class="sub">سباق ٦ تكاتك في شوارع المحروسة وقت المغرب. الأهرامات وراك، والخط قدامك.</p>
+   <div class="row"><label for="pname">اسم السوّاق</label><input id="pname" class="tin" maxlength="14" autocomplete="off" placeholder="اكتب اسمك"></div>
+   <div class="row" id="steerRow" hidden><label>السواقة على الموبايل</label><div class="seg" id="steer"><button data-v="btn" aria-pressed="true">بالأزرار</button><button data-v="tilt">بإمالة الموبايل</button></div><p class="tsub" id="steerMsg"></p></div>
    <div class="row"><label>لون التوكتوك</label><div class="sw" id="colors"></div></div>
    <div class="row"><label>الحلبة</label><div class="seg" id="tracks"></div><p class="tsub" id="tsub"></p></div>
    <div class="row"><label>عدد اللفّات</label><div class="seg" id="laps"><button data-v="1">لفة</button><button data-v="3" aria-pressed="true">٣ لفّات</button><button data-v="5">٥ لفّات</button></div></div>
    <div class="row"><label>جودة الجرافيك</label><div class="seg" id="qual"><button data-v="high">عالية</button><button data-v="med">متوسطة</button><button data-v="low">خفيفة</button></div></div>
    <button class="go" id="start">يلّا بينا!</button>
    <button class="go alt online" id="online">العب أونلاين مع صحابك</button>
-   <p class="keys"><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> أو <kbd>W A S D</kbd> للسواقة · <kbd>↓</kbd> وانت واقف = رجوع لورا · <kbd>مسافة</kbd> دريفت · <kbd>Shift</kbd> نيترو · <kbd>H</kbd> كلاكس · <kbd>C</kbd> الكاميرا · <kbd>R</kbd> رجوع للطريق · <kbd>P</kbd> وقفة</p>
+   <p class="keys"><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> أو <kbd>W A S D</kbd> للسواقة · <kbd>↓</kbd> فرامل · <kbd>X</kbd> رجوع لورا · <kbd>مسافة</kbd> دريفت · <kbd>Shift</kbd> نيترو · <kbd>H</kbd> كلاكس · <kbd>C</kbd> الكاميرا · <kbd>R</kbd> رجوع للطريق · <kbd>P</kbd> وقفة</p>
   </div>
  </div>
 </div>
@@ -172,10 +177,9 @@ body.touch #touch{display:block}
 </div>
 
 <div id="touch">
- <button class="tl" data-k="left">◀</button><button class="tr" data-k="right">▶</button>
- <button class="tg" data-k="gas">بنزين</button><button class="tb" data-k="brake">فرامل<br>ورجوع</button>
- <button class="th" data-k="horn">كلاكس</button>
- <button class="tn" data-k="nitro">نيترو</button><button class="td" data-k="drift">دريفت</button>
+ <button class="tl" data-k="left" aria-label="شمال">◀</button><button class="tr" data-k="right" aria-label="يمين">▶</button>
+ <button class="tg" data-k="gas">بنزين</button><button class="tb" data-k="brake">فرامل</button><button class="tv" data-k="rev">رجوع</button>
+ <button class="tn" data-k="nitro">نيترو</button><button class="td" data-k="drift">دريفت</button><button class="th" data-k="horn">كلاكس</button>
 </div>
 <div id="tools" hidden><button id="bSnd" aria-label="الصوت">🔊</button><button id="bCam" aria-label="الكاميرا">📷</button><button id="bHorn" aria-label="كلاكس">📯</button><button id="bPause" aria-label="وقفة">❚❚</button></div>
 
@@ -816,7 +820,7 @@ function netStatus(t){ NET.status=t; renderNet(); }
 async function netInit(){
  try{ NET.name=localStorage.getItem('tuk-name')||''; }catch(e){}
  if(!NET.name) NET.name='سوّاق '+AD(Math.floor(Math.random()*90+10));
- $('netName').value=NET.name;
+ $('netName').value=NET.name; $('pname').value=NET.name;
  let room=null; try{ room=window.claude&&window.claude.use?await window.claude.use('room'):null; }catch(e){ room=null; }
  if(!room){ netStatus('off'); return; }
  NET.lobby=room; room.onPeers(()=>renderNet(),()=>netStatus('off')); room.onConnection(c=>netStatus(c?'ready':'connecting'),()=>netStatus('off'));
@@ -889,7 +893,7 @@ function buildRacers(){
  list.forEach((e,k)=>{
   const isP=!!(e.h&&e.h.me); const ci=e.h?hcols[e.j]:aiCols[e.ai];
   const tuk=makeTuk(new THREE.Color(COLORS[ci][0]),SHIRTS[k]);
-  const name=isP?'إنت':e.h?String(e.h.n||'لاعب').slice(0,14):AINAMES[e.ai];
+  const name=isP?(NET.name||'إنت'):e.h?String(e.h.n||'لاعب').slice(0,14):AINAMES[e.ai];
   const r={name,col:COLORS[ci][0],tuk,isP,ghost:!!online&&!isP&&(!!e.h||!NET.host),peer:e.h&&!isP?e.h.peer:null,aiK:e.h?undefined:e.ai,
    x:0,z:0,h:0,vx:0,vz:0,vf:0,vl:0,idx:0,lap:0,finished:false,ft:Infinity,nitro:0.4,boosting:false,stun:0,spin:0,imm:0,
    roll:0,pitch:0,wr:0,yaw:0,lat:0,surface:0,drifting:false,steerV:0,emitT:0,lastVf:0,
@@ -908,14 +912,14 @@ function resetGrid(){
 
 // ================= input =================
 const K={};
-const IN={gas:0,brake:0,left:0,right:0,drift:0,nitro:0};
+const IN={gas:0,brake:0,rev:0,left:0,right:0,drift:0,nitro:0};
 addEventListener('keydown',e=>{ if(e.repeat||e.target.tagName==='INPUT') return; K[e.code]=1; if(e.code==='KeyH') horn(); if(e.code==='KeyC') camMode=(camMode+1)%3; if(e.code==='KeyM') toggleSound(); if(e.code==='KeyP'||e.code==='Escape') togglePause(); if(e.code==='KeyR') rescue(player); if(['ArrowUp','ArrowDown','Space','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 addEventListener('keyup',e=>{ K[e.code]=0; });
 addEventListener('blur',()=>{ for(const k in K) K[k]=0; });
 const TB={};
 document.querySelectorAll('#touch button').forEach(b=>{ const k=b.dataset.k; const on=e=>{ e.preventDefault(); TB[k]=1; b.classList.add('on'); if(k==='horn') horn(); }; const off=e=>{ e.preventDefault(); TB[k]=0; b.classList.remove('on'); };
  b.addEventListener('pointerdown',on); b.addEventListener('pointerup',off); b.addEventListener('pointercancel',off); b.addEventListener('pointerleave',off); });
-function readInput(){ IN.gas=K.ArrowUp||K.KeyW||TB.gas?1:0; IN.brake=K.ArrowDown||K.KeyS||TB.brake?1:0; IN.left=K.ArrowLeft||K.KeyA||TB.left?1:0; IN.right=K.ArrowRight||K.KeyD||TB.right?1:0; IN.drift=K.Space||TB.drift?1:0; IN.nitro=K.ShiftLeft||K.ShiftRight||K.KeyN||TB.nitro?1:0; }
+function readInput(){ IN.gas=K.ArrowUp||K.KeyW||TB.gas?1:0; IN.brake=K.ArrowDown||K.KeyS||TB.brake?1:0; IN.rev=K.KeyX||TB.rev?1:0; IN.left=K.ArrowLeft||K.KeyA||TB.left?1:0; IN.right=K.ArrowRight||K.KeyD||TB.right?1:0; IN.drift=K.Space||TB.drift?1:0; IN.nitro=K.ShiftLeft||K.ShiftRight||K.KeyN||TB.nitro?1:0; }
 
 // ================= audio =================
 const AU={on:true};
@@ -951,8 +955,9 @@ function step(r,inp,dt){
  r.boosting=!!inp.nitro && r.nitro>0.02 && inp.gas;
  if(r.boosting){ top*=1.34; r.nitro=Math.max(0,r.nitro-0.3*dt); }
  if(inp.gas){ if(vf<top) vf+=ACC*(1-0.6*Math.max(0,vf)/top)*(r.boosting?1.9:1)*dt; else vf-=5*dt; }
- else if(!inp.brake) vf-=Math.sign(vf)*Math.min(Math.abs(vf),(2.5+Math.abs(vf)*0.06)*dt);
- if(inp.brake){ if(vf>0.5) vf-=26*dt; else vf=Math.max(-10,vf-12*dt); }
+ else if(!inp.brake&&!inp.rev) vf-=Math.sign(vf)*Math.min(Math.abs(vf),(2.5+Math.abs(vf)*0.06)*dt);
+ if(inp.brake){ vf-=Math.sign(vf)*Math.min(Math.abs(vf),26*dt); }
+ else if(inp.rev){ if(vf>0.5) vf-=26*dt; else vf=Math.max(-10,vf-12*dt); }
  const spd=Math.abs(vf);
  const drifting=!!inp.drift && spd>9 && Math.abs(inp.steer)>0.2;
  const yaw=inp.steer*2.25*Math.min(1,spd/6)/(1+spd/60)*(drifting?1.5:1)*(vf<0?-1:1);
@@ -1140,13 +1145,29 @@ function setupUI(){
  $('bHorn').onclick=()=>horn();
  $('online').onclick=()=>{ $('net').hidden=false; renderNet(); };
  $('netBack').onclick=()=>{ $('net').hidden=true; };
- $('netName').oninput=e=>{ NET.name=e.target.value.trim().slice(0,14)||'سوّاق'; try{ localStorage.setItem('tuk-name',NET.name); }catch(er){} };
+ const setName=v=>{ NET.name=String(v).trim().slice(0,14)||'سوّاق'; try{ localStorage.setItem('tuk-name',NET.name); }catch(er){} if(player&&state==='menu') player.name=NET.name; };
+ $('netName').oninput=e=>{ setName(e.target.value); $('pname').value=e.target.value; };
+ $('pname').oninput=e=>{ setName(e.target.value); $('netName').value=e.target.value; };
+ try{ NET.name=localStorage.getItem('tuk-name')||''; }catch(er){} $('pname').value=NET.name;
+ if(isTouch) $('steerRow').hidden=false;
+ $('steer').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; if(b.dataset.v==='tilt') enableTilt(); else setSteer('btn'); };
  $('netNew').onclick=()=>{ initAudio(); netJoin('tuk-'+Math.random().toString(36).slice(2,8),true); };
  $('netList').onclick=e=>{ const b=e.target.closest('button[data-code]'); if(b){ initAudio(); netJoin(b.dataset.code,false); } };
  $('netGo').onclick=()=>{ initAudio(); netHostStart(); };
  $('netLeave').onclick=()=>netLeave();
  $('bSnd').onclick=toggleSound; $('bSnd').textContent=AU.on?'🔊':'🔇'; $('bCam').onclick=()=>camMode=(camMode+1)%3; $('bPause').onclick=togglePause;
 }
+
+// ================= tilt steering =================
+let steerMode='btn'; const tilt={ok:false,raw:0,off:0};
+function onOrient(e){ if(e.beta==null||e.gamma==null) return; const a=(screen.orientation&&typeof screen.orientation.angle==='number')?screen.orientation.angle:(window.orientation||0);
+ tilt.raw=a===90?e.beta:(a===-90||a===270)?-e.beta:a===180?-e.gamma:e.gamma; tilt.ok=true; }
+function setSteer(m,msg=''){ steerMode=m; document.body.classList.toggle('tilt',m==='tilt'); document.querySelectorAll('#steer button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===m)); $('steerMsg').textContent=msg; try{ localStorage.setItem('tuk-steer',m); }catch(e){} }
+async function enableTilt(){
+ addEventListener('deviceorientation',onOrient);
+ setSteer('tilt','لف الموبايل زي الدركسيون يمين وشمال. بيتظبط على وضعك وقت «انطلق».');
+ setTimeout(()=>{ if(!tilt.ok) setSteer('btn',denied?'الموبايل مسمحش بقراءة الإمالة، فرجعنا للأزرار.':'الصفحة هنا مش بتوصلها حركة الموبايل. افتح اللعبة من رابط مباشر وجرّب تاني.'); },2500);
+ let denied=false; try{ if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){ const r=await DeviceOrientationEvent.requestPermission(); denied=r!=='granted'; } }catch(e){ denied=true; } }
 
 // ================= tracks =================
 let trackIdx=0, loadingTrack=false;
@@ -1164,11 +1185,13 @@ function update(dt){
  clock+=dt; readInput(); hornT=Math.max(0,hornT-dt); hornCd=Math.max(0,hornCd-dt);
  netTick(dt);
  if(waterTex){ waterTex.offset.x+=dt*0.012; waterTex.offset.y+=dt*0.007; }
- const pin={gas:IN.gas,brake:IN.brake,drift:IN.drift,nitro:IN.nitro,steer:0};
- player.steerIn=player.steerIn||0; const tgt=IN.right-IN.left; player.steerIn+=clamp(tgt-player.steerIn,-dt*7,dt*7); pin.steer=player.steerIn;
+ const pin={gas:IN.gas,brake:IN.brake,rev:IN.rev,drift:IN.drift,nitro:IN.nitro,steer:0};
+ player.steerIn=player.steerIn||0; let tgt=IN.right-IN.left;
+ if(steerMode==='tilt'&&tilt.ok&&!tgt){ let v=(tilt.raw-tilt.off)/22; v=Math.abs(v)<0.06?0:v; tgt=clamp(v,-1,1); player.steerIn+=(tgt-player.steerIn)*Math.min(1,dt*12); }
+ else player.steerIn+=clamp(tgt-player.steerIn,-dt*7,dt*7); pin.steer=player.steerIn;
  if(state==='count'){ const before=Math.ceil(countT); countT-=dt; const n=Math.ceil(countT);
   if(n!==countShown){ countShown=n; if(n>0){ flash(AD(n),1); beep(440,0.18);} }
-  if(countT<=0){ state='race'; if(NET.host) NET.phase='race'; flash('انطلق!',1.1); beep(880,0.45,'square',0.2); }
+  if(countT<=0){ if(tilt.ok) tilt.off=clamp(tilt.raw||0,-15,15); state='race'; if(NET.host) NET.phase='race'; flash('انطلق!',1.1); beep(880,0.45,'square',0.2); }
   updTraffic(dt);
   racers.forEach(r=>visual(r,null,dt));
   r_idle(dt);
