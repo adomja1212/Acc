@@ -8,13 +8,16 @@
     "build:www": "node tools/build-www.mjs"
   },
   "devDependencies": {
-    "@capacitor/android": "6.2.4",
     "@capacitor/cli": "6.2.4",
-    "@capacitor/core": "6.2.4",
     "@fontsource/cairo": "5.3.0",
     "@fontsource/lalezar": "5.3.0",
     "esbuild": "0.25.0",
     "three": "0.165.0",
     "trystero": "0.26.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.4",
+    "@capacitor/app": "6.0.2",
+    "@capacitor/core": "6.2.4"
   }
 }
