@@ -193,6 +193,7 @@ body.touch #touch{display:block}
  </div>
  <div id="netRoom" hidden>
   <p id="netInfo"></p><ul class="nlist" id="netPlayers"></ul>
+  <button class="go alt online" id="netInvite" hidden>انسخ رابط الدعوة وابعته لصحابك</button><p class="tsub" id="netInvMsg"></p>
   <div class="btns"><button class="go" id="netGo">ابدأ السباق</button><button class="go alt" id="netLeave">اخرج</button></div>
  </div>
  <div class="btns" id="netBackRow"><button class="go alt" id="netBack">رجوع</button></div>
@@ -770,7 +771,7 @@ function laneFree(t,l){ for(const o of traffic){ if(o===t) continue; let ds=o.s-
 function updTraffic(dt){
  const netGuest=NET.inRace&&!NET.host;
  for(const t of traffic){
-  if(netGuest&&t.net){ const age=Math.min(0.4,(performance.now()-t.net.t)/1000); let ts=(t.net.s+t.net.v*age)%LEN; let d=ts-t.s; if(d<-LEN/2) d+=LEN; if(d>LEN/2) d-=LEN;
+  if(netGuest&&t.net){ const age=clamp((Date.now()-t.net.t)/1000,0,0.4); let ts=(t.net.s+t.net.v*age)%LEN; let d=ts-t.s; if(d<-LEN/2) d+=LEN; if(d>LEN/2) d-=LEN;
    t.s=Math.abs(d)>20?ts:(t.s+d*Math.min(1,dt*10)+LEN)%LEN; t.lane+=(t.net.lane-t.lane)*Math.min(1,dt*8); t.v=t.net.v; }
   else if(dt>0){
    let gap=1e9, gv=0;
@@ -805,12 +806,12 @@ function collideTraffic(){ for(const r of racers){ if(r.ghost) continue; for(con
    if(r.isP&&-rv>3){ beep(70,0.18,'sawtooth',0.3); shake=Math.min(1,shake+(-rv)/12); if(t.honk<=0){ carHorn(); t.honk=3; } } } } } }
 
 // ================= online (room capability) =================
-const NET={lobby:null,room:null,code:null,host:false,on:false,inRace:false,seats:null,seatPeers:null,phase:'wait',rid:null,hornN:0,hitN:0,hit:null,seen:{},name:'',sendT:0,status:'connecting'};
+const NET={mode:'',lobby:null,room:null,code:null,host:false,on:false,inRace:false,seats:null,seatPeers:null,phase:'wait',rid:null,hornN:0,hitN:0,hit:null,seen:{},name:'',sendT:0,status:'connecting'};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const R2=v=>Math.round(v*100)/100;
 function packR(r){ return [R2(r.x),R2(r.z),R2(r.h),R2(r.vx),R2(r.vz),R2(r.vf),R2(r.yaw||0),r.lap,r.idx,r.finished?1:0,isFinite(r.ft)?R2(r.ft):-1,r.boosting?1:0,r.stun>0?1:0]; }
 function unpack(r,a,t){ if(Array.isArray(a)&&a.length>=13&&a.every(v=>typeof v==='number'&&isFinite(v))) r.net={x:a[0],z:a[1],h:a[2],vx:a[3],vz:a[4],vf:a[5],yaw:a[6],lap:a[7]|0,idx:((a[8]|0)%N+N)%N,fin:a[9],ft:a[10],b:a[11],st:a[12],t}; }
-function ghostUpd(r,dt){ const n=r.net; if(!n) return; const age=Math.min(0.35,(performance.now()-n.t)/1000); const tx=n.x+n.vx*age, tz=n.z+n.vz*age; const k=Math.min(1,dt*12);
+function ghostUpd(r,dt){ const n=r.net; if(!n) return; const age=clamp((Date.now()-n.t)/1000,0,0.35); const tx=n.x+n.vx*age, tz=n.z+n.vz*age; const k=Math.min(1,dt*12);
  if(Math.hypot(tx-r.x,tz-r.z)>25){ r.x=tx; r.z=tz; r.h=n.h; } else { r.x+=(tx-r.x)*k; r.z+=(tz-r.z)*k; r.h+=wrapA(n.h-r.h)*k; }
  r.vx=n.vx; r.vz=n.vz; r.vf=n.vf; r.yaw=n.yaw; r.vl=0; r.lap=n.lap; r.idx=n.idx; r.finished=!!n.fin; r.ft=n.ft<0?Infinity:n.ft; r.boosting=!!n.b; r.stun=n.st?1:0;
  const p=PTS[r.idx], s=SIDE[r.idx]; r.lat=(r.x-p.x)*s.x+(r.z-p.z)*s.z; r.surface=Math.abs(r.lat)>HW-0.4?1:0; }
@@ -822,7 +823,11 @@ async function netInit(){
  if(!NET.name) NET.name='سوّاق '+AD(Math.floor(Math.random()*90+10));
  $('netName').value=NET.name; $('pname').value=NET.name;
  let room=null; try{ room=window.claude&&window.claude.use?await window.claude.use('room'):null; }catch(e){ room=null; }
+ if(room) NET.mode='claude'; else { room=await p2pRoom(); NET.mode='p2p'; }
  if(!room){ netStatus('off'); return; }
+ NET.lobby=room; netStatus('ready');
+ const inv=new URLSearchParams(location.search).get('race');
+ if(inv&&/^tuk-[a-z0-9]{4,10}$/.test(inv)){ $('net').hidden=false; renderNet(); netJoin(inv,false); }
  NET.lobby=room; room.onPeers(()=>renderNet(),()=>netStatus('off')); room.onConnection(c=>netStatus(c?'ready':'connecting'),()=>netStatus('off'));
 }
 function lobbyOpen(on){ if(!NET.lobby) return; NET.lobby.presence({open:on?{code:NET.code,n:NET.name,tr:trackIdx,lp:LAPS,t:Date.now()}:null}).catch(()=>{}); }
@@ -837,7 +842,7 @@ function roomPlayers(){ const R=NET.room; if(!R) return []; return R.peers().fil
 function renderNet(){
  const ov=$('net'); if(ov.hidden) return;
  const st=NET.status;
- const msg=st==='off'?'اللعب أونلاين بيشتغل لما تفتح اللعبة من رابطها على claude.ai وانت مسجّل دخول. صحابك لازم يكون معاهم الرابط ومتشارك معاهم.':st==='connecting'?'بنوصل بالسيرفر…':NET.room?'':'اعمل سباق وصحابك اللي فاتحين الرابط هيلاقوه هنا، أو ادخل سباق مفتوح.';
+ const msg=st==='off'?'مقدرناش نوصل للنت. اتأكد إنك متصل وافتح اللعبة من رابطها العام.':st==='connecting'?'بنوصل بالسيرفر…':NET.room?'':'اعمل سباق وصحابك اللي فاتحين الرابط هيلاقوه هنا، أو ادخل سباق مفتوح.';
  $('netStat').textContent=msg; $('netStat').hidden=!msg;
  $('netHome').hidden=!!NET.room||st==='off'; $('netRoom').hidden=!NET.room; $('netBackRow').hidden=!!NET.room;
  if(!NET.room&&NET.lobby){ const open=NET.lobby.peers().filter(p=>!p.sameTab&&p.presence&&p.presence.open&&typeof p.presence.open.code==='string'&&/^tuk-[a-z0-9]{4,10}$/.test(p.presence.open.code));
@@ -846,7 +851,7 @@ function renderNet(){
   const tr=NET.host?trackIdx:(hp?hp.presence.tr|0:trackIdx), lp=NET.host?LAPS:(hp?hp.presence.lp|0:LAPS);
   $('netInfo').textContent=(TRACKS[tr]?TRACKS[tr].name:'')+'، '+AD(lp)+' لفّة، '+AD(ps.length)+' لاعبين، والباقي تكاتك الكمبيوتر'+(ps.length>6?' (أول ٦ بس هيلعبوا)':'');
   $('netPlayers').innerHTML=ps.map(p=>`<li><i style="background:${COLORS[(p.presence.c|0)%COLORS.length][0]}"></i><span>${esc(p.presence.n)}${p.sameTab?' (إنت)':''}</span>${p.presence.hs===1?'<small>صاحب السباق</small>':''}</li>`).join('');
-  $('netGo').hidden=!NET.host; $('netGo').textContent=NET.host?'ابدأ السباق':''; if(!NET.host&&!hp) $('netInfo').textContent='صاحب السباق خرج. اخرج وادخل سباق تاني.'; else if(!NET.host) $('netInfo').textContent+='، مستنيين صاحب السباق يبدأ'; }
+  $('netInvite').hidden=NET.mode!=='p2p'; $('netGo').hidden=!NET.host; $('netGo').textContent=NET.host?'ابدأ السباق':''; if(!NET.host&&!hp) $('netInfo').textContent='صاحب السباق خرج. اخرج وادخل سباق تاني.'; else if(!NET.host) $('netInfo').textContent+='، مستنيين صاحب السباق يبدأ'; }
 }
 function netSend(){ if(!NET.room) return; const p={n:NET.name,c:playerColor,hs:NET.host?1:0,hn:NET.hornN,hit:NET.hit};
  if(NET.inRace&&player) p.s=packR(player);
@@ -873,6 +878,25 @@ function netTick(dt){
   if(P.hit&&typeof P.hit==='object'&&P.hit.p===me&&P.hit.n!==sn.hit){ sn.hit=P.hit.n; const kx=clamp(+P.hit.kx||0,-1,1), kz=clamp(+P.hit.kz||0,-1,1);
    const tgt=(typeof P.hit.ai==='number'&&P.hit.ai>=0)?(NET.host?racers.find(r=>r.aiK===P.hit.ai&&!r.ghost):null):player; if(tgt) applyStun(tgt,kx,kz); }
  }
+}
+
+// public peer-to-peer rooms (WebRTC over public Nostr relays), used when the page runs outside claude.ai
+async function p2pRoom(){
+ let T; try{ T=await import('https://cdn.jsdelivr.net/npm/trystero@0.26.0/+esm'); }catch(e){ return null; }
+ if(!T||!T.joinRoom) return null;
+ const mk=name=>{ const r=T.joinRoom({appId:'tuktuk-rally-eg-v1'},name); const self=T.selfId; let mine={}; const others=new Map(), subs=new Set(); let snap=null;
+  const act=r.makeAction('pres');
+  const notify=()=>{ snap=null; subs.forEach(fn=>{ try{ fn({peers:peers()}); }catch(e){} }); };
+  act.onMessage=(d,c)=>{ if(d&&typeof d==='object'&&!Array.isArray(d)&&c&&c.peerId){ others.set(c.peerId,{presence:Object.freeze({...d}),updatedAt:Date.now()}); notify(); } };
+  r.onPeerJoin=id=>{ if(!others.has(id)) others.set(id,{presence:Object.freeze({}),updatedAt:Date.now()}); act.send(mine,{target:id}).catch(()=>{}); notify(); };
+  r.onPeerLeave=id=>{ others.delete(id); notify(); };
+  function peers(){ if(!snap) snap=[{peer:self,sameTab:true,isMe:true,kind:'viewer',guest:false,by:null,presence:mine,updatedAt:Date.now()},...[...others].map(([id,o])=>({peer:id,sameTab:false,isMe:false,kind:'viewer',guest:false,by:null,presence:o.presence,updatedAt:o.updatedAt}))]; return snap; }
+  return { name, peers, connected:()=>true,
+   presence:async p=>{ mine={...mine}; for(const k in p){ if(p[k]===null) delete mine[k]; else mine[k]=p[k]; } snap=null; try{ await act.send(mine); }catch(e){} },
+   onPeers:fn=>{ subs.add(fn); setTimeout(()=>fn({peers:peers()}),0); return ()=>subs.delete(fn); },
+   onConnection:fn=>{ setTimeout(()=>fn(true),0); return ()=>{}; },
+   leave:async()=>{ subs.clear(); try{ await r.leave(); }catch(e){} } }; };
+ const lobby=mk('lobby'); return Object.assign({},lobby,{join:async n=>mk(n)});
 }
 
 // ================= racers =================
@@ -1155,6 +1179,7 @@ function setupUI(){
  $('netList').onclick=e=>{ const b=e.target.closest('button[data-code]'); if(b){ initAudio(); netJoin(b.dataset.code,false); } };
  $('netGo').onclick=()=>{ initAudio(); netHostStart(); };
  $('netLeave').onclick=()=>netLeave();
+ $('netInvite').onclick=async()=>{ const url=location.origin+location.pathname+'?race='+NET.code; try{ await navigator.clipboard.writeText(url); $('netInvMsg').textContent='اتنسخ! ابعته لصحابك: '+url; }catch(e){ $('netInvMsg').textContent='ابعت الرابط ده لصحابك: '+url; } };
  $('bSnd').onclick=toggleSound; $('bSnd').textContent=AU.on?'🔊':'🔇'; $('bCam').onclick=()=>camMode=(camMode+1)%3; $('bPause').onclick=togglePause;
 }
 
