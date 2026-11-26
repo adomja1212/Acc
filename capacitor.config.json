@@ -1,0 +1,6 @@
+{
+  "appId": "eg.tuktuk.rally",
+  "appName": "توكتوك رالي",
+  "webDir": "www",
+  "android": { "backgroundColor": "#22090f" }
+}

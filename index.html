@@ -1179,7 +1179,7 @@ function setupUI(){
  $('netList').onclick=e=>{ const b=e.target.closest('button[data-code]'); if(b){ initAudio(); netJoin(b.dataset.code,false); } };
  $('netGo').onclick=()=>{ initAudio(); netHostStart(); };
  $('netLeave').onclick=()=>netLeave();
- $('netInvite').onclick=async()=>{ const url=location.origin+location.pathname+'?race='+NET.code; try{ await navigator.clipboard.writeText(url); $('netInvMsg').textContent='اتنسخ! ابعته لصحابك: '+url; }catch(e){ $('netInvMsg').textContent='ابعت الرابط ده لصحابك: '+url; } };
+ $('netInvite').onclick=async()=>{ const base=(location.protocol==='https:'&&location.hostname!=='localhost')?location.origin+location.pathname:'https://adomja1212.github.io/Acc/'; const url=base+'?race='+NET.code; try{ await navigator.clipboard.writeText(url); $('netInvMsg').textContent='اتنسخ! ابعته لصحابك: '+url; }catch(e){ $('netInvMsg').textContent='ابعت الرابط ده لصحابك: '+url; } };
  $('bSnd').onclick=toggleSound; $('bSnd').textContent=AU.on?'🔊':'🔇'; $('bCam').onclick=()=>camMode=(camMode+1)%3; $('bPause').onclick=togglePause;
 }
 

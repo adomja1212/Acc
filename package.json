@@ -1,0 +1,20 @@
+{
+  "name": "tuktuk-rally",
+  "private": true,
+  "version": "1.0.0",
+  "description": "توكتوك رالي: لعبة سباق توكتوك 3D",
+  "type": "module",
+  "scripts": {
+    "build:www": "node tools/build-www.mjs"
+  },
+  "devDependencies": {
+    "@capacitor/android": "6.2.4",
+    "@capacitor/cli": "6.2.4",
+    "@capacitor/core": "6.2.4",
+    "@fontsource/cairo": "5.3.0",
+    "@fontsource/lalezar": "5.3.0",
+    "esbuild": "0.25.0",
+    "three": "0.165.0",
+    "trystero": "0.26.0"
+  }
+}
