@@ -161,6 +161,7 @@ body.touch #touch{display:block}
    <button class="go" id="start">يلّا بينا!</button>
    <button class="go alt online" id="online">العب أونلاين مع صحابك</button>
    <button class="quitapp" id="exitApp" hidden>خروج من اللعبة</button>
+   <p class="tsub" id="ver" hidden style="text-align:center"></p>
    <p class="keys"><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> أو <kbd>W A S D</kbd> للسواقة · <kbd>↓</kbd> فرامل · <kbd>X</kbd> رجوع لورا · <kbd>مسافة</kbd> دريفت · <kbd>Shift</kbd> نيترو · <kbd>H</kbd> كلاكس · <kbd>C</kbd> الكاميرا · <kbd>R</kbd> رجوع للطريق · <kbd>P</kbd> وقفة</p>
   </div>
  </div>
@@ -1253,7 +1254,7 @@ async function enableTilt(){
 // ================= exit =================
 const capApp=()=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
 let cfYes=null, cfPaused=false;
-function askConfirm(title,q,onYes){ $('cfT').textContent=title; $('cfQ').textContent=q; cfYes=onYes; $('confirm').hidden=false;
+function askConfirm(title,q,onYes,yes='نعم',no='لا'){ $('cfT').textContent=title; $('cfQ').textContent=q; $('cfYes').textContent=yes; $('cfNo').textContent=no; cfYes=onYes; $('confirm').hidden=false;
  cfPaused=!paused&&(state==='race'||state==='count')&&!NET.inRace; if(cfPaused) paused=true; }
 function closeConfirm(){ $('confirm').hidden=true; if(cfPaused){ paused=false; cfPaused=false; } }
 function exitGame(){ const A=capApp(); if(A&&A.exitApp) A.exitApp(); else if(navigator.app&&navigator.app.exitApp) navigator.app.exitApp(); }
@@ -1261,6 +1262,20 @@ function askExit(){
  if(state==='race'||state==='count'||state==='done') askConfirm('خروج من السباق','هل تريد الخروج من السباق والرجوع للقائمة؟',()=>{ $('results').hidden=true; toMenu(); });
  else if(capApp()) askConfirm('خروج من اللعبة','هل تريد الخروج من اللعبة؟',exitGame); }
 function onBack(){ if(!$('confirm').hidden){ closeConfirm(); return; } if(!$('net').hidden&&!NET.room){ $('net').hidden=true; return; } if(!$('pause').hidden){ togglePause(); return; } askExit(); }
+
+// ================= app updates =================
+const APP_BUILD=0; // the APK build number, filled in by the GitHub build
+const REPO='adomja1212/Acc';
+async function checkUpdate(){ if(!APP_BUILD) return;
+ try{ const r=await fetch('https://api.github.com/repos/'+REPO+'/releases/latest',{headers:{Accept:'application/vnd.github+json'}}); if(!r.ok) return;
+  const j=await r.json(); const m=/^apk-(\d+)$/.exec(j.tag_name||''); if(!m) return; const n=+m[1]; if(n<=APP_BUILD) return;
+  let later=0; try{ later=+localStorage.getItem('tuk-upd-later')||0; }catch(e){}
+  if(later===n) return;
+  const url='https://github.com/'+REPO+'/releases/download/'+j.tag_name+'/tuktuk-rally.apk';
+  const show=()=>{ if(state!=='menu'||!$('confirm').hidden){ setTimeout(show,3000); return; }
+   askConfirm('فيه تحديث جديد!','نسخة '+AD(n)+' من توكتوك رالي جاهزة (إنت على نسخة '+AD(APP_BUILD)+'). دوس «حدّث دلوقتي» هيتنزّل الملف، وبعدين افتحه ودوس «تحديث».',()=>{ $('cfNo').onclick=closeConfirm; location.href=url; },'حدّث دلوقتي','بعدين');
+   $('cfNo').onclick=()=>{ try{ localStorage.setItem('tuk-upd-later',n); }catch(e){} closeConfirm(); $('cfNo').onclick=closeConfirm; }; };
+  show(); }catch(e){} }
 
 // ================= tracks =================
 let trackIdx=0, loadingTrack=false;
@@ -1320,6 +1335,7 @@ async function init(){
  await loadTrack(ti); applyQuality(quality);
  camera.position.set(player.x+8,3,player.z+8);
  netInit();
+ if(APP_BUILD){ $('ver').hidden=false; $('ver').textContent='نسخة '+AD(APP_BUILD); setTimeout(checkUpdate,1500); }
  requestAnimationFrame(t=>{ last=t; loop(t); });
 }
 init().catch(e=>{ console.error(e); $('loading').querySelector('p').textContent='حصلت مشكلة في التحميل: '+e.message; });

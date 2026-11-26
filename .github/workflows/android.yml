@@ -34,7 +34,11 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Bundle the game for offline play
-        run: node tools/build-www.mjs
+        run: |
+          node tools/build-www.mjs
+          # stamp the build number so the app can tell when a newer release exists
+          sed -i "s/const APP_BUILD=0;/const APP_BUILD=${{ github.run_number }};/" www/index.html
+          grep -q "const APP_BUILD=${{ github.run_number }};" www/index.html
 
       - name: Create the Android project
         run: npx cap add android
@@ -49,6 +53,20 @@ jobs:
             done
           done
           cp android-res/MainActivity.java android/app/src/main/java/eg/tuktuk/rally/MainActivity.java
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]*\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+
+      - name: Stable signing key, so updates install over the old app
+        env:
+          KS: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
+        run: |
+          if [ -n "$KS" ]; then
+            mkdir -p ~/.android
+            echo "$KS" | base64 -d > ~/.android/debug.keystore
+            echo "Signing with the saved key"
+          else
+            echo "::warning::ANDROID_DEBUG_KEYSTORE is not set, so this APK gets a new key and will not install over older ones"
+          fi
 
       - name: Use Google's Maven Central mirror first (Maven Central rate-limits CI)
         run: |
