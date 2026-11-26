@@ -19,6 +19,8 @@
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);overflow:hidden;font:16px/1.5 Cairo,system-ui,sans-serif;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
 html.rot,html.rot body{overflow:hidden}html.rot body{position:fixed;top:0;left:0;transform-origin:0 0}
+/* everything on screen shrinks to fit small phones, upright or sideways */
+.ov .card,#menu .card,#tools,#hud,#touch{zoom:var(--ui,1)}
 #stage{position:fixed;inset:0}
 #stage canvas{display:block;width:100%;height:100%}
 .disp{font-family:Lalezar,Cairo,sans-serif;font-weight:400;letter-spacing:0}
@@ -258,7 +260,8 @@ if(isTouch) document.body.classList.add('touch');
 const ROT={on:false};
 const VW=()=>ROT.on?innerHeight:innerWidth, VH=()=>ROT.on?innerWidth:innerHeight;
 function applyRot(){ ROT.on=isTouch&&innerHeight>innerWidth; document.documentElement.classList.toggle('rot',ROT.on); const b=document.body.style;
- if(ROT.on){ b.width=innerHeight+'px'; b.height=innerWidth+'px'; b.transform=`translateX(${innerWidth}px) rotate(90deg)`; } else { b.width=b.height=b.transform=''; } }
+ if(ROT.on){ b.width=innerHeight+'px'; b.height=innerWidth+'px'; b.transform=`translateX(${innerWidth}px) rotate(90deg)`; } else { b.width=b.height=b.transform=''; }
+ document.documentElement.style.setProperty('--ui',String(Math.max(0.6,Math.min(1,Math.min(VW(),VH())/620)).toFixed(3))); }
 applyRot();
 // sideways menus: turn finger drags into scrolling along the rotated screen
 { let sc=null,lx=0,ly=0;
