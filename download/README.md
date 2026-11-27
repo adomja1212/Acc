@@ -12,4 +12,4 @@ https://github.com/adomja1212/Acc/raw/claude/accounting-database-webpage-nrered/
 - التطبيق يفتح البرنامج المنشور، وأي تحديث للبرنامج يظهر فوراً بدون إعادة تثبيت.
 - الدخول باسم المستخدم وكلمة المرور اللذين يحددهما مدير النظام فقط.
 
-الإصدار الحالي: 1.3 (versionCode 4) — اسم التطبيق Sawah System، — يفتح رابط GitHub مباشرة
+الإصدار الحالي: 1.4 (versionCode 5) — اسم التطبيق Sawah System، — يفتح رابط GitHub مباشرة

@@ -117,7 +117,7 @@ public class MainActivity extends Activity {
                 bar.setProgress(p);
             }
 
-            // اختيار ملف من الهاتف (استيراد Excel/CSV)
+            // اختيار ملف من الهاتف (استيراد Excel/CSV واستعادة النسخة الاحتياطية)
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> cb, FileChooserParams params) {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
@@ -125,9 +125,7 @@ public class MainActivity extends Activity {
                 Intent i = new Intent(Intent.ACTION_GET_CONTENT);
                 i.addCategory(Intent.CATEGORY_OPENABLE);
                 i.setType("*/*");
-                i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        "application/vnd.ms-excel", "text/csv", "text/comma-separated-values", "text/plain", "application/octet-stream"});
+                // كل أنواع الملفات (Excel / CSV / نسخة احتياطية JSON) — البرنامج نفسه يتحقق من الملف
                 try {
                     startActivityForResult(Intent.createChooser(i, "اختر الملف"), PICK_FILE);
                 } catch (ActivityNotFoundException e) {
