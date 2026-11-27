@@ -24,7 +24,7 @@
   // سحابية مشتركة (claude.ai) — كل سجل مستند مستقل في مجموعة باسم الجدول،
   // ومزامنة لحظية بين كل المستخدمين والأجهزة. وإلا: محلية في المتصفح.
   // =====================================================================
-  const APP_VERSION = '26/11/2026, 05:30';
+  const APP_VERSION = '27/11/2026, 11:45';
   const LOCAL_KEY = 'acc-erp-v4';
   const PREFS_KEY = 'acc-erp-prefs';
   const DB_CAPACITY = 25000;
@@ -138,7 +138,7 @@
     cache = {};
     const code = e?.code;
     if (code === 'invalid_argument' || code === 'not_granted') {
-      if (op.path.startsWith('accounts/') || op.path.startsWith('meta/')) toast('هذا التعديل متاح لمدير النظام فقط', 4000);
+      if (op.path.startsWith('accounts/') || op.path.startsWith('meta/') || op.path.startsWith('appUsers/')) toast('هذا التعديل متاح لمدير النظام فقط', 4000);
       else { store.canWrite = false; applyRole(); toast('ليس لديك صلاحية التعديل — وضع المشاهدة فقط', 4000); }
     } else if (code === 'quota_exceeded') toast('امتلأت سعة قاعدة البيانات — احذف بيانات قديمة أو صدّر نسخة احتياطية', 6000);
     else toast('تعذّر الحفظ في قاعدة البيانات — تحقق من الاتصال', 4000);
@@ -2753,7 +2753,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   const sha = async s => hex(await crypto.subtle.digest('SHA-256', enc.encode(s)));
   async function setPassword(u, pass) { u.salt = randHex(16); u.iter = 150000; u.passHash = await hashPass(pass, u.salt, u.iter); }
   const USERNAME_RE = /^[A-Za-z0-9._\-؀-ۿ]{3,30}$/;
-  const checkPass = (p, c) => p.length < 6 ? 'كلمة المرور يجب ألا تقل عن 6 أحرف' : p !== c ? 'كلمتا المرور غير متطابقتين' : '';
+  const checkPass = (p, c) => p.length < 8 ? 'كلمة المرور يجب ألا تقل عن 8 أحرف' : !(/[0-9]/.test(p) && /[^0-9]/.test(p)) ? 'كلمة المرور يجب أن تحتوي على حروف وأرقام معاً' : p !== c ? 'كلمتا المرور غير متطابقتين' : '';
 
   // ----- الجلسة -----
   // الجلسة تبقى داخل نفس النافذة فقط (التحديث أو تغيير اللغة لا يطلب الدخول)، وفتح البرنامج من جديد يبدأ بشاشة الدخول
@@ -2768,8 +2768,9 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   }
   // حفظ بيانات الدخول على هذا الجهاز: لا تُحفظ كلمة المرور نفسها، بل مفتاح موقّع مرتبط بها
   // (يبطل تلقائياً إذا تغيرت كلمة المرور أو أوقف الحساب)
+  const canWriteUsers = () => store.mode !== 'cloud' || store.canAdmin;
   const remSig = async (u, exp) => sha('remember|' + u.passHash + '|' + exp + '|' + (store.me.id || ''));
-  async function saveRemember(u) { const exp = Date.now() + 365 * 864e5; try { localStorage.setItem(REMEMBER_KEY, JSON.stringify({ uid: u.id, username: u.username, exp, sig: await remSig(u, exp) })); } catch {} }
+  async function saveRemember(u) { const exp = Date.now() + 30 * 864e5; try { localStorage.setItem(REMEMBER_KEY, JSON.stringify({ uid: u.id, username: u.username, exp, sig: await remSig(u, exp) })); } catch {} }
   const clearRemember = () => { try { localStorage.removeItem(REMEMBER_KEY); } catch {} };
   const getRemember = () => { try { const r = JSON.parse(localStorage.getItem(REMEMBER_KEY) || 'null'); return r && r.exp > Date.now() ? r : null; } catch { return null; } };
   async function restoreSession() {
@@ -2787,9 +2788,16 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   function logout(msg) {
     session = null;
     try { localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); } catch {}
+    content.innerHTML = '';
     closeModal(); $('#userMenu').hidden = true;
     showAuth('login', msg);
   }
+
+  // خروج تلقائي بعد 30 دقيقة بدون أي نشاط
+  const IDLE_MS = 30 * 60000; let lastAct = Date.now();
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { lastAct = Date.now(); }, { passive: true, capture: true }));
+  setInterval(() => { if (session && Date.now() - lastAct > IDLE_MS) logout('تم تسجيل الخروج تلقائياً لعدم النشاط 30 دقيقة'); }, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && session && Date.now() - lastAct > IDLE_MS) logout('تم تسجيل الخروج تلقائياً لعدم النشاط 30 دقيقة'); });
 
   async function authGate() {
     if (!db.appUsers.length) return showAuth('setup');
@@ -2816,7 +2824,17 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     tree: I('<path d="M12 3v18M12 8H6v4M12 8h6v4M6 12v3M18 12v3"/>'),
   };
   const inputBox = (icon, attrs, eye) => `<div class="af-in">${icon}<input ${attrs}>${eye ? `<button type="button" class="eye" aria-label="إظهار كلمة المرور">${IC.eye}</button>` : ''}</div>`;
-  let failCount = 0, lockUntil = 0;
+  // قفل الدخول بعد المحاولات الخاطئة — محفوظ على الجهاز ويتصاعد (1 ثم 5 ثم 15 ثم 60 دقيقة)
+  const LOCK_KEY = 'acc-erp-lock';
+  const lockGet = () => { try { return JSON.parse(localStorage.getItem(LOCK_KEY) || 'null') || { n: 0, lv: 0, until: 0 }; } catch { return { n: 0, lv: 0, until: 0 }; } };
+  const lockSet = v => { try { localStorage.setItem(LOCK_KEY, JSON.stringify(v)); } catch {} };
+  let failCount = lockGet().n, lockUntil = lockGet().until;
+  function registerFail() {
+    const L = lockGet(); L.n = (L.n || 0) + 1;
+    if (L.n >= 5) { const mins = [1, 5, 15, 60][Math.min(L.lv || 0, 3)]; L.until = Date.now() + mins * 60000; L.lv = (L.lv || 0) + 1; L.n = 0; lockSet(L); lockUntil = L.until; failCount = 0; return mins; }
+    lockSet(L); failCount = L.n; return 0;
+  }
+  const clearFails = () => { lockSet({ n: 0, lv: 0, until: 0 }); failCount = 0; lockUntil = 0; };
 
   function showAuth(mode, notice = '') {
     state.authMode = mode;
@@ -2921,6 +2939,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         await startSession(u); unlock(); toast(`مرحباً ${u.name} — تم إنشاء حساب مدير النظام`, 3500);
         return;
       }
+      lockUntil = Math.max(lockUntil, lockGet().until || 0);
       if (Date.now() < lockUntil) return fail(`محاولات كثيرة خاطئة — انتظر ${Math.ceil((lockUntil - Date.now()) / 1000)} ثانية`);
       const uname = d.username.trim().toLowerCase();
       const u = db.appUsers.find(x => x.username === uname);
@@ -2930,7 +2949,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         if (u && r && r.uid === u.id && r.sig === await remSig(u, r.exp)) {
           if (u.active === false) return fail('هذا الحساب موقوف — راجع مدير النظام');
           if (!d.remember) clearRemember();
-          await startSession(u); if (store.canWrite) { u.lastLogin = new Date().toISOString(); save(); }
+          await startSession(u); if (canWriteUsers()) { u.lastLogin = new Date().toISOString(); save(); }
           unlock(); toast(`مرحباً ${u.name}`); return;
         }
         clearRemember(); delete pw.dataset.saved; pw.value = ''; f.querySelector('.af-saved')?.remove(); pw.focus();
@@ -2938,15 +2957,15 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       }
       const h = await hashPass(d.password, u?.salt || 'none', u?.iter || 150000);
       if (!u || h !== u.passHash) {
-        failCount++;
-        if (failCount >= 5) { lockUntil = Date.now() + 30000; failCount = 0; return fail('محاولات كثيرة خاطئة — تم إيقاف الدخول 30 ثانية'); }
-        return fail('اسم المستخدم أو كلمة المرور غير صحيحة');
+        const mins = registerFail();
+        if (mins) return fail(`محاولات كثيرة خاطئة — تم إيقاف الدخول ${mins} دقيقة`);
+        return fail(`اسم المستخدم أو كلمة المرور غير صحيحة (متبقي ${5 - failCount} محاولات)`);
       }
       if (u.active === false) return fail('هذا الحساب موقوف — راجع مدير النظام');
-      failCount = 0;
+      clearFails();
       await startSession(u);
       if (d.remember) await saveRemember(u); else clearRemember();
-      if (store.canWrite) { u.lastLogin = new Date().toISOString(); save(); }
+      if (canWriteUsers()) { u.lastLogin = new Date().toISOString(); save(); }
       unlock(); toast(`مرحباً ${u.name}`);
     });
   }
@@ -2974,6 +2993,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   });
   function changeOwnPassword() {
     const u = curUser(); if (!u) return;
+    if (!canWriteUsers()) { toast('لحماية الحسابات: تغيير كلمة المرور يتم عن طريق مالك النظام فقط', 4500); return; }
     openModal('تغيير كلمة المرور', [{ key: 'current', label: 'كلمة المرور الحالية', input: 'password', full: true },
       { key: 'password', label: 'كلمة المرور الجديدة', input: 'password' }, { key: 'confirm', label: 'تأكيد كلمة المرور', input: 'password' }], {}, async d => {
       if (await hashPass(d.current, u.salt, u.iter) !== u.passHash) { toast('كلمة المرور الحالية غير صحيحة'); return false; }
