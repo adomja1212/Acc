@@ -40,6 +40,9 @@ h1{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:clamp(48px,9vw
 .app:active .ico{transform:scale(.95)}
 .app:focus-visible{outline:none}
 footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;font-size:14px;opacity:.85;flex-wrap:wrap}
+.credit{position:fixed;left:0;right:0;bottom:0;margin:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));text-align:center;font:600 14px Cairo,sans-serif;color:rgba(255,246,230,.7);letter-spacing:.03em;background:linear-gradient(transparent,rgba(20,5,9,.9) 40%)}
+.credit b{color:var(--sf);font-weight:800}
+.wrap{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))!important}
 footer button{background:var(--red);border:0;border-radius:999px;color:var(--ink);font:800 16px Cairo,sans-serif;cursor:pointer;min-height:44px;padding:0 20px;box-shadow:0 4px 0 #8f1520}
 .ov{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;overflow-y:auto;background:rgba(20,5,9,.65);padding:16px}
 .ov .card{margin-block:auto;width:min(480px,100%);background:var(--card);border-radius:18px;overflow:hidden;border:1px solid rgba(255,183,3,.3)}
@@ -68,6 +71,7 @@ footer button{background:var(--red);border:0;border-radius:999px;color:var(--ink
 
  <footer><span id="ver"></span><button id="exitApp" hidden>⏻ خروج من التطبيق</button></footer>
 </div>
+<p class="credit" dir="ltr">Designed by: <b>Elsawah</b></p>
 
 <div class="ov" id="confirm" hidden><div class="card"><div class="truck"></div><div class="in"><h2 id="cfT">خروج</h2><p id="cfQ">هل تريد الخروج؟</p><div class="btns"><button id="cfYes">نعم</button><button class="alt" id="cfNo">لا</button></div></div></div></div>
 
