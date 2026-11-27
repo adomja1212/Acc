@@ -230,6 +230,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { getLobby, esc, AD, COLORS, myProfile, saveProfile, GAME_NAMES, onlinePanel } from './net.js';
+import { createBGM } from './bgm.js';
 
 document.documentElement.lang='ar'; document.documentElement.dir='rtl';
 const $=id=>document.getElementById(id);
@@ -263,11 +264,11 @@ OP.show(false);
 const SQ=['s0','s1','s2','s3','s4'], SQN={s0:'الصقور',s1:'النمور',s2:'الذئاب',s3:'العقارب',s4:'الفهود'}, SQC={s0:'#e63946',s1:'#ffb703',s2:'#22c3b5',s3:'#b07cff',s4:'#4f9dff'}, SQCAP=4;
 const isSq=t=>typeof t==='string'&&SQ.includes(t);
 const OUTFITS=[
- {id:'hood',name:'المقنّع',ico:'🥷',body:0x2a2a30,vest:0x141417,pouch:0x1b1b1f,head:'hood'},
- {id:'red',name:'الأحمر',ico:'🔴',body:0xff8f8f,vest:0x6e1a1e,pouch:0x7f2025,head:'band',band:0xd62828},
- {id:'desert',name:'الصحراوي',ico:'🏜️',body:0xe2cfa6,vest:0x8a7650,pouch:0x7a6644,head:'helmet',helm:0xb59a68},
- {id:'forest',name:'الغابة',ico:'🌲',body:0x93ad7c,vest:0x3e4a2c,pouch:0x4b5a33,head:'helmet',helm:0x55663a},
- {id:'urban',name:'المدينة',ico:'🏙️',body:0xa9b3c2,vest:0x2f3640,pouch:0x39424e,head:'cap',helm:0x1f242c}];
+ {id:'hood',name:'المقنّع',ico:'🥷',body:0x2c2d31,vest:0x141417,pouch:0x1b1b1f,head:'hood'},
+ {id:'red',name:'الأحمر',ico:'🔴',body:0x8f2b2b,vest:0x6e1a1e,pouch:0x7f2025,head:'band',band:0xd62828},
+ {id:'desert',name:'الصحراوي',ico:'🏜️',body:0xc4ae86,vest:0x8a7650,pouch:0x7a6644,head:'helmet',helm:0xb59a68},
+ {id:'forest',name:'الغابة',ico:'🌲',body:0x6c7a52,vest:0x3e4a2c,pouch:0x4b5a33,head:'helmet',helm:0x55663a},
+ {id:'urban',name:'المدينة',ico:'🏙️',body:0x7c8592,vest:0x2f3640,pouch:0x39424e,head:'cap',helm:0x1f242c}];
 const outfitOf=id=>OUTFITS.find(o=>o.id===id)||OUTFITS[0];
 let MYOUT='hood'; try{ const o=localStorage.getItem('war-outfit'); if(o&&OUTFITS.some(x=>x.id===o)) MYOUT=o; }catch(e){}
 // markers over heads: blue = on your squad, red = enemy
@@ -674,11 +675,13 @@ function findBone(root,n){ return root.getObjectByName('mixamorig'+n)||root.getO
 const BLOB=(()=>{ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const gr=g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(0,0,0,.55)'); gr.addColorStop(0.6,'rgba(0,0,0,.25)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64);
  return new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}); })();
 const BLOBGEO=new THREE.PlaneGeometry(1.25,1.25).rotateX(-Math.PI/2);
+// keep the suit's stitching, folds and wear but drop its own orange colour, so each outfit reads as real fabric
+function fabric(m){ m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>','#ifdef USE_MAP\n vec4 sampledDiffuseColor = texture2D( map, vMapUv ); float lum = dot( sampledDiffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) ); diffuseColor.rgb *= vec3( pow( lum, 0.9 ) * 1.65 );\n#endif'); }; m.customProgramCacheKey=()=>'fabric'; }
 function makeChar(outfit,name,isMe){ const OF=outfitOf(outfit);
  const root=new THREE.Group(); root.rotation.order='YXZ';
  const model=SkeletonUtils.clone(SOLDIER.scene); model.rotation.y=Math.PI; root.add(model);
  const hooded=OF.head==='hood', tint=new THREE.Color(OF.body);
- model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; o.material=o.material.clone(); if(/Body/i.test(o.material.name)) o.material.color.copy(tint); else if(hooded&&/Visor/i.test(o.material.name)){ o.material.color.set(0x0b0b0d); } } });
+ model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; o.material=o.material.clone(); if(/Body/i.test(o.material.name)){ o.material.color.copy(tint); o.material.roughness=0.85; o.material.metalness=0.05; o.material.envMapIntensity=0.8; fabric(o.material); } else if(hooded&&/Visor/i.test(o.material.name)){ o.material.color.set(0x0b0b0d); } } });
  const mixer=new THREE.AnimationMixer(model), A={}; for(const c of SOLDIER.animations) A[c.name]=mixer.clipAction(c);
  for(const n of ['Idle','Walk','Run']) if(A[n]){ A[n].play(); A[n].setEffectiveWeight(n==='Idle'?1:0); }
  const bones={}; for(const k in BN) bones[k]=findBone(model,BN[k]);
@@ -763,23 +766,45 @@ const WG=NW, WCAR=NW+1, WTANK=NW+2, WPLANE=NW+3;
 // ================= sound =================
 const AU={on:true,ctx:null};
 try{ AU.on=localStorage.getItem('war-snd')!=='0'; }catch(e){}
-function initAudio(){ if(AU.ctx){ AU.ctx.resume(); return; } try{ const C=new (window.AudioContext||window.webkitAudioContext)(); AU.ctx=C; AU.master=C.createGain(); AU.master.gain.value=0.7; AU.master.connect(C.destination);
- const b=C.createBuffer(1,C.sampleRate*2,C.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; AU.noise=b; }catch(e){ AU.ctx=null; } }
+function initAudio(){ if(AU.ctx){ AU.ctx.resume(); return; } try{ const C=new (window.AudioContext||window.webkitAudioContext)(); AU.ctx=C; AU.master=C.createGain(); AU.master.gain.value=0.7; const lim=C.createDynamicsCompressor(); lim.threshold.value=-10; lim.knee.value=6; lim.ratio.value=12; lim.attack.value=0.002; lim.release.value=0.25; AU.master.connect(lim); lim.connect(C.destination);
+ const b=C.createBuffer(1,C.sampleRate*2,C.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; AU.noise=b;
+ // outdoor echo: quick slaps off the houses, then a long open-air tail
+ const len=Math.floor(C.sampleRate*2.6), ir=C.createBuffer(2,len,C.sampleRate);
+ for(let ch=0;ch<2;ch++){ const x=ir.getChannelData(ch); for(let i=0;i<len;i++) x[i]=(Math.random()*2-1)*Math.pow(1-i/len,4)*0.6; for(const tm of [0.045,0.09,0.13,0.21,0.33]){ const k=Math.floor((tm+Math.random()*0.02)*C.sampleRate); for(let j=0;j<160;j++) x[k+j]+=(Math.random()*2-1)*0.9*Math.exp(-j/40)*(1-tm*1.6); } }
+ const conv=C.createConvolver(); conv.buffer=ir; AU.rev=C.createGain(); const ro=C.createGain(); ro.gain.value=0.55; AU.rev.connect(conv); conv.connect(ro); ro.connect(AU.master);
+ AU.mus=C.createGain(); AU.mus.gain.value=0.9; AU.mus.connect(C.destination); AU.bgm=createBGM(C,AU.mus,'war'); if(AU.on) AU.bgm.start();
+ }catch(e){ AU.ctx=null; } }
+// a sound placed in the world: quieter, duller and more echoey with distance, and panned left/right
+const _cr=new THREE.Vector3();
+function vox(x,y,z,vol){ const C=AU.ctx; let d=0,pan=0; if(x!==undefined){ const dx=x-camera.position.x, dy=y-camera.position.y, dz=z-camera.position.z; d=Math.hypot(dx,dy,dz);
+  if(d>0.5){ _cr.setFromMatrixColumn(camera.matrixWorld,0); pan=clamp((dx*_cr.x+dy*_cr.y+dz*_cr.z)/d,-1,1)*0.75; } }
+ const v=vol*(DEMO.on?0.35:1)/(1+d/22); if(v<0.012) return null;
+ const g=C.createGain(); g.gain.value=v; const lp=C.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=clamp(19000/(1+d/28),700,19000); g.connect(lp);
+ let o=lp; if(C.createStereoPanner){ const pn=C.createStereoPanner(); pn.pan.value=pan; lp.connect(pn); o=pn; } o.connect(AU.master);
+ const sd=C.createGain(); sd.gain.value=clamp(0.22+d/110,0.22,0.95); o.connect(sd); sd.connect(AU.rev); return g; }
+function nzT(to,dur,type,f0,f1,q,vol,delay=0,att=0.001){ const C=AU.ctx, t=C.currentTime+delay, s=C.createBufferSource(); s.buffer=AU.noise; const f=C.createBiquadFilter(); f.type=type; f.Q.value=q; f.frequency.setValueAtTime(f0,t); f.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur); const g=C.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+att); g.gain.exponentialRampToValueAtTime(0.0004,t+dur); s.connect(f); f.connect(g); g.connect(to); s.start(t,Math.random()); s.stop(t+dur+0.05); }
+function tnT(to,f0,f1,dur,type,vol,delay=0,att=0.002){ const C=AU.ctx, t=C.currentTime+delay, o=C.createOscillator(), g=C.createGain(); o.type=type; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+att); g.gain.exponentialRampToValueAtTime(0.0004,t+dur); o.connect(g); g.connect(to); o.start(t); o.stop(t+dur+0.05); }
+// a gunshot in layers: supersonic crack, the blast body, a low thump, the action cycling
+function gunshot(to,P){ nzT(to,0.014,'highpass',4500,3000,0.7,P.crack); nzT(to,0.03,'bandpass',P.body*2.2,P.body*1.4,0.9,P.bv*0.8); nzT(to,P.len,'bandpass',P.body,P.body*0.45,0.8,P.bv); tnT(to,P.lo,38,P.lo>100?0.09:0.16,'sine',P.th);
+ if(P.tail) nzT(to,P.tail,'lowpass',900,110,0.5,P.bv*0.35,0.03,0.02); if(P.mech) tnT(to,2600,2200,0.02,'square',0.05,P.mech); }
+function explodeSnd(to,big){ nzT(to,0.05,'highpass',1200,600,0.5,1.3); tnT(to,62,22,1.9*big,'sine',1.5,0,0.01); nzT(to,2.6*big,'lowpass',1100,70,0.6,1.4,0,0.008); nzT(to,0.9,'bandpass',300,90,0.8,0.7,0.02);
+ for(let i=0;i<9;i++) nzT(to,0.05,'highpass',2500+Math.random()*2500,2000,1,0.08+Math.random()*0.1,0.25+Math.random()*1.3); }
 function nz(dur,type,f0,f1,q,vol,delay=0){ const C=AU.ctx, t=C.currentTime+delay, s=C.createBufferSource(); s.buffer=AU.noise; const f=C.createBiquadFilter(); f.type=type; f.Q.value=q; f.frequency.setValueAtTime(f0,t); f.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur); const g=C.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0008,t+dur); s.connect(f); f.connect(g); g.connect(AU.master); s.start(t,Math.random()); s.stop(t+dur+0.05); }
 function tn(f0,f1,dur,type,vol,delay=0){ const C=AU.ctx, t=C.currentTime+delay, o=C.createOscillator(), g=C.createGain(); o.type=type; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0008,t+dur); o.connect(g); g.connect(AU.master); o.start(t); o.stop(t+dur+0.05); }
 function sfx(type,x,y,z){ if(!AU.ctx||!AU.on) return; const d=x===undefined?0:Math.hypot(x-camera.position.x,y-camera.position.y,z-camera.position.z); const v=(DEMO.on?0.35:1)/(1+d/16); if(v<0.02) return;
+ const o=vox(x,y,z,1); if(!o&&['pistol','akm','sniper','rpg','cannon','drop','boom'].includes(type)) return;
  switch(type){
-  case 'pistol': nz(0.14,'bandpass',2400,500,0.8,0.9*v); tn(180,55,0.12,'sine',0.7*v); break;
-  case 'akm': nz(0.09,'highpass',900,300,0.6,1.0*v); tn(140,50,0.07,'square',0.25*v); break;
-  case 'sniper': nz(0.4,'lowpass',3000,300,0.7,1.2*v); tn(95,35,0.35,'sine',1.0*v); nz(0.6,'lowpass',700,150,0.5,0.3*v,0.28); break;
-  case 'rpg': nz(0.7,'bandpass',300,2200,1.2,0.9*v); tn(90,40,0.3,'sine',0.8*v); break;
-  case 'cannon': nz(0.6,'lowpass',2200,180,0.7,1.4*v); tn(70,28,0.5,'sine',1.3*v); break;
-  case 'drop': tn(900,300,0.6,'sine',0.25*v); break;
+  case 'pistol': gunshot(o,{crack:0.9,body:1500,bv:0.9,len:0.09,lo:170,th:0.55,mech:0.06}); break;
+  case 'akm': gunshot(o,{crack:1.0,body:820,bv:1.05,len:0.12,lo:120,th:0.8}); break;
+  case 'sniper': gunshot(o,{crack:1.4,body:560,bv:1.2,len:0.3,lo:95,th:1.2,tail:1.3,mech:0.55}); break;
+  case 'rpg': tnT(o,220,60,0.14,'sine',1.0); nzT(o,0.02,'highpass',3000,2000,0.6,0.9); nzT(o,1.1,'bandpass',380,2800,1.4,0.75,0.02,0.08); nzT(o,1.4,'highpass',2200,4000,0.5,0.18,0.15,0.2); break;
+  case 'cannon': nzT(o,0.03,'highpass',2500,1500,0.6,1.5); nzT(o,0.45,'bandpass',320,120,0.7,1.3); tnT(o,75,24,1.3,'sine',1.6,0,0.005); nzT(o,1.6,'lowpass',1300,90,0.5,1.0,0.02,0.01); break;
+  case 'drop': tnT(o,1600,420,1.5,'sine',0.22,0,0.05); break;
+  case 'boom': explodeSnd(o,1); break;
   case 'sword': nz(0.28,'bandpass',500,2800,3,0.6*v); break;
   case 'dagger': nz(0.16,'bandpass',900,3400,4,0.5*v); break;
   case 'clang': [1250,1870,2510].forEach((f,i)=>tn(f,f*0.98,0.5,'triangle',0.12*v,i*0.005)); break;
   case 'flesh': nz(0.12,'lowpass',700,120,0.7,0.7*v); break;
-  case 'boom': nz(1.5,'lowpass',1400,60,0.7,1.6*v); tn(75,28,1.0,'sine',1.3*v); break;
   case 'throw': nz(0.2,'bandpass',400,1400,2,0.35*v); break;
   case 'reload': tn(1800,1700,0.04,'square',0.08*v); tn(1400,1300,0.05,'square',0.08*v,0.25); tn(2000,1900,0.04,'square',0.1*v,0.55); break;
   case 'empty': tn(2400,2300,0.03,'square',0.08*v); break;
@@ -788,7 +813,9 @@ function sfx(type,x,y,z){ if(!AU.ctx||!AU.on) return; const d=x===undefined?0:Ma
   case 'engine': tn(70,90,0.25,'sawtooth',0.05*v); break;
  } }
 let musicT=null;
-function music(kind){ if(!AU.ctx||!AU.on) return; stopMusic();
+// music starts with the first touch on the page (browsers need a tap before playing sound)
+addEventListener('pointerdown',()=>initAudio(),{once:true,capture:true});
+function music(kind){ if(!AU.ctx||!AU.on) return; stopMusic(); if(AU.bgm){ AU.bgm.stop(); setTimeout(()=>{ if(AU.on&&AU.bgm) AU.bgm.start(); },7000); }
  if(kind==='win'){ const notes=[523,659,784,659,523,659,784,1047,988,784,659,784,523,659,784,659]; let i=0; const step=()=>{ const t=i%16; tn(notes[t],notes[t],0.16,'square',0.09); tn(notes[t]/2,notes[t]/2,0.16,'triangle',0.08); if(t%2===0) tn(120,40,0.15,'sine',0.5); if(t%4===2) nz(0.08,'highpass',3000,2000,1,0.15); i++; musicT=setTimeout(step,170); }; step(); }
  else { const notes=[392,370,349,311]; notes.forEach((f,i)=>tn(f,i===3?f*0.92:f,i===3?1.4:0.5,'sawtooth',0.1,i*0.55)); for(let k=0;k<5;k++) nz(0.35,'bandpass',900,500,3,0.12,2.6+k*0.45); } }
 function stopMusic(){ if(musicT){ clearTimeout(musicT); musicT=null; } }
@@ -966,7 +993,22 @@ function planeCrash(v){ const f=v.driver; explosion(new THREE.Vector3(v.x,(v.y||
  if(f){ v.driver=null; f.veh=null; if(f===me||f.isBot) applyDamage(f,999,f,WPLANE); }
  v.dead=8; v.group.visible=false; }
 // planes with nobody at the controls glide down and crash; wrecks come back at home after a while
-function updVehicles(dt){ for(const v of VEH){ if(v.dead>0){ v.dead-=dt; if(v.dead<=0){ [v.x,v.z,v.h]=v.home; v.y=0; v.group.visible=true; placeVeh(v); } continue; }
+// engines: a diesel rumble with track clatter for tanks, a propeller drone for planes
+const ENG=new Map();
+function engineSnd(v){ const C=AU.ctx, out=C.createGain(); out.gain.value=0; const lp=C.createBiquadFilter(); lp.type='lowpass'; out.connect(lp); let pn=null; if(C.createStereoPanner){ pn=C.createStereoPanner(); lp.connect(pn); pn.connect(AU.master); } else lp.connect(AU.master);
+ const am=C.createGain(); am.gain.value=0.7; am.connect(out); const lfo=C.createOscillator(), lg=C.createGain(); lg.gain.value=0.3; lfo.connect(lg); lg.connect(am.gain); lfo.start();
+ const o1=C.createOscillator(), o2=C.createOscillator(); o1.type='sawtooth'; o2.type=v.type==='tank'?'square':'sawtooth'; const g2=C.createGain(); g2.gain.value=0.5; o1.connect(am); o2.connect(g2); g2.connect(am); o1.start(); o2.start();
+ const ns=C.createBufferSource(); ns.buffer=AU.noise; ns.loop=true; const nf=C.createBiquadFilter(); nf.type='bandpass'; nf.frequency.value=v.type==='tank'?1100:650; nf.Q.value=0.8; const ng=C.createGain(); ng.gain.value=0; ns.connect(nf); nf.connect(ng); ng.connect(out); ns.start();
+ lp.frequency.value=v.type==='tank'?420:1600; return {out,lp,pn,lfo,o1,o2,ng,ns,stop(){ const t=C.currentTime; out.gain.setTargetAtTime(0,t,0.15); setTimeout(()=>{ try{ o1.stop(); o2.stop(); lfo.stop(); ns.stop(); }catch(e){} },900); }}; }
+function updEngines(){ if(!AU.ctx) return; const C=AU.ctx, t=C.currentTime;
+ for(const v of VEH){ const want=AU.on&&!!v.driver&&(v.type==='tank'||v.type==='plane')&&!(v.dead>0)&&(state==='play'||state==='end'); let e=ENG.get(v);
+  if(!want){ if(e){ e.stop(); ENG.delete(v); } continue; } if(!e){ e=engineSnd(v); ENG.set(v,e); }
+  const vy=(v.y||0)+1, dx=v.x-camera.position.x, dy=vy-camera.position.y, dz=v.z-camera.position.z, d=Math.hypot(dx,dy,dz); const sp=Math.abs(v.v||0);
+  if(e.pn&&d>0.5){ _cr.setFromMatrixColumn(camera.matrixWorld,0); e.pn.pan.setTargetAtTime(clamp((dx*_cr.x+dy*_cr.y+dz*_cr.z)/d,-1,1)*0.7,t,0.05); }
+  const near=1/(1+d/(v.type==='plane'?40:22)); e.lp.frequency.setTargetAtTime(clamp((v.type==='tank'?420+sp*25:1600)/(1+d/60),200,4000),t,0.1);
+  if(v.type==='tank'){ const f=34+sp*3.2; e.o1.frequency.setTargetAtTime(f,t,0.1); e.o2.frequency.setTargetAtTime(f*0.5,t,0.1); e.lfo.frequency.setTargetAtTime(7+sp*0.9,t,0.1); e.ng.gain.setTargetAtTime(clamp(sp/10,0,1)*0.35,t,0.1); e.out.gain.setTargetAtTime(0.34*near,t,0.1); }
+  else { const f=88+sp*1.6; e.o1.frequency.setTargetAtTime(f,t,0.1); e.o2.frequency.setTargetAtTime(f*2.01,t,0.1); e.lfo.frequency.setTargetAtTime(18+sp*0.5,t,0.1); e.ng.gain.setTargetAtTime(0.25,t,0.1); e.out.gain.setTargetAtTime(0.26*near,t,0.1); } } }
+function updVehicles(dt){ updEngines(); for(const v of VEH){ if(v.dead>0){ v.dead-=dt; if(v.dead<=0){ [v.x,v.z,v.h]=v.home; v.y=0; v.group.visible=true; placeVeh(v); } continue; }
   if(v.type==='plane'&&!v.driver&&v.y>0){ v.vy-=9*dt; v.pit=Math.max(-0.6,v.pit-dt*0.3); v.x+=Math.sin(v.h)*v.v*dt; v.z+=Math.cos(v.h)*v.v*dt; v.y+=v.vy*dt; if(v.prop) v.prop.rotation.z+=dt*20; if(v.y<=0||inBox(new THREE.Vector3(v.x,v.y+1.4,v.z))) planeCrash(v); else placeVeh(v); } } }
 
 // ---- the arsenal: pick any weapon, or call a tank or a plane to where you stand ----
@@ -1211,7 +1253,7 @@ $('leaveR').onclick=()=>leaveRoom();
 $('invite').onclick=async()=>{ const base=(location.protocol==='https:'&&location.hostname!=='localhost')?location.origin+location.pathname:'https://adomja1212.github.io/Acc/war.html'; const url=base+'?match='+NET.code; try{ await navigator.clipboard.writeText(url); $('invMsg').textContent='اتنسخ! ابعته لصحابك: '+url; }catch(e){ $('invMsg').textContent='ابعت الرابط ده لصحابك: '+url; } };
 $('again').onclick=()=>{ if(practice) $('train').onclick(); else if(NET.host){ backToRoom(); startOnline(); } };
 $('toRoom').onclick=()=>{ if(practice){ stopMusic(); clearFighters(); state='lobby'; showLobby(); } else { if(NET.host){ backToRoom(); } else backToRoom(); } };
-$('bSnd').onclick=()=>{ AU.on=!AU.on; $('bSnd').textContent=AU.on?'🔊':'🔇'; if(!AU.on) stopMusic(); try{ localStorage.setItem('war-snd',AU.on?'1':'0'); }catch(e){} };
+$('bSnd').onclick=()=>{ AU.on=!AU.on; $('bSnd').textContent=AU.on?'🔊':'🔇'; if(!AU.on) stopMusic(); if(AU.bgm){ if(AU.on) AU.bgm.start(); else AU.bgm.stop(); } try{ localStorage.setItem('war-snd',AU.on?'1':'0'); }catch(e){} };
 $('bSnd').textContent=AU.on?'🔊':'🔇';
 $('bCam').onclick=()=>{ camFP=!camFP; };
 // exit with yes/no

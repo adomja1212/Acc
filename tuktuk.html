@@ -248,6 +248,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { onlinePanel } from './net.js';
+import { createBGM } from './bgm.js';
 
 document.documentElement.lang='ar'; document.documentElement.dir='rtl';
 const $=id=>document.getElementById(id);
@@ -1150,7 +1151,9 @@ function initAudio(){ if(AU.ctx){ AU.ctx.resume(); return; } try{ const C=new (w
  const buf=C.createBuffer(1,C.sampleRate,C.sampleRate); const dd=buf.getChannelData(0); for(let i=0;i<dd.length;i++) dd[i]=Math.random()*2-1;
  const ns=C.createBufferSource(); ns.buffer=buf; ns.loop=true; const bp=C.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1600; bp.Q.value=1.4; const sg=C.createGain(); sg.gain.value=0; ns.connect(bp); bp.connect(sg); sg.connect(master); ns.start();
  const rs=C.createBufferSource(); rs.buffer=buf; rs.loop=true; const rl=C.createBiquadFilter(); rl.type='lowpass'; rl.frequency.value=1400; const rg=C.createGain(); rg.gain.value=0; rs.connect(rl); rl.connect(rg); rg.connect(master); rs.start(0,0.37);
- Object.assign(AU,{eg,lp,o1,o2,lfo,sg,rg}); }catch(e){ AU.ctx=null; } }
+ Object.assign(AU,{eg,lp,o1,o2,lfo,sg,rg});
+ // light Egyptian background music
+ const mus=C.createGain(); mus.gain.value=0.8; mus.connect(C.destination); AU.bgm=createBGM(C,mus,'tuk'); if(AU.on) AU.bgm.start(); }catch(e){ AU.ctx=null; } }
 function audioUpd(){ if(!AU.ctx||!AU.o1) return; const t=AU.ctx.currentTime, p=player, sp=Math.abs(p.vf); const f=36+sp*3.0+(p.boosting?16:0)+(IN.gas?5:0);
  AU.o1.frequency.setTargetAtTime(f,t,0.06); AU.o2.frequency.setTargetAtTime(f*0.502,t,0.06); AU.lfo.frequency.setTargetAtTime(f*0.5,t,0.06); AU.lp.frequency.setTargetAtTime(450+sp*38,t,0.1);
  const live=AU.on&&!paused&&(state==='race'||state==='count'||state==='done'); AU.eg.gain.setTargetAtTime(live?0.15:0,t,0.12);
@@ -1161,7 +1164,9 @@ let hornT=0, hornCd=0;
 function horn(remote,vol=1){ if(!remote){ if(hornCd>0) return; hornCd=0.45; hornT=1.4; NET.hornN++; }
  beep(523,0.16,'square',0.1*vol); beep(659,0.16,'square',0.08*vol); beep(523,0.22,'square',0.1*vol,0.2); beep(659,0.22,'square',0.08*vol,0.2); }
 function carHorn(){ beep(330,0.22,'sawtooth',0.06); beep(415,0.22,'sawtooth',0.05); beep(330,0.3,'sawtooth',0.06,0.28); beep(415,0.3,'sawtooth',0.05,0.28); }
-function toggleSound(){ AU.on=!AU.on; $('bSnd').textContent=AU.on?'🔊':'🔇'; try{ localStorage.setItem('tuk-snd',AU.on?'1':'0'); }catch(e){} }
+// music starts with the first touch on the page (browsers need a tap before playing sound)
+addEventListener('pointerdown',()=>initAudio(),{once:true,capture:true});
+function toggleSound(){ AU.on=!AU.on; $('bSnd').textContent=AU.on?'🔊':'🔇'; if(AU.bgm){ if(AU.on) AU.bgm.start(); else AU.bgm.stop(); } try{ localStorage.setItem('tuk-snd',AU.on?'1':'0'); }catch(e){} }
 
 // ================= physics =================
 function step(r,inp,dt){
