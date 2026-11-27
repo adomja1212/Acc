@@ -97,6 +97,11 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 bar.setVisibility(View.GONE);
                 CookieManager.getInstance().flush();
+                // بعد إتمام تسجيل الدخول في claude.ai نرجع للبرنامج مباشرة
+                if (afterLogin && url != null && url.startsWith("https://claude.ai/") && !url.contains("magic-link") && !url.contains("/login") && !url.contains("/artifact/")) {
+                    afterLogin = false;
+                    view.loadUrl(APP_URL);
+                }
             }
 
             @Override
@@ -162,8 +167,26 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (saved != null) web.restoreState(saved);
+        String link = linkFrom(getIntent());
+        if (link != null) { afterLogin = link.contains("magic-link"); web.loadUrl(link); }
+        else if (saved != null) web.restoreState(saved);
         else web.loadUrl(APP_URL);
+    }
+
+    boolean afterLogin = false;
+
+    // رابط claude.ai مفتوح من البريد أو من مكان آخر
+    static String linkFrom(Intent i) {
+        if (i == null || i.getData() == null || !Intent.ACTION_VIEW.equals(i.getAction())) return null;
+        Uri u = i.getData();
+        return "https".equals(u.getScheme()) && "claude.ai".equals(u.getHost()) ? u.toString() : null;
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        String link = linkFrom(i);
+        if (link != null) { showingError = false; afterLogin = link.contains("magic-link"); web.loadUrl(link); }
     }
 
     int dp(int v) {
