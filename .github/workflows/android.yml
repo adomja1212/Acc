@@ -66,6 +66,9 @@ jobs:
           cat >> android/app/build.gradle <<'GRADLE'
           configurations.all { resolutionStrategy { force 'androidx.work:work-runtime:2.9.1' } }
           GRADLE
+          # the updater's Google task library needs Android 6.0 or newer
+          sed -i 's/minSdkVersion = 22/minSdkVersion = 23/' android/variables.gradle
+          grep -q "minSdkVersion = 23" android/variables.gradle
 
       - name: Stable signing key, so updates install over the old app
         env:
@@ -164,6 +167,9 @@ jobs:
           cat >> android/app/build.gradle <<'GRADLE'
           configurations.all { resolutionStrategy { force 'androidx.work:work-runtime:2.9.1' } }
           GRADLE
+          # the updater's Google task library needs Android 6.0 or newer
+          sed -i 's/minSdkVersion = 22/minSdkVersion = 23/' android/variables.gradle
+          grep -q "minSdkVersion = 23" android/variables.gradle
           if [ -f "$HOME/tuk-signing.keystore" ]; then
             cat >> android/app/build.gradle <<GRADLE
           android {
