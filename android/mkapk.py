@@ -7,7 +7,7 @@ import struct, sys, zipfile, io
 from PIL import Image, ImageDraw, ImageFont
 
 PKG = 'com.acc.erp'
-LABEL = 'نظام المحاسب'
+LABEL = 'Sawah System'
 ICON_ID = 0x7f010000
 THEME_ID = 0x01030241  # @android:style/Theme.Material.Light.NoActionBar
 

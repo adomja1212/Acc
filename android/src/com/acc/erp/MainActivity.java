@@ -37,7 +37,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 
 /**
- * تطبيق "نظام المحاسب": يفتح البرنامج المنشور على claude.ai داخل التطبيق.
+ * تطبيق "Sawah System": يفتح البرنامج المنشور على claude.ai داخل التطبيق.
  * أي تحديث يُنشر للبرنامج يظهر فوراً لكل المستخدمين بدون تحديث التطبيق نفسه.
  */
 public class MainActivity extends Activity {
