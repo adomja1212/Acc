@@ -5,6 +5,8 @@ cd "$(dirname "$0")"
 DEST="${1:-../nezam-almohaseb}"
 [ -d "$DEST/.git" ] || git clone https://github.com/adomja1212/nezam-almohaseb "$DEST"
 cp index.html styles.css app.js i18n.js login-hero.jpg app-icon.png "$DEST/"
+# قناة تحديث تطبيق أندرويد: التطبيق يقرأ version.json وينزّل sawah-erp.apk
+cp download/version.json "$DEST/version.json"; cp download/nezam-almohaseb.apk "$DEST/sawah-erp.apk"
 cd "$DEST"
 git add -A
 git diff --cached --quiet && { echo "لا تغييرات"; exit 0; }

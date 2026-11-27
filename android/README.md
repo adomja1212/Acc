@@ -21,3 +21,8 @@
 - اختيار ملفات Excel/CSV من الهاتف للاستيراد، وحفظ الملفات المصدّرة في مجلد التنزيلات.
 - روابط claude.ai تبقى داخل التطبيق، والروابط الخارجية تفتح في المتصفح.
 - رابط تسجيل الدخول المرسل بالبريد من claude.ai يمكن فتحه بالتطبيق (من إعدادات التطبيق في الهاتف: "الفتح افتراضياً" ← إضافة الروابط).
+
+## التحديث داخل التطبيق (من الإصدار 1.7)
+- عند فتح التطبيق يقرأ `https://adomja1212.github.io/nezam-almohaseb/version.json`، وإذا كان `versionCode` أكبر من المثبت يعرض "تحديث جديد متاح" بزر "تحديث".
+- الزر ينزّل `sawah-erp.apk` من نفس الرابط ويفتح شاشة التثبيت (أول مرة يطلب أندرويد السماح بالتثبيت من التطبيق).
+- لإصدار تحديث: `NOTES="وصف التحديث" ./build.sh <versionCode> <versionName>` ثم انسخ `build/nezam-almohaseb-v<versionName>.apk` إلى `download/nezam-almohaseb.apk` و `build/version.json` إلى `download/version.json` ثم `./publish-pages.sh`.

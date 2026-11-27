@@ -46,6 +46,7 @@ def manifest(vcode, vname):
         E('uses-sdk', [('minSdkVersion', T_DEC, 24), ('targetSdkVersion', T_DEC, 34)]),
         E('uses-permission', [('name', T_STR, 'android.permission.INTERNET')]),
         E('uses-permission', [('name', T_STR, 'android.permission.ACCESS_NETWORK_STATE')]),
+        E('uses-permission', [('name', T_STR, 'android.permission.REQUEST_INSTALL_PACKAGES')]),
         E('uses-permission', [('name', T_STR, 'android.permission.WRITE_EXTERNAL_STORAGE'), ('maxSdkVersion', T_DEC, 28)]),
         E('application', [('label', T_STR, LABEL), ('icon', T_REF, ICON_ID), ('hardwareAccelerated', T_BOOL, True),
                           ('theme', T_REF, THEME_ID)], [

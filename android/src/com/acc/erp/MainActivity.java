@@ -169,6 +169,18 @@ public class MainActivity extends Activity {
         if (link != null) { afterLogin = link.contains("magic-link"); web.loadUrl(link); }
         else if (saved != null) web.restoreState(saved);
         else web.loadUrl(APP_URL);
+
+        // فحص وجود تحديث للتطبيق
+        updater = new Updater(this);
+        updater.check();
+    }
+
+    Updater updater;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (updater != null) updater.onResume();
     }
 
     boolean afterLogin = false;
