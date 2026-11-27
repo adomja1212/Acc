@@ -1594,6 +1594,20 @@ $('sqs').onclick=e=>{ const b=e.target.closest('button[data-sq]'); if(b&&!b.disa
 function exitApp(){ const A=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App; if(A&&A.exitApp) A.exitApp(); else if(SOLO_APP&&!window.STANDALONE) location.replace('https://localhost/index.html?offline=1&exit=1'); }
 if(SOLO_APP){ $('toHub').textContent='⏻ خروج من اللعبة'; }
 $('toHub').onclick=()=>{ if(SOLO_APP) askConfirm('خروج','هل تريد الخروج من اللعبة؟',exitApp); else location.href='index.html'; };
+// ---- updates itself from GitHub (the same place the app is downloaded from): no APK, no website ----
+const WAR_BUILD=0;
+function updBar(t,btn){ let b=$('updBar'); if(!b){ b=document.createElement('div'); b.id='updBar'; b.style.cssText='position:fixed;z-index:60;left:50%;top:10px;transform:translateX(-50%);background:rgba(20,60,30,.94);color:#fff;border:1px solid #9ff0b9;border-radius:14px;padding:8px 14px;font:700 14px Cairo,sans-serif;display:flex;gap:10px;align-items:center;max-width:92%'; document.body.appendChild(b); }
+ b.innerHTML=''; b.append(document.createTextNode(t)); if(btn){ const x=document.createElement('button'); x.textContent=btn.t; x.style.cssText='border:0;border-radius:10px;background:#ffb703;color:#2a0f00;font:800 14px Cairo;padding:6px 12px'; x.onclick=btn.f; b.appendChild(x); } b.hidden=false; if(!btn) setTimeout(()=>{ if(b.firstChild&&b.firstChild.textContent===t) b.hidden=true; },6000); }
+async function selfUpdate(){ const U=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.CapacitorUpdater; if(!U||!window.STANDALONE) return;
+ try{ await U.notifyAppReady(); }catch(e){}
+ if(!WAR_BUILD||!navigator.onLine) return;
+ try{ const r=await fetch('https://api.github.com/repos/adomja1212/Acc/releases/latest',{cache:'no-store'}); if(!r.ok) return; const d=await r.json();
+  const n=+((String(d.tag_name||'').match(/\d+/)||[0])[0]); const a=(d.assets||[]).find(x=>x.name==='street-war-web.zip'); if(!(n>WAR_BUILD)||!a) return;
+  const mb=Math.round((a.size||0)/1e6), go=async()=>{ updBar('⬇️ بننزّل التحديث الجديد ('+AD(mb)+' ميجا)…');
+   try{ const b=await U.download({url:a.browser_download_url,version:String(n)}); if(state==='lobby'||state==='room'){ updBar('✅ اتحدثت! بنفتح النسخة الجديدة'); setTimeout(()=>U.set({id:b.id}),1500); } else { await U.next({id:b.id}); updBar('✅ التحديث جاهز، هيشتغل أول ما تقفل اللعبة وتفتحها'); } }
+   catch(e){ updBar('مقدرناش ننزّل التحديث دلوقتي، هنحاول تاني بعدين'); } };
+  const c=navigator.connection; if(c&&c.type==='cellular') updBar('في تحديث جديد ('+AD(mb)+' ميجا)',{t:'نزّله',f:go}); else go(); }catch(e){} }
+setTimeout(selfUpdate,4000);
 // the app plays from its own files (it never opens the website); the exit hop is only for old builds
 (()=>{ const A=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App; if(window.STANDALONE&&A&&/[?&]exit=1/.test(location.search)&&A.exitApp) A.exitApp(); })();
 $('newTeam').onclick=()=>{ initAudio(); joinRoom('war-'+Math.random().toString(36).slice(2,8),true,'squad'); };

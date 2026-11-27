@@ -9,5 +9,14 @@
     "allowNavigation": [
       "adomja1212.github.io"
     ]
+  },
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "statsUrl": "",
+      "updateUrl": "",
+      "channelUrl": "",
+      "resetWhenUpdate": true
+    }
   }
 }

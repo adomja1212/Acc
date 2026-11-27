@@ -131,11 +131,16 @@ jobs:
           node tools/build-www.mjs --with-war
           node tools/build-war.mjs
           rm -rf www && mv www-hub www
+          # the build number lets the app tell when a newer version is out
+          sed -i "s/const WAR_BUILD=0;/const WAR_BUILD=${{ github.run_number }};/" www-war/index.html
+          grep -q "const WAR_BUILD=${{ github.run_number }};" www-war/index.html
+          # the game files as one package: the app downloads this to update itself
+          (cd www-war && zip -qr ../street-war-web.zip .)
           mkdir warapp && cd warapp
           ln -s ../node_modules node_modules && cp ../package.json .
           mv ../www-war www
           cat > capacitor.config.json <<'JSON'
-          {"appId":"eg.streetwar.game","appName":"حرب شوارع","webDir":"www","server":{"androidScheme":"https","allowNavigation":["adomja1212.github.io"]}}
+          {"appId":"eg.streetwar.game","appName":"حرب شوارع","webDir":"www","server":{"androidScheme":"https"},"plugins":{"CapacitorUpdater":{"autoUpdate":false,"statsUrl":"","updateUrl":"","channelUrl":"","resetWhenUpdate":true}}}
           JSON
           npx cap add android
           RES=android/app/src/main/res
@@ -184,6 +189,7 @@ jobs:
           path: |
             tuktuk-rally.apk
             street-war.apk
+            street-war-web.zip
 
       - name: Publish the download
         uses: softprops/action-gh-release@v2
@@ -195,6 +201,7 @@ jobs:
           files: |
             tuktuk-rally.apk
             street-war.apk
+            street-war-web.zip
           body: |
             نزّل ملف tuktuk-rally.apk (ألعاب جماعية) أو street-war.apk (حرب شوارع لوحدها) على الموبايل وافتحه.
             لو الموبايل سأل، اسمح بتثبيت التطبيقات من المصدر ده.
