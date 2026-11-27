@@ -3,7 +3,7 @@
 // public peer-to-peer rooms (WebRTC with Nostr signaling through Trystero).
 // Both expose the same small API: peers(), presence(patch), onPeers(fn), join(name), leave().
 
-const APP_ID = 'tuktuk-rally-eg-v1';
+const APP_ID = (typeof window !== 'undefined' && window.NET_APP_ID) || 'tuktuk-rally-eg-v1'; // Street War's own app uses its own lobby
 
 async function p2pLobby() {
   let T;

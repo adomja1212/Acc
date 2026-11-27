@@ -25,7 +25,10 @@ await build({
 });
 
 // models, textures and images the games load at run time
-if (fs.existsSync(path.join(root, 'assets'))) fs.cpSync(path.join(root, 'assets'), path.join(out, 'assets'), { recursive: true });
+// «ألعاب جماعية» only needs the game icons; Street War is its own app with its own copy of everything else
+const WAR_ONLY = process.argv.includes('--with-war');
+if (WAR_ONLY) fs.cpSync(path.join(root, 'assets'), path.join(out, 'assets'), { recursive: true });
+else fs.cpSync(path.join(root, 'assets/icons'), path.join(out, 'assets/icons'), { recursive: true });
 
 const fontDir = path.join(out, 'fonts');
 fs.mkdirSync(path.join(fontDir, 'files'), { recursive: true });
@@ -47,7 +50,7 @@ const SWAPS = [
   ['https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/', './lib/three/examples/jsm/'],
   ['https://cdn.jsdelivr.net/npm/trystero@0.26.0/+esm', './lib/trystero.js'],
 ];
-const pages = fs.readdirSync(root).filter((f) => f.endsWith('.html')).concat(['net.js', 'bgm.js']);
+const pages = fs.readdirSync(root).filter((f) => f.endsWith('.html') && (WAR_ONLY || f !== 'war.html')).concat(['net.js', 'bgm.js']);
 for (const name of pages) {
   let text = fs.readFileSync(path.join(root, name), 'utf8');
   for (const [from, to] of SWAPS) text = text.split(from).join(to);

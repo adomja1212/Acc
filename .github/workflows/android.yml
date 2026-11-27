@@ -127,9 +127,10 @@ jobs:
       # ---- «حرب شوارع» as its own app: same game, its own icon, held sideways like PUBG ----
       - name: Street War app project
         run: |
+          mv www www-hub
+          node tools/build-www.mjs --with-war
           node tools/build-war.mjs
-          sed -i "s/const WAR_BUILD=0;/const WAR_BUILD=${{ github.run_number }};/" www-war/index.html
-          grep -q "const WAR_BUILD=${{ github.run_number }};" www-war/index.html
+          rm -rf www && mv www-hub www
           mkdir warapp && cd warapp
           ln -s ../node_modules node_modules && cp ../package.json .
           mv ../www-war www
