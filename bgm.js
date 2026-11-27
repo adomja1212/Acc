@@ -2,6 +2,7 @@
 // createBGM(ctx, destination, style) -> { start(), stop(), setLevel(v) }
 //   style 'tuk': a relaxed Egyptian street groove (hijaz melody on a plucked oud-like voice, darbuka, soft bass)
 //   style 'war': calm cinematic tension (low pad, slow ostinato, soft distant drums)
+//   style 'calm': gentle music box and warm pads for drawing and board games
 
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -14,7 +15,7 @@ export function createBGM(ctx, dest, style) {
   for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
   conv.buffer = ir;
   const wet = ctx.createGain(); wet.gain.value = 0.28;
-  const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = style === 'war' ? 3800 : 6000;
+  const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = style === 'war' ? 3800 : style === 'calm' ? 4200 : 6000;
   out.connect(tone); tone.connect(dest); tone.connect(conv); conv.connect(wet); wet.connect(dest);
   let noise = null;
   { const b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; noise = b; }
@@ -70,6 +71,13 @@ export function createBGM(ctx, dest, style) {
         const n = phrase[s16]; if (n && bar !== 3) pluck(midi(n), t, 0.09, 0.45);
         if (bar === 3 && s16 % 2 === 0 && Math.random() < 0.5) pluck(midi(TUK.scale[Math.floor(Math.random() * 8)] + 12), t, 0.04, 0.3);
         nextT += 60 / TUK.bpm / 4;
+      } else if (style === 'calm') {
+        // soft music box over warm pads, pentatonic so nothing ever clashes
+        const s8 = step % 8, bar = Math.floor(step / 8) % 4, CH = [[48, 55, 64], [45, 52, 60], [41, 48, 57], [43, 50, 59]], PEN = [72, 74, 76, 79, 81, 84, 86, 88];
+        if (s8 === 0) { pad(CH[bar].map(midi), t, 60 / 66 * 4 + 0.8, 0.016); bass(midi(CH[bar][0] - 12), t, 2.2, 0.12); }
+        if (Math.random() < 0.62) pluck(midi(PEN[Math.floor(Math.random() * PEN.length)]), t, 0.045, 1.2);
+        if (s8 === 4 && Math.random() < 0.5) pluck(midi(CH[bar][2] + 12), t, 0.03, 1.5);
+        nextT += 60 / 66 / 2;
       } else {
         const s8 = step % 8, bar = Math.floor(step / 8) % 4;
         if (s8 === 0) { pad(WAR.chords[bar].map(midi), t, 60 / WAR.bpm * 4 + 0.6, 0.02); bass(midi(WAR.chords[bar][0]), t, 1.6, 0.2); drum('taiko', t, 0.35); }

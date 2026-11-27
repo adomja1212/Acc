@@ -88,7 +88,7 @@ export function myProfile() {
 export function saveProfile(n, c) {
   try { if (n != null) localStorage.setItem('tuk-name', String(n).trim().slice(0, 14)); if (c != null) localStorage.setItem('tuk-color', c); } catch (e) {}
 }
-export const GAME_NAMES = { hub: 'في القايمة', tuk: 'في سباق التوكتوك', war: 'في حرب شوارع' };
+export const GAME_NAMES = { hub: 'في القايمة', tuk: 'في سباق التوكتوك', war: 'في حرب شوارع', ludo: 'في لودو', color: 'بيلوّن' };
 
 // Small side panel shown on each game's main menu: your name (editable) and who's online right now.
 // opts: { getLobby: () => lobby|null, getName: () => string, setName: (n) => void, myColor: () => index }
@@ -124,7 +124,7 @@ export function onlinePanel(opts) {
   inp.value = opts.getName();
   inp.oninput = () => { const v = inp.value.trim().slice(0, 14); if (v) opts.setName(v); };
   inp.onblur = () => { inp.value = opts.getName(); };
-  const short = { hub: 'في القايمة', tuk: 'سباق التوكتوك', war: 'حرب شوارع' };
+  const short = { hub: 'في القايمة', tuk: 'سباق التوكتوك', war: 'حرب شوارع', ludo: 'لودو', color: 'تلوين' };
   function render() {
     if (el.hidden) return;
     if (document.activeElement !== inp) inp.value = opts.getName();
