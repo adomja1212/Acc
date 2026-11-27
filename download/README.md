@@ -1,7 +1,7 @@
 # نظام المحاسب
 
 ## 🌐 فتح البرنامج من أي متصفح (كمبيوتر أو موبايل)
-https://adomja1212.github.io/Acc/
+https://adomja1212.github.io/nezam-almohaseb/
 
 ## 📱 تحميل تطبيق أندرويد
 
@@ -12,4 +12,4 @@ https://github.com/adomja1212/Acc/raw/claude/accounting-database-webpage-nrered/
 - التطبيق يفتح البرنامج المنشور، وأي تحديث للبرنامج يظهر فوراً بدون إعادة تثبيت.
 - الدخول باسم المستخدم وكلمة المرور اللذين يحددهما مدير النظام فقط.
 
-الإصدار الحالي: 1.1 (versionCode 2) — يفتح رابط GitHub مباشرة
+الإصدار الحالي: 1.2 (versionCode 3) — يفتح رابط GitHub مباشرة

@@ -42,7 +42,7 @@ import java.io.OutputStream;
  */
 public class MainActivity extends Activity {
     // رابط البرنامج المنشور — لتغييره: عدّل هذا السطر وأعد بناء التطبيق بنفس مفتاح التوقيع
-    static final String APP_URL = "https://adomja1212.github.io/Acc/";
+    static final String APP_URL = "https://adomja1212.github.io/nezam-almohaseb/";
     static final int PICK_FILE = 41;
 
     WebView web;
