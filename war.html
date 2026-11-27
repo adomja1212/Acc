@@ -202,7 +202,7 @@ html.rot body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:17
  <canvas id="mapCv" width="640" height="640"></canvas>
  <div class="mapc"><h2>الخريطة</h2><p class="hint">اختار مكان وهيظهر عمود نور تطير له بالهليكوبتر 🚁 (من «🎒 السلاح»).</p><div id="mapList"></div>
   <button class="go" id="mapX">رجوع للعب</button>
-  <p class="credit">موديل الذئب: Fox من PixelMannen (CC0)، التحريك tomkranis والتحويل AsoboStudio و scurest (CC BY 4.0).</p></div>
+  <p class="credit">السما والخامات وموديلات المدينة: Poly Haven (CC0). موديل الذئب: Fox من PixelMannen (CC0)، التحريك tomkranis والتحويل AsoboStudio و scurest (CC BY 4.0).</p></div>
 </div></div></div>
 <div class="ov" id="setOv" hidden><div class="card wide"><div class="truck"></div><div class="in setg">
  <div class="pvbig" id="pvSet"></div>
@@ -361,7 +361,7 @@ const camera=new THREE.PerspectiveCamera(70,VW()/VH(),0.05,3000);
 const sky=new Sky(); sky.scale.setScalar(2500); scene.add(sky);
 { const u=sky.material.uniforms; u.turbidity.value=5; u.rayleigh.value=1.6; u.mieCoefficient.value=0.006; u.mieDirectionalG.value=0.85; u.sunPosition.value.setFromSphericalCoords(1,THREE.MathUtils.degToRad(76),THREE.MathUtils.degToRad(210)); }
 const pmrem=new THREE.PMREMGenerator(renderer);
-function loadHDR(){ return new Promise(res=>{ new RGBELoader().load('assets/textures/quarry_01_1k.hdr',t=>{ t.mapping=THREE.EquirectangularReflectionMapping;
+function loadHDR(){ return new Promise(res=>{ new RGBELoader().load('assets/ph/sky/kloofendal_48d_partly_cloudy_puresky_2k.hdr',t=>{ t.mapping=THREE.EquirectangularReflectionMapping;
   HDRTEX=t; scene.environment=pmrem.fromEquirectangular(t).texture; scene.environmentIntensity=0.95; scene.background=t; scene.backgroundIntensity=0.95; sky.visible=false;
   try{ hdrLook(t); }catch(e){} res(); },undefined,()=>res()); }); }
 // read the photo: point our sun where the real sun is, and tint the haze to the horizon
@@ -435,8 +435,6 @@ function groundTex(size,cols,pebbles,rep){ const H=new Float32Array(size*size);
  cg.putImageData(cd,0,0); ng.putImageData(nd,0,0);
  const mk=(c,srgb)=>{ const t=new THREE.CanvasTexture(c); if(srgb) t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rep,rep); t.anisotropy=renderer.capabilities.getMaxAnisotropy(); return t; };
  return {map:mk(cc,true),normal:mk(nc,false)}; }
-const SAND=groundTex(256,[[118,98,74],[150,128,98],[172,150,118],[190,170,138]],260,70);
-const ASPH=groundTex(256,[[46,45,44],[62,60,58],[74,72,69],[92,90,86]],520,10);
 const TX={
  brick:tload('assets/textures/brick_diffuse.jpg'), brickBump:tload('assets/textures/brick_bump.jpg',[1,1],false), brickRough:tload('assets/textures/brick_roughness.jpg',[1,1],false),
  wood:tload('assets/textures/hardwood2_diffuse.jpg'), woodBump:tload('assets/textures/hardwood2_bump.jpg',[1,1],false), woodRough:tload('assets/textures/hardwood2_roughness.jpg',[1,1],false),
@@ -453,19 +451,23 @@ const TX={
  leaf:ctex(256,64,(g,w,h)=>{ g.clearRect(0,0,w,h); g.strokeStyle='#fff'; g.lineCap='round'; for(let x=8;x<w-6;x+=5){ const L=(Math.sin(x/w*Math.PI)**0.6)*28+3; g.lineWidth=3; g.beginPath(); g.moveTo(x,32); g.lineTo(x+10,32-L); g.moveTo(x,32); g.lineTo(x+10,32+L); g.stroke(); } g.lineWidth=4; g.beginPath(); g.moveTo(0,32); g.lineTo(w,32); g.stroke(); },[1,1],false),
 };
 const pm=(o)=>new THREE.MeshStandardMaterial(o);
+// photo-scanned surfaces from Poly Haven (CC0): colour, surface relief and roughness for each
+function phTex(id,rep=1){ const b='assets/ph/tex/'+id+'_'; const m=tload(b+'diff.jpg',[rep,rep]), n=tload(b+'nor.jpg',[rep,rep],false), r=tload(b+'rough.jpg',[rep,rep],false); return {map:m,normalMap:n,roughnessMap:r}; }
+const PH={sand:phTex('sandy_gravel_02',430),asph:phTex('asphalt_02'),walk:phTex('concrete_pavers'),brick:phTex('red_brick_03',2),frame:phTex('concrete_wall_008'),roof:phTex('concrete_floor_worn_001'),
+ walls:['yellow_plaster_02','white_rough_plaster','worn_plaster_wall','red_plaster_weathered'].map(id=>phTex(id))};
 const MAT={
- brick:pm({map:TX.brick,bumpMap:TX.brickBump,bumpScale:1.5,roughnessMap:TX.brickRough,roughness:1}),
- walls:[0xefdcbc,0xe5b9a0,0xcfd8c4,0xf3ede2].map(c=>pm({map:TX.plaster,bumpMap:TX.plaster,bumpScale:0.6,color:c,roughness:.95})),
- frame:pm({map:TX.concrete,bumpMap:TX.concrete,bumpScale:0.8,roughness:1,color:0xc8c2b8}),
+ brick:pm({...PH.brick,normalScale:new THREE.Vector2(1.2,1.2),roughness:1}),
+ walls:[0xffffff,0xf4efe6,0xf2e6d8,0xffffff].map((c,i)=>pm({...PH.walls[i],color:c,roughness:1})),
+ frame:pm({...PH.frame,roughness:1}),
  inner:pm({map:TX.plaster,color:0xfaf4ea,roughness:.95}),
- roof:pm({map:TX.concrete,color:0xb8afa2,roughness:1}),
+ roof:pm({...PH.roof,roughness:1}),
  floor:pm({map:TX.wood,bumpMap:TX.woodBump,bumpScale:0.4,roughnessMap:TX.woodRough,roughness:1}),
  tiles:pm({map:TX.tiles,roughness:.55}),
- road:pm({map:TX.asphalt,normalMap:ASPH.normal,normalScale:new THREE.Vector2(0.8,0.8),roughness:.9}),
- walk:pm({map:TX.walk,bumpMap:TX.walk,bumpScale:0.4,roughness:.95}),
+ road:pm({...PH.asph,roughness:1}),
+ walk:pm({...PH.walk,roughness:1}),
  curb:pm({map:TX.curb,roughness:.8}),
  line:pm({color:0xeeeae0,roughness:.7}),
- dirt:pm({map:SAND.map,normalMap:SAND.normal,normalScale:new THREE.Vector2(0.8,0.8),roughness:1}),
+ dirt:pm({...PH.sand,roughness:1}),
  wood:pm({map:TX.wood,bumpMap:TX.woodBump,bumpScale:0.3,roughnessMap:TX.woodRough,roughness:1}),
  sofa:[0x6d3a8a,0x2b5d3a,0x8a1c22,0x2c4f7a].map(c=>pm({map:TX.fabric,color:c,roughness:.95})),
  glass:new THREE.MeshPhysicalMaterial({color:0x1e2a36,roughness:.05,metalness:.2,envMapIntensity:1.6,clearcoat:1}),
@@ -605,6 +607,27 @@ function buildMap(){
  buildRegions(plane);
  flush();
 }
+
+// ================= photo-scanned props from Poly Haven (CC0) =================
+const PROPS={}, PNAMES=['Barrel_01','barrel_03','covered_car','concrete_road_barrier','metal_jerrycan','old_military_crate','old_tyre','propane_tank','street_lamp_01','trashbag','utility_box_01','wooden_crate_01','plastic_crate_01','quiver_tree_01','dead_tree_trunk'];
+function loadProps(){ return Promise.all(PNAMES.map(n=>new Promise(res=>new GLTFLoader().load(`assets/ph/models/${n}/${n}.gltf`,g=>{ g.scene.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); PROPS[n]=g.scene; res(); },undefined,()=>res())))).then(placeProps); }
+let pseed=777; const pr=()=>(pseed=pseed*16807%2147483647)/2147483647, prr=(a,b)=>a+(b-a)*pr();
+function spotFree(x,z,r=1){ for(const [dx,dz] of [[0,0],[r,0],[-r,0],[0,r],[0,-r]]) if(inBox(new THREE.Vector3(x+dx,0.6,z+dz))) return false; for(const v of VEH) if(Math.hypot(v.x-x,v.z-z)<v.r+r+1) return false; return true; }
+function prop(n,x,z,yaw=0,y=0,col=true,r=0.8){ const src=PROPS[n]; if(!src||!spotFree(x,z,r)) return null; const o=src.clone(); o.position.set(x,y,z); o.rotation.y=yaw; world.add(o); o.updateMatrixWorld(true);
+ if(col){ const b=new THREE.Box3().setFromObject(o); if(b.max.y-b.min.y>0.3) COL.push({x0:b.min.x,x1:b.max.x,y0:b.min.y,y1:b.max.y,z0:b.min.z,z1:b.max.z}); } return o; }
+function placeProps(){ pseed=777; const small=['Barrel_01','barrel_03','trashbag','propane_tank','metal_jerrycan','old_tyre','plastic_crate_01','wooden_crate_01','utility_box_01'];
+ // city: parked cars along the roads, lamps at the corners, clutter on the pavements
+ for(const r of [-60,-20,20,60]) for(const t of [-82,-50,-10,10,50,82]){ if(pr()<0.45) prop('covered_car',r+(pr()<.5?3.6:-3.6),t+prr(-3,3),pr()<.5?0:Math.PI,0,true,2.2); if(pr()<0.35) prop('covered_car',t+prr(-3,3),r+(pr()<.5?3.6:-3.6),pr()<.5?Math.PI/2:-Math.PI/2,0,true,2.2); }
+ for(const bx of [-40,0,40]) for(const bz of [-40,0,40]){ for(const [cx,cz] of [[-14,-14],[14,14],[-14,14],[14,-14]]) if(pr()<0.6) prop('street_lamp_01',bx+cx,bz+cz,Math.atan2(-cx,-cz),0.15,true,0.3);
+  for(let k=0;k<7;k++){ const side=Math.floor(pr()*4), u=prr(-12,12), x=bx+(side===0?14:side===1?-14:u), z=bz+(side===2?14:side===3?-14:u); prop(small[Math.floor(pr()*small.length)],x,z,prr(0,6.28),0.15,true,0.5); } }
+ for(const s of [-1,1]) for(const g of [-20,20]){ prop('concrete_road_barrier',g-3,s*(ZONE+3),0,0,true,1); prop('concrete_road_barrier',s*(ZONE+3),g+3,Math.PI/2,0,true,1); }
+ // regions
+ const R0=REGIONS[0],R1=REGIONS[1],R2=REGIONS[2],R3=REGIONS[3];
+ for(let k=0;k<26;k++){ const x=R0.x+prr(-70,70), z=R0.z+prr(-70,70); prop(pr()<0.3?'covered_car':small[Math.floor(pr()*small.length)],x,z,prr(0,6.28),0,true,0.8); }
+ for(let k=0;k<30;k++){ const x=R1.x+prr(-75,75), z=R1.z+prr(-75,75); prop(['old_tyre','trashbag','barrel_03','dead_tree_trunk','covered_car','wooden_crate_01'][Math.floor(pr()*6)],x,z,prr(0,6.28),0,true,0.8); }
+ for(let k=0;k<18;k++) prop(pr()<0.7?'quiver_tree_01':'dead_tree_trunk',R2.x+prr(-90,90),R2.z+prr(-90,90),prr(0,6.28),0,true,0.6);
+ for(let k=0;k<22;k++) prop(['old_military_crate','metal_jerrycan','Barrel_01','plastic_crate_01'][Math.floor(pr()*4)],R3.x+prr(-55,55),R3.z+prr(-55,55),prr(0,6.28),0,true,0.6);
+ for(let k=0;k<6;k++) prop('concrete_road_barrier',R3.x+10+k*4,R3.z-74,0,0,true,1); }
 
 // ================= open world regions =================
 const REGIONS=[
@@ -1618,7 +1641,7 @@ function loop(now){ requestAnimationFrame(loop); const dt=Math.min((now-last)/10
  const [sol,car,fem,fox]=await Promise.all([loadGLB('assets/models/Soldier.glb'),loadGLB('assets/models/ferrari.glb'),loadGLB('assets/models/Michelle.glb'),loadGLB('assets/models/Fox.glb'),loadHDR()]); FOX=fox;
  if(!sol){ $('loading').querySelector('p').textContent='مقدرناش نحمّل الشخصيات. اتأكد من النت وجرّب تاني.'; return; }
  SOLDIER=sol; if(car){ CARMODEL=car.scene.children[0]||car.scene; } setupFemale(fem);
- buildMap(); buildVehicles(); prepMini(); addAtmos(); applyQuality(QUAL);
+ buildMap(); buildVehicles(); prepMini(); addAtmos(); applyQuality(QUAL); loadProps();
  $('loading').hidden=true; showLobby(); pvMount('pvLobby'); requestAnimationFrame(t=>{ last=t; loop(t); });
  const L=await getLobby(); if(!L){ NET.off=true; renderLobby(); return; }
  NET.lobby=L; L.onPeers(()=>renderLobby(),()=>{}); lobbyAnnounce(); renderLobby();
