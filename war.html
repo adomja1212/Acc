@@ -50,6 +50,19 @@ button{font:inherit;color:inherit;cursor:pointer}
 .nlist li button:disabled{background:rgba(255,255,255,.15);color:rgba(255,255,255,.6)}
 .nlist .empty{opacity:.7;background:none;padding-inline:0}
 .teams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:10px 0}
+.sq{border-radius:12px;padding:8px;background:rgba(255,255,255,.06);border:2px solid var(--c)}
+.sq.mine{background:rgba(47,139,255,.18)}
+.sq h3{margin:0 0 4px;font-family:Lalezar,Cairo;font-weight:400;font-size:20px;color:var(--c)}
+.sq ul{list-style:none;margin:0 0 6px;padding:0;font-size:13px;font-weight:700;min-height:44px}
+.sq ul li.cpu{opacity:.55;font-weight:400}
+.sq button{width:100%;border:0;border-radius:8px;min-height:36px;font:800 13px Cairo,sans-serif;background:var(--c);color:#1a0508}
+.sq button:disabled{opacity:.4}
+.outs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:4px 0 10px}
+.outs button{display:grid;justify-items:center;gap:2px;border-radius:12px;border:2px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff6e6;padding:6px 2px;font:700 12px Cairo,sans-serif;min-height:56px}
+.outs button i{font-style:normal;font-size:22px;line-height:1}
+.outs button[aria-pressed=true]{border-color:#ffb703;background:rgba(255,183,3,.2)}
+.hint{font-size:13px;opacity:.8;margin:8px 0 0}
 .team{border-radius:14px;padding:10px;min-height:120px}
 .team.r{background:rgba(230,57,70,.22);border:2px solid var(--red)}.team.b{background:rgba(10,10,14,.55);border:2px solid #8a8a94}
 .team h3{margin:0 0 6px;font-family:Lalezar,Cairo;font-weight:400;font-size:26px}
@@ -59,11 +72,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .back{background:none;border:0;color:#ffd98a;text-decoration:underline;font-weight:600;min-height:44px;padding:0}
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
 #score{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;background:rgba(34,9,15,.75);border-radius:999px;padding:4px 16px;font-weight:800;white-space:nowrap}
-#score .r{color:#ff6b75}#score .b{color:#d6d6de}
+#score .r{color:#ff6b75}#score .b{color:#d6d6de}#score .mine{color:#6fb1ff}
 #score b{font-family:Lalezar,Cairo;font-weight:400;font-size:26px;line-height:1.2}
 #feed{position:absolute;top:calc(56px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));list-style:none;margin:0;padding:0;display:grid;gap:4px;justify-items:end;font-size:14px;font-weight:700}
 #feed li{background:rgba(34,9,15,.72);border-radius:8px;padding:2px 10px}
-#feed .r{color:#ff8a92}#feed .b{color:#d6d6de}
+#feed .r{color:#ff8a92}#feed .b{color:#7fb6ff}
 #mini{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));width:150px;height:150px;border-radius:14px;background:rgba(34,9,15,.6);border:2px solid rgba(255,183,3,.5)}
 #hpBox{position:absolute;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:240px}
 #hpBox .bar{height:16px;border-radius:8px;background:rgba(34,9,15,.75);overflow:hidden;border:2px solid rgba(255,255,255,.3)}
@@ -154,27 +167,24 @@ html.rot body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:17
  <button class="back" id="toHub">→ رجوع لقايمة الألعاب</button>
  <h1>حرب شوارع</h1>
  <p id="lobStat">بنوصل…</p>
- <button class="go" id="quick">ادخل أسرع ماتش</button>
- <div class="row2"><button class="go alt" id="newTeam">أوضة فريق ضد فريق</button><button class="go alt" id="newDuel">أوضة واحد ضد واحد</button></div>
- <button class="go ghost" id="train">تدريب لوحدك ضد الكمبيوتر</button>
+ <span class="lbl">شخصيتك</span><div class="outs" id="outs"></div>
+ <button class="go" id="train">ابدأ ماتش دلوقتي</button>
+ <div class="row2"><button class="go alt" id="quick">ادخل ماتش صحابك</button><button class="go alt" id="newTeam">اعمل أوضة لصحابك</button></div>
+ <p class="hint">٥ فرق، كل فريق ٤. الأماكن الفاضية بيكمّلها الكمبيوتر. آخر فريق صامد يكسب.</p>
  <span class="lbl">ماتشات مفتوحة</span><ul class="nlist" id="rooms"></ul>
 </div></div></div>
 
 <div class="ov" id="roomOv" hidden><div class="card"><div class="truck"></div><div class="in">
  <h2 id="roomT">أوضة الماتش</h2>
  <p id="roomInfo"></p>
- <div class="seg" id="modeSeg"><button data-v="team">فريق ضد فريق</button><button data-v="duel">واحد ضد واحد</button></div>
- <div class="teams" style="margin-top:12px">
-  <div class="team r"><h3>الأحمر</h3><ul id="tR"></ul><button id="joinR">انضم للأحمر</button></div>
-  <div class="team b"><h3>الأسود</h3><ul id="tB"></ul><button id="joinB">انضم للأسود</button></div>
- </div>
+ <div class="sqs" id="sqs"></div>
  <button class="go" id="startM">ابدأ الماتش</button>
  <div class="row2"><button class="go alt" id="invite">انسخ رابط الدعوة</button><button class="go ghost" id="leaveR">اخرج</button></div>
  <p id="invMsg" style="font-size:13px;opacity:.85;overflow-wrap:anywhere"></p>
 </div></div></div>
 
 <div id="hud" hidden>
- <div id="score"><span class="r"><b id="aR">٠</b> أحمر</span><span>ضد</span><span class="b">أسود <b id="aB">٠</b></span></div>
+ <div id="score"><span class="mine">فريقك <b id="aR">٠</b></span><span>·</span><span class="r">أعداء <b id="aB">٠</b></span><span>·</span><span>فرق <b id="aS">٠</b></span></div>
  <canvas id="mini" width="300" height="300"></canvas>
  <ul id="feed"></ul>
  <div id="hpBox"><b id="hpN">١٠٠</b><div class="bar"><i id="hpBar" style="width:100%"></i></div></div>
@@ -242,7 +252,20 @@ const PROFILE=myProfile();
 // your name and who's online: a small side panel on the menus
 const OP=onlinePanel({getLobby:()=>NET.lobby||null,getName:()=>PROFILE.n,setName:n=>{ PROFILE.n=n; saveProfile(n,null); try{ lobbyAnnounce(); }catch(e){} }});
 OP.show(false);
-const TEAMC={r:0xd62828,b:0x1c1c22};
+// ---- 5 squads of 4; everyone wears the outfit they picked ----
+const SQ=['s0','s1','s2','s3','s4'], SQN={s0:'الصقور',s1:'النمور',s2:'الذئاب',s3:'العقارب',s4:'الفهود'}, SQC={s0:'#e63946',s1:'#ffb703',s2:'#22c3b5',s3:'#b07cff',s4:'#4f9dff'}, SQCAP=4;
+const isSq=t=>typeof t==='string'&&SQ.includes(t);
+const OUTFITS=[
+ {id:'hood',name:'المقنّع',ico:'🥷',body:0x2a2a30,vest:0x141417,pouch:0x1b1b1f,head:'hood'},
+ {id:'red',name:'الأحمر',ico:'🔴',body:0xff8f8f,vest:0x6e1a1e,pouch:0x7f2025,head:'band',band:0xd62828},
+ {id:'desert',name:'الصحراوي',ico:'🏜️',body:0xe2cfa6,vest:0x8a7650,pouch:0x7a6644,head:'helmet',helm:0xb59a68},
+ {id:'forest',name:'الغابة',ico:'🌲',body:0x93ad7c,vest:0x3e4a2c,pouch:0x4b5a33,head:'helmet',helm:0x55663a},
+ {id:'urban',name:'المدينة',ico:'🏙️',body:0xa9b3c2,vest:0x2f3640,pouch:0x39424e,head:'cap',helm:0x1f242c}];
+const outfitOf=id=>OUTFITS.find(o=>o.id===id)||OUTFITS[0];
+let MYOUT='hood'; try{ const o=localStorage.getItem('war-outfit'); if(o&&OUTFITS.some(x=>x.id===o)) MYOUT=o; }catch(e){}
+// markers over heads: blue = on your squad, red = enemy
+const MKTEX=(()=>{ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); g.fillStyle='#fff'; g.strokeStyle='rgba(0,0,0,.6)'; g.lineWidth=5; g.beginPath(); g.moveTo(8,10); g.lineTo(56,10); g.lineTo(32,52); g.closePath(); g.stroke(); g.fill(); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
+const MK_BLUE=new THREE.SpriteMaterial({map:MKTEX,color:0x2f8bff,depthTest:false,depthWrite:false}), MK_RED=new THREE.SpriteMaterial({map:MKTEX,color:0xff2a2a,depthWrite:false});
 
 // ================= renderer =================
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
@@ -596,11 +619,11 @@ function nameTag(text,col){ const c=document.createElement('canvas'); c.width=25
  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthWrite:false})); s.scale.set(1.6,0.4,1); s.position.y=2.25; return s; }
 const BN={spine:'Spine1',spine2:'Spine2',head:'Head',lArm:'LeftArm',lFore:'LeftForeArm',lHand:'LeftHand',rArm:'RightArm',rFore:'RightForeArm',rHand:'RightHand'};
 function findBone(root,n){ return root.getObjectByName('mixamorig'+n)||root.getObjectByName('mixamorig:'+n)||null; }
-function makeChar(team,capCol,name,isMe){
+function makeChar(outfit,name,isMe){ const OF=outfitOf(outfit);
  const root=new THREE.Group(); root.rotation.order='YXZ';
  const model=SkeletonUtils.clone(SOLDIER.scene); model.rotation.y=Math.PI; root.add(model);
- const blackTeam=team==='b', tint=new THREE.Color(blackTeam?0x2a2a30:0xff8f8f);
- model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; o.material=o.material.clone(); if(/Body/i.test(o.material.name)) o.material.color.copy(tint); else if(blackTeam&&/Visor/i.test(o.material.name)){ o.material.color.set(0x0b0b0d); } } });
+ const hooded=OF.head==='hood', tint=new THREE.Color(OF.body);
+ model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; o.material=o.material.clone(); if(/Body/i.test(o.material.name)) o.material.color.copy(tint); else if(hooded&&/Visor/i.test(o.material.name)){ o.material.color.set(0x0b0b0d); } } });
  const mixer=new THREE.AnimationMixer(model), A={}; for(const c of SOLDIER.animations) A[c.name]=mixer.clipAction(c);
  for(const n of ['Idle','Walk','Run']) if(A[n]){ A[n].play(); A[n].setEffectiveWeight(n==='Idle'?1:0); }
  const bones={}; for(const k in BN) bones[k]=findBone(model,BN[k]);
@@ -608,25 +631,27 @@ function makeChar(team,capCol,name,isMe){
  model.updateMatrixWorld(true);
  const gear=bone=>{ const g=new THREE.Group(); if(!bone) return g; const q=new THREE.Quaternion(), sc=new THREE.Vector3(); bone.getWorldQuaternion(q); bone.getWorldScale(sc); g.quaternion.copy(q.invert()); g.scale.setScalar(1/sc.x); bone.add(g); return g; };
  const put=(g,geo,mat,x,y,z,sx=1,sy=1,sz=1)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.scale.set(sx,sy,sz); m.castShadow=true; g.add(m); return m; };
- const vestM=pm({color:blackTeam?0x141417:0x6e1a1e,roughness:.9}), pouchM=pm({color:blackTeam?0x1b1b1f:0x7f2025,roughness:.85});
+ const vestM=pm({color:OF.vest,roughness:.9}), pouchM=pm({color:OF.pouch,roughness:.85});
  const chest=gear(bones.spine2);
  put(chest,new RoundedBoxGeometry(0.38,0.34,0.07,2,0.02),vestM,0,0.03,0.155); put(chest,new RoundedBoxGeometry(0.38,0.34,0.07,2,0.02),vestM,0,0.03,-0.155);
  for(const sx of [-1,1]){ put(chest,new THREE.BoxGeometry(0.06,0.2,0.3),vestM,sx*0.2,-0.04,0); put(chest,new THREE.BoxGeometry(0.07,0.04,0.33),vestM,sx*0.12,0.2,0); }
  for(const x of [-0.12,0,0.12]) put(chest,new RoundedBoxGeometry(0.1,0.13,0.06,2,0.015),pouchM,x,-0.1,0.205);
  put(chest,new RoundedBoxGeometry(0.12,0.08,0.05,2,0.015),pouchM,0.1,0.1,0.205);
  const head=gear(bones.head);
- if(blackTeam){ // black hood, a glossy mask and glowing red eyes
+ if(hooded){ // black hood, a glossy mask and glowing red eyes
   const hood=pm({color:0x0f0f12,roughness:.95,side:THREE.DoubleSide});
   put(head,new THREE.SphereGeometry(0.175,22,16,Math.PI/2+0.62,Math.PI*2-1.24,0,Math.PI*0.78),hood,0,0.1,-0.01,1,1.12,1.06);
   put(head,new THREE.CylinderGeometry(0.2,0.3,0.16,18,1,true),hood,0,-0.06,-0.02);
   put(head,new THREE.SphereGeometry(0.14,22,16,Math.PI/2-0.78,1.56,0.32*Math.PI,0.55*Math.PI),new THREE.MeshPhysicalMaterial({color:0x08080a,roughness:.18,metalness:.4,clearcoat:1}),0,0.1,0.015,1,1.08,1);
   const eye=new THREE.MeshBasicMaterial({color:new THREE.Color(2.4,0.0,0.0),toneMapped:false});
   for(const sx of [-1,1]) put(head,new THREE.SphereGeometry(0.02,12,8),eye,sx*0.045,0.125,0.142,1.7,0.6,0.5);
- } else put(head,new THREE.TorusGeometry(0.13,0.025,8,20).rotateX(Math.PI/2),pm({color:TEAMC.r,emissive:TEAMC.r,emissiveIntensity:0.4}),0,0.12,0);
+ } else if(OF.head==='band') put(head,new THREE.TorusGeometry(0.13,0.025,8,20).rotateX(Math.PI/2),pm({color:OF.band,emissive:OF.band,emissiveIntensity:0.4}),0,0.12,0);
+ else if(OF.head==='helmet'){ const hm=pm({color:OF.helm,roughness:.75}); put(head,new THREE.SphereGeometry(0.165,20,12,0,Math.PI*2,0,Math.PI*0.52),hm,0,0.11,0,1,0.95,1.08); put(head,new THREE.TorusGeometry(0.163,0.012,6,24).rotateX(Math.PI/2),hm,0,0.105,0); }
+ else { const cm=pm({color:OF.helm,roughness:.9}); put(head,new THREE.SphereGeometry(0.155,20,12,0,Math.PI*2,0,Math.PI*0.5),cm,0,0.12,0); put(head,new THREE.CylinderGeometry(0.11,0.11,0.015,16,1,false,-Math.PI/2,Math.PI),cm,0,0.125,0.12); }
  const wg=new THREE.Group(); wg.scale.setScalar(1.2); scene.add(wg); const wm=weaponMeshes(wg);
- if(!isMe) root.add(nameTag(name,team==='r'?'#ff8a92':'#e4e4ea'));
+ const tag=isMe?null:nameTag(name,'#cfe4ff'); if(tag) root.add(tag); const mk=new THREE.Sprite(MK_RED); mk.scale.set(0.32,0.32,1); mk.position.y=2.5; mk.visible=false; root.add(mk);
  scene.add(root);
- return {root,model,mixer,A,bones,wg,wm,head:model,cur:null,fallT:0,wt:{Idle:1,Walk:0,Run:0},t:0};
+ return {root,model,mixer,A,bones,wg,wm,tag,mk,head:model,cur:null,fallT:0,wt:{Idle:1,Walk:0,Run:0},t:0};
 }
 function showWeapon(c,id){ if(c.cur===id) return; for(const k in c.wm) c.wm[k].visible=k===id; c.cur=id; }
 const _va=new THREE.Vector3(), _vb=new THREE.Vector3(), _qa=new THREE.Quaternion(), _qb=new THREE.Quaternion(), _qc=new THREE.Quaternion(), YUP=new THREE.Vector3(0,1,0), ZF=new THREE.Vector3(0,0,1);
@@ -744,7 +769,7 @@ function los(a,b){ const o=new THREE.Vector3(a.x,(a.y||0)+1.6,a.z), t=new THREE.
 // me, remote players (ghosts) and practice bots share one shape: {id,name,team,x,y,z,yaw,pitch,hp,alive,char,...}
 let me=null; const ghosts=new Map(); let bots=[];
 function fighters(){ const a=[]; if(me) a.push(me); ghosts.forEach(g=>a.push(g)); bots.forEach(b=>a.push(b)); return a; }
-function newFighter(id,name,team,cap,isMe){ return {id,name,team,cap,x:0,y:0,z:0,vx:0,vz:0,vy:0,yaw:0,pitch:0,hp:100,alive:true,w:0,ammo:W.map(w=>w.mag||0),reloadT:0,cool:0,gren:1,aim:false,veh:null,spd:0,atkT:0,thrT:0,kick:0,deadT:0,char:makeChar(team,cap,name,isMe),pose:null}; }
+function newFighter(id,name,team,outfit,isMe){ return {id,name,team,outfit,x:0,y:0,z:0,vx:0,vz:0,vy:0,yaw:0,pitch:0,hp:100,alive:true,w:0,ammo:W.map(w=>w.mag||0),reloadT:0,cool:0,gren:1,aim:false,veh:null,spd:0,atkT:0,thrT:0,kick:0,deadT:0,char:makeChar(outfit,name,isMe),pose:null}; }
 function removeFighter(f){ if(f&&f.char){ scene.remove(f.char.root); scene.remove(f.char.wg); } }
 
 // ================= input =================
@@ -795,6 +820,7 @@ function startReload(f){ const w=W[f.w]; if(w.melee||f.reloadT>0||f.ammo[f.w]>=w
 function muzzle(f){ const c=f.char; if(c&&c.wg&&c.cur&&!W[f.w].melee){ c.wg.updateMatrixWorld(); return c.wg.localToWorld(new THREE.Vector3(0,f.w===2?0.14:f.w===5?0.1:0.07,f.w===2?1.1:f.w===5?0.62:f.w===1?0.78:0.2)); } const fx=Math.sin(f.yaw), fz=Math.cos(f.yaw); return new THREE.Vector3(f.x+fx*0.7-fz*0.3,(f.y||0)+1.45+Math.sin(f.pitch)*0.6,f.z+fz*0.7+fx*0.3); }
 // shoot or swing; o/d is the aim ray (camera for the player, eyes for bots)
 function attack(f,o,d){ const w=W[f.w]; if(!f.alive||f.veh||f.cool>0||f.reloadT>0||f.thrT>0) return false;
+ if(f.isBot) f.shotN=(f.shotN|0)+1;
  if(w.melee){ f.cool=w.rate; f.atkT=0.35; sfx(w.id,f.x,1,f.z); let best=null, bd=w.melee;
   for(const t of fighters()){ if(t===f||!t.alive||t.team===f.team) continue; const dx=t.x-f.x, dz=t.z-f.z, dist=Math.hypot(dx,dz); if(dist>bd) continue; const ang=Math.abs(wrapA(Math.atan2(dx,dz)-f.yaw)); if(ang<0.9){ best=t; bd=dist; } }
   if(best){ dealDamage(f,best,w.dmg,f.w,false); sfx(f.w===3?'clang':'flesh',best.x,1,best.z); }
@@ -814,12 +840,12 @@ function attack(f,o,d){ const w=W[f.w]; if(!f.alive||f.veh||f.cool>0||f.reloadT>
 // the attacker decides the hit; the victim's own device applies it (players), or this device (bots)
 function dealDamage(from,to,dmg,w,head){ if(from===me){ hitMarker(); sfx('hit'); }
  if(to.isBot||to===me){ applyDamage(to,dmg,from,w); return; }
- if(to.peer&&from===me) sendEvent({k:'h',to:to.peer,d:Math.round(dmg),w,hs:head?1:0}); }
+ if(to.peer&&(from===me||(NET.host&&from.isBot))) sendEvent({k:'h',to:to.peer,d:Math.round(dmg),w,hs:head?1:0,n:from===me?'':String(from.name||'').slice(0,14)}); }
 function applyDamage(t,dmg,from,w){ if(!t.alive) return; t.hp=Math.max(0,t.hp-dmg); if(t===me){ sfx('hurt'); $('dmg').style.opacity=clamp(dmg/60,0.3,0.9); setTimeout(()=>$('dmg').style.opacity=0,180); }
  if(t.hp<=0) kill(t,from?from.name:'',w); }
 function kill(t,byName,w){ t.alive=false; t.deadT=0; if(t.veh){ t.veh.driver=null; t.veh=null; } t.killedBy=[byName,w]; feed(byName,t.name,w,t.team); }
 const WNAMES=W.map(w=>w.name).concat(['قنبلة','عربية','دبابة','طيارة']);
-function feed(a,b,w,team){ const li=document.createElement('li'); const ka=document.createElement('span'); ka.className=team==='r'?'b':'r'; ka.textContent=a||'—'; const kb=document.createElement('span'); kb.className=team; kb.textContent=b;
+function feed(a,b,w,team){ const mate=me&&team===me.team; team=mate?'b':'r'; const li=document.createElement('li'); const ka=document.createElement('span'); ka.className=mate?'r':'b'; ka.textContent=a||'—'; const kb=document.createElement('span'); kb.className=team; kb.textContent=b;
  li.append(ka,document.createTextNode(' ✖ '),kb,document.createTextNode(' ('+(WNAMES[w]||'')+')')); $('feed').prepend(li); while($('feed').children.length>5) $('feed').lastChild.remove(); setTimeout(()=>li.remove(),7000); }
 let hmT=0; function hitMarker(){ $('hitm').classList.add('on'); hmT=0.15; }
 // grenades: one per round, bounce, explode after 2.4 s
@@ -952,13 +978,14 @@ function updCamera(dt){ if(!me) return; let pivot, dir;
 function spectateTarget(){ const mates=fighters().filter(f=>f!==me&&f.alive&&f.team===me.team); if(mates.length) return mates[0]; return fighters().find(f=>f!==me&&f.alive)||null; }
 
 // ================= practice bots =================
-const BOTNAMES=['ميدو','زيزو','بندق','حمادة','شيكو','توتو'];
+const BOTNAMES=['ميدو','زيزو','بندق','حمادة','شيكو','توتو','كوكي','سوسو','بودي','عنتر','فلفل','زكي','كابتن','ريشة','دبّور','مازن','صاروخ','شبح','نمس','فهلوي','بلبل','كيمو','تيتو','عزّوز'];
+const randOutfit=()=>OUTFITS[Math.floor(rnd()*OUTFITS.length)].id;
 // ---- menu background: the red and black teams fight it out behind the menus ----
 const DEMO={on:false,ang:1.2,c:new THREE.Vector3(0,0,-20)};
-function demoSpawn(team,i){ const f=newFighter('demo'+team+i,BOTNAMES[(i+(team==='b'?3:0))%BOTNAMES.length],team,COLORS[(i+2)%6][0],false);
- f.isBot=true; f.demo=i; f.think=rr(0,0.3); f.cool=1+rr(0,1.5); f.w=i%2; f.seed=rr(0,9); f.stuck=0; const s=team==='r'?-1:1;
- f.x=s*rr(14,20); f.z=-20+(i-1.5)*2.2; f.yaw=team==='r'?Math.PI/2:-Math.PI/2; f.wp={x:-s*6,z:-20+rr(-3,3)}; bots.push(f); return f; }
-function demoStart(){ if(DEMO.on||state==='play'||state==='end') return; clearFighters(); resetVehicles(); DEMO.on=true; for(const t of ['r','b']) for(let i=0;i<4;i++) demoSpawn(t,i); }
+function demoSpawn(team,i){ const f=newFighter('demo'+team+i,BOTNAMES[(i+(team==='s1'?4:0))%BOTNAMES.length],team,OUTFITS[(i+(team==='s1'?2:0))%OUTFITS.length].id,false);
+ f.isBot=true; f.demo=i; f.think=rr(0,0.3); f.cool=1+rr(0,1.5); f.w=i%2; f.seed=rr(0,9); f.stuck=0; const s=team==='s0'?-1:1;
+ f.x=s*rr(14,20); f.z=-20+(i-1.5)*2.2; f.yaw=team==='s0'?Math.PI/2:-Math.PI/2; f.wp={x:-s*6,z:-20+rr(-3,3)}; bots.push(f); return f; }
+function demoStart(){ if(DEMO.on||state==='play'||state==='end') return; clearFighters(); resetVehicles(); DEMO.on=true; for(const t of ['s0','s1']) for(let i=0;i<4;i++) demoSpawn(t,i); }
 function demoTick(dt){ for(let k=0;k<bots.length;k++){ const b=bots[k]; b.kick=Math.max(0,b.kick-dt*8); b.atkT=Math.max(0,b.atkT-dt);
   if(b.alive){ if(!b.target&&!(b.wpT>clock)){ b.wpT=clock+2; let best=null,bd=1e9; for(const t of bots){ if(t.team===b.team||!t.alive) continue; const d=Math.hypot(t.x-b.x,t.z-b.z); if(d<bd){ bd=d; best=t; } } if(best) b.wp={x:best.x+rr(-4,4),z:best.z+rr(-4,4)}; } botThink(b,dt); }
   else if(b.deadT>5){ removeFighter(b); bots.splice(k,1); demoSpawn(b.team,b.demo); k--; } } }
@@ -973,25 +1000,26 @@ function botThink(b,dt){ if(!b.wp) b.wp={x:rr(-60,60),z:rr(-60,60)}; b.think-=dt
 
 // ================= match flow =================
 let matchT=0, state='lobby', mode='team', roster=[], rid=null, practice=false, endT=0, result=null, clock=0;
-const SPAWN={r:[-82,1],b:[82,-1]};
-function spawnPos(team,i){ return [SPAWN[team][0]+(i%2)*3*SPAWN[team][1],-16+i*7]; }
+// each squad starts on its own road at the edge of the zone: [x, z, step x, step z, facing]
+const SPAWN={s0:[-82,-6,0,3,Math.PI/2],s1:[82,-6,0,3,-Math.PI/2],s2:[-20,-88,3,0,0],s3:[20,80,3,0,Math.PI],s4:[51,-60,3,0,-Math.PI/2]};
+function spawnPos(team,i){ const S=SPAWN[team]||SPAWN.s0; return [S[0]+S[2]*i,S[1]+S[3]*i,S[4]]; }
 function clearFighters(){ DEMO.on=false; document.body.classList.remove('playing','ended'); removeFighter(me); me=null; ghosts.forEach(removeFighter); ghosts.clear(); bots.forEach(removeFighter); bots=[]; GRENS.forEach(g=>scene.remove(g.m)); GRENS.length=0; }
 function startMatch(list,isPractice){ OP.show(false); initAudio(); stopMusic(); clearFighters(); resetVehicles(); practice=isPractice; roster=list; state='play'; result=null; endT=0; matchT=0; document.body.classList.add('playing');
- const idx={r:0,b:0};
- for(const r of list){ const i=idx[r.team]++; const [x,z]=spawnPos(r.team,i);
-  let f; if(r.me){ f=me=newFighter('me',PROFILE.n,r.team,COLORS[PROFILE.c][0],true); f.peer=myPeer(); }
-  else if(r.bot){ f=newFighter('bot'+i+r.team,r.name,r.team,COLORS[(i+2)%6][0],false); f.isBot=true; f.think=rr(0,0.3); f.cool=1; f.w=rnd()<.5?0:1; f.seed=rr(0,9); f.stuck=0; bots.push(f); }
-  else { f=newFighter(r.peer,r.name,r.team,COLORS[clamp(r.c|0,0,5)][0],false); f.peer=r.peer; ghosts.set(r.peer,f); }
-  f.x=x; f.z=z; f.yaw=r.team==='r'?Math.PI/2:-Math.PI/2; }
+ const idx={s0:0,s1:0,s2:0,s3:0,s4:0};
+ for(const r of list){ const i=idx[r.team]++; const [x,z,yaw]=spawnPos(r.team,i);
+  let f; if(r.me){ f=me=newFighter('me',PROFILE.n,r.team,MYOUT,true); f.peer=myPeer(); }
+  else if(r.bot&&(practice||NET.host)){ f=newFighter(r.peer||('bot'+i+r.team),r.name,r.team,r.o,false); f.peer=r.peer||null; f.isBot=true; f.think=rr(0,0.3); f.cool=1+rr(0,1); f.w=rnd()<.5?0:1; f.seed=rr(0,9); f.stuck=0; f.shotN=0; bots.push(f); }
+  else { f=newFighter(r.peer,r.name,r.team,r.o,false); f.peer=r.peer; f.proxy=!!r.bot; f.shotSeen=0; ghosts.set(r.peer,f); }
+  f.x=x; f.z=z; f.yaw=yaw; }
  ['lobby','roomOv'].forEach(id=>$(id).hidden=true); $('hud').hidden=false; $('tools').hidden=false; $('arsBtn').hidden=false; closeArsenal(); voiceSync(); $('big').hidden=true; $('endBtns').hidden=true; $('feed').innerHTML='';
  msg('يلّا!',1.2); }
 let msgT=0; function msg(t,d){ $('msg').textContent=t; $('msg').hidden=false; msgT=d; }
 function aliveCount(team){ return fighters().filter(f=>f.team===team&&f.alive).length; }
 function checkEnd(){ if(state!=='play') return; if(!practice&&!NET.host) return; if(matchT<2) return;
- const r=aliveCount('r'), b=aliveCount('b'); if(r>0&&b>0) return; const w=r>0?'r':b>0?'b':'d'; endMatch(w); if(!practice) NET.res={w,rid}; }
+ const left=SQ.filter(t=>aliveCount(t)>0); if(left.length>1) return; const w=left.length?left[0]:'d'; endMatch(w); if(!practice) NET.res={w,rid}; }
 function endMatch(w){ if(state==='end') return; state='end'; $('arsBtn').hidden=true; closeArsenal(); document.body.classList.remove('playing'); document.body.classList.add('ended'); result=w; endT=0; if(document.exitPointerLock) document.exitPointerLock();
- const mine=me?me.team:'r'; const win=w===mine; const big=$('big'); big.hidden=false; big.className=w==='d'?'lose':win?'win':'lose';
- big.innerHTML=''; big.append(document.createTextNode(w==='d'?'Draw':win?'Winner':'Loser')); const sm=document.createElement('small'); sm.textContent=w==='d'?'تعادل! الفريقين خلصوا على بعض':win?'فريقك كسب الماتش!':'فريقك خسر المرة دي'; big.append(sm);
+ const mine=me?me.team:'s0'; const win=w===mine; const big=$('big'); big.hidden=false; big.className=w==='d'?'lose':win?'win':'lose';
+ big.innerHTML=''; big.append(document.createTextNode(w==='d'?'Draw':win?'Winner':'Loser')); const sm=document.createElement('small'); sm.textContent=w==='d'?'تعادل! كل الفرق خلصت على بعض':win?'فريقك آخر فريق صامد!':'فريق '+(SQN[w]||'')+' كسب الماتش'; big.append(sm);
  for(const f of fighters()){ f.pose=w==='d'?'cry':f.team===w?'dance':'cry'; if(f.veh){ f.veh.driver=null; f.veh=null; } }
  music(win?'win':'lose'); setTimeout(()=>{ if(state==='end'){ $('endBtns').hidden=false; $('again').hidden=!(practice||NET.host); } },3500); }
 
@@ -1003,8 +1031,9 @@ function sendShot(a,b){ if(practice||!NET.room) return; NET.shotN++; NET.shot=[N
 function roomPeers(){ return NET.room?NET.room.peers().filter(p=>p.presence&&typeof p.presence.n==='string'):[]; }
 function hostPeer(){ return roomPeers().find(p=>p.presence.hs===1)||null; }
 function pack(f){ return [R2(f.x),R2(f.y),R2(f.z),R2(f.yaw),R2(f.pitch),R2(f.spd),f.w,Math.round(f.hp),f.alive?1:0,f.veh?f.veh.id+1:0,f.aim?1:0,f.atkT>0?1:0,f.thrT>0?1:0,f.veh?R2(f.veh.h):0]; }
-function presenceNow(){ const p={n:PROFILE.n,c:PROFILE.c,t:NET.team||null,vm:VOICE.mic?1:0,hs:NET.host?1:0,jt:NET.jt,ev:NET.ev,sh:NET.shot,kb:me&&me.killedBy?me.killedBy:null};
- if(NET.host){ p.mode=mode; p.ph=state==='play'||state==='end'?state:'room'; p.rid=rid; p.roster=roster.filter(r=>!r.bot).map(r=>[r.peer,r.team,r.name,r.c|0]); p.res=NET.res; }
+function presenceNow(){ const p={n:PROFILE.n,c:PROFILE.c,o:MYOUT,t:NET.team||null,vm:VOICE.mic?1:0,hs:NET.host?1:0,jt:NET.jt,ev:NET.ev,sh:NET.shot,kb:me&&me.killedBy?me.killedBy:null};
+ if(NET.host){ p.mode=mode; p.ph=state==='play'||state==='end'?state:'room'; p.rid=rid; p.roster=roster.map(r=>[r.me?myPeer():r.peer,r.team,r.name,r.c|0,r.o||(r.me?MYOUT:'hood'),r.bot?1:0]); p.res=NET.res;
+  if(state==='play'||state==='end') p.bs=bots.map(b=>[b.peer,...pack(b),b.shotN|0,b.killedBy?String(b.killedBy[0]||'').slice(0,14):'',b.killedBy?b.killedBy[1]|0:0]); }
  if(me&&(state==='play'||state==='end')) p.s=pack(me); return p; }
 function lobbyAnnounce(){ if(!NET.lobby) return; const st=NET.room?(state==='play'?'race':'wait'):'lobby'; NET.lobby.presence({pl:{n:PROFILE.n,c:PROFILE.c,st,game:'war',code:NET.room?NET.code:null},wopen:NET.host?{code:NET.code,n:PROFILE.n,mode,k:roomPeers().length,ph:state==='play'||state==='end'?'play':'wait',t:Date.now()}:null}).catch(()=>{}); }
 async function joinRoom(code,host,m){ if(!NET.lobby||NET.room) return; try{ const r=await NET.lobby.join(code); NET.room=r; NET.code=code; NET.host=host; NET.sawHost=false; NET.jt=Date.now(); NET.team=null; NET.res=null; NET.seen={}; if(m) mode=m; state='room'; r.onPeers(()=>{ renderRoom(); voiceSync(); },()=>leaveRoom()); voiceJoin(r);
@@ -1040,12 +1069,20 @@ $('vMic').onclick=()=>{ initAudio(); if(VOICE.mic) micOff(); else micOn(); };
 $('vSpk').onclick=()=>{ VOICE.spk=!VOICE.spk; voiceSync(); };
 addEventListener('pointerdown',()=>{ VOICE.els.forEach(a=>{ if(!a.muted&&a.paused) a.play().catch(()=>{}); }); },{capture:true});
 function teamOf(p){ return p.sameTab?NET.team:p.presence.t; }
-function autoTeam(){ const ps=roomPeers().filter(p=>!p.sameTab); const r=ps.filter(p=>p.presence.t==='r').length, b=ps.filter(p=>p.presence.t==='b').length; return r<=b?'r':'b'; }
-function teamCap(){ return mode==='duel'?1:5; }
+function autoTeam(){ const ps=roomPeers().filter(p=>!p.sameTab); let best='s0',bn=99; for(const t of SQ){ const n=ps.filter(p=>p.presence.t===t).length; if(n<bn){ bn=n; best=t; } } return best; }
+function teamCap(){ return SQCAP; }
 function pickTeam(t){ const n=roomPeers().filter(p=>!p.sameTab&&p.presence.t===t).length; if(n>=teamCap()) return; NET.team=t; renderRoom(); voiceSync(); }
-function hostMode(){ const h=hostPeer(); return NET.host?mode:(h&&h.presence.mode==='duel'?'duel':'team'); }
-function startOnline(){ if(!NET.host) return; const ps=roomPeers().filter(p=>teamOf(p)); const R=ps.filter(p=>teamOf(p)==='r').slice(0,teamCap()), B=ps.filter(p=>teamOf(p)==='b').slice(0,teamCap()); if(!R.length||!B.length) return;
- rid=Math.random().toString(36).slice(2,8); NET.res=null; const list=[...R,...B].map(p=>({peer:p.peer,team:teamOf(p),name:String(p.presence.n).slice(0,14),c:p.presence.c|0,me:p.sameTab})); startMatch(list,false); }
+function hostMode(){ return 'squad'; }
+// everyone in the room goes into a squad; every empty place in the 5 squads of 4 is filled by the computer
+function buildRoster(humans){ const list=[]; const left=[]; const cnt={s0:0,s1:0,s2:0,s3:0,s4:0};
+ for(const h of humans){ if(isSq(h.team)&&cnt[h.team]<SQCAP){ cnt[h.team]++; list.push(h); } else left.push(h); }
+ for(const h of left){ const t=SQ.find(t=>cnt[t]<SQCAP); if(!t) break; cnt[t]++; list.push({...h,team:t}); }
+ let k=0; const names=[...BOTNAMES].sort(()=>rnd()-0.5);
+ for(const t of SQ) while(cnt[t]<SQCAP){ cnt[t]++; list.push({bot:true,peer:'bot:'+k,team:t,name:names[k%names.length],o:randOutfit()}); k++; }
+ return list; }
+function startOnline(){ if(!NET.host) return; const ps=roomPeers();
+ const humans=ps.map(p=>({peer:p.peer,team:teamOf(p),name:String(p.presence.n).slice(0,14),c:p.presence.c|0,o:p.sameTab?MYOUT:String(p.presence.o||'hood'),me:p.sameTab}));
+ rid=Math.random().toString(36).slice(2,8); NET.res=null; startMatch(buildRoster(humans),false); }
 function netTick(dt){
  NET.lobT-=dt; if(NET.lobT<=0){ NET.lobT=1.5; lobbyAnnounce(); if(state==='lobby') renderLobby(); if(state==='room') renderRoom(); }
  const R=NET.room; if(!R) return;
@@ -1053,24 +1090,32 @@ function netTick(dt){
  const me_=myPeer(), H=hostPeer();
  if(!NET.host){ if(!H){ if(NET.sawHost&&!NET.leaving){ NET.leaving=true; msg('صاحب الأوضة خرج',2); setTimeout(()=>{ NET.leaving=false; if(!hostPeer()) leaveRoom(); },2500); } return; } NET.sawHost=true;
   const P=H.presence;
-  if(P.ph==='play'&&typeof P.rid==='string'&&P.rid!==rid&&Array.isArray(P.roster)&&P.roster.some(r=>Array.isArray(r)&&r[0]===me_)){ rid=P.rid; mode=P.mode==='duel'?'duel':'team';
-   startMatch(P.roster.filter(r=>Array.isArray(r)&&typeof r[0]==='string').map(r=>({peer:r[0],team:r[1]==='b'?'b':'r',name:String(r[2]||'لاعب').slice(0,14),c:r[3]|0,me:r[0]===me_})),false); }
-  if(state==='play'&&P.res&&P.res.rid===rid) endMatch(P.res.w==='b'?'b':P.res.w==='r'?'r':'d');
+  if(P.ph==='play'&&typeof P.rid==='string'&&P.rid!==rid&&Array.isArray(P.roster)&&P.roster.some(r=>Array.isArray(r)&&r[0]===me_)){ rid=P.rid;
+   startMatch(P.roster.filter(r=>Array.isArray(r)&&typeof r[0]==='string').slice(0,SQ.length*SQCAP).map(r=>({peer:r[0],team:isSq(r[1])?r[1]:'s0',name:String(r[2]||'لاعب').slice(0,14),c:r[3]|0,o:outfitOf(String(r[4]||'')).id,bot:r[5]===1&&r[0]!==me_,me:r[0]===me_})),false); }
+  if(state==='play'&&P.res&&P.res.rid===rid) endMatch(isSq(P.res.w)?P.res.w:'d');
+  if((state==='play'||state==='end')&&Array.isArray(P.bs)) syncBots(P.bs,H.updatedAt);
   if(state==='end'&&P.ph==='room') backToRoom(); }
  if(state!=='play'&&state!=='end') return;
  for(const p of R.peers()){ if(p.sameTab||!p.presence) continue; const P=p.presence; const g=ghosts.get(p.peer);
   if(g&&Array.isArray(P.s)&&P.s.length>=14&&P.s.every(v=>typeof v==='number'&&isFinite(v))){ g.net={s:P.s,t:p.updatedAt}; }
   const sn=NET.seen[p.peer]||(NET.seen[p.peer]={ev:Math.max(0,...(Array.isArray(P.ev)?P.ev.map(e=>e&&e.i|0):[0])),sh:Array.isArray(P.sh)?P.sh[0]:0});
   if(Array.isArray(P.ev)) for(const e of P.ev){ if(!e||typeof e!=='object'||(e.i|0)<=sn.ev) continue; sn.ev=e.i|0;
-   if(e.k==='h'&&e.to===me_&&me&&me.alive) applyDamage(me,clamp(+e.d||0,0,250),g||{name:String(P.n||'')},clamp(e.w|0,0,WPLANE));
+   if(e.k==='h'&&e.to===me_&&me&&me.alive) applyDamage(me,clamp(+e.d||0,0,250),e.n?{name:String(e.n).slice(0,14)}:(g||{name:String(P.n||'')}),clamp(e.w|0,0,WPLANE));
+   if(e.k==='h'&&NET.host&&typeof e.to==='string'&&e.to.startsWith('bot:')){ const b=bots.find(x=>x.peer===e.to); if(b&&b.alive) applyDamage(b,clamp(+e.d||0,0,250),g||{name:String(P.n||'')},clamp(e.w|0,0,WPLANE)); }
    if(e.k==='x'&&PSPEC[e.t]&&Array.isArray(e.p)&&Array.isArray(e.v)) spawnProj(e.t,new THREE.Vector3(+e.p[0]||0,+e.p[1]||0,+e.p[2]||0),new THREE.Vector3(+e.v[0]||0,+e.v[1]||0,+e.v[2]||0),g||{name:String(P.n||'')});
    if(e.k==='g'&&Array.isArray(e.p)&&Array.isArray(e.v)) spawnGrenade(new THREE.Vector3(+e.p[0]||0,+e.p[1]||0,+e.p[2]||0),new THREE.Vector3(+e.v[0]||0,+e.v[1]||0,+e.v[2]||0),g||{name:String(P.n||'')}); }
   if(Array.isArray(P.sh)&&P.sh.length===8&&P.sh[0]!==sn.sh){ sn.sh=P.sh[0]; const a=new THREE.Vector3(+P.sh[1],+P.sh[2],+P.sh[3]), b=new THREE.Vector3(+P.sh[4],+P.sh[5],+P.sh[6]); const w=clamp(P.sh[7]|0,0,NW-1);
    if(W[w].melee){ sfx(W[w].id,a.x,a.y,a.z); if(g) g.atkT=0.35; } else { tracer(a,b); flashAt(a); sfx(W[w].id,a.x,a.y,a.z); puff(b,0xb8a990,2,0.5); } }
   if(g&&g.alive&&g.net&&g.net.s[8]===0){ g.alive=false; g.hp=0; const kb=Array.isArray(P.kb)?P.kb:['',0]; feed(String(kb[0]||''),g.name,kb[1]|0,g.team); if(g.veh){ g.veh.driver=null; g.veh=null; } } }
  // players who left count as out
- const live=new Set(R.peers().map(p=>p.peer)); ghosts.forEach(g=>{ if(!live.has(g.peer)&&g.alive){ g.alive=false; feed('',g.name+' خرج',0,g.team); } });
+ const live=new Set(R.peers().map(p=>p.peer)); ghosts.forEach(g=>{ if(!g.proxy&&!live.has(g.peer)&&g.alive){ g.alive=false; feed('',g.name+' خرج',0,g.team); } });
 }
+// computer players run on the host's phone; everyone else follows them from the host's updates
+function syncBots(list,t){ for(const e of list){ if(!Array.isArray(e)||typeof e[0]!=='string') continue; const g=ghosts.get(e[0]); if(!g||!g.proxy) continue;
+  const st=e.slice(1,15); if(st.length<14||!st.every(v=>typeof v==='number'&&isFinite(v))) continue; g.net={s:st,t};
+  const sn=e[15]|0; if(sn>g.shotSeen){ const first=g.shotSeen===0&&sn>1; g.shotSeen=sn; if(!first&&g.alive){ const w=W[clamp(st[6]|0,0,NW-1)];
+    if(w.melee){ g.atkT=0.35; sfx(w.id,g.x,1,g.z); } else { const a=muzzle(g), d=new THREE.Vector3(Math.sin(g.yaw)*Math.cos(g.pitch),Math.sin(g.pitch),Math.cos(g.yaw)*Math.cos(g.pitch)); const hit=cast(a,d,w.range||120,g); tracer(a,a.clone().addScaledVector(d,hit.t)); flashAt(a); sfx(w.id,a.x,a.y,a.z); } } }
+  if(g.alive&&st[8]===0){ g.alive=false; g.hp=0; feed(String(e[16]||''),g.name,e[17]|0,g.team); if(g.veh){ g.veh.driver=null; g.veh=null; } } } }
 function ghostUpd(g,dt){ const n=g.net; if(!n) return; const s=n.s; const age=clamp((Date.now()-n.t)/1000,0,0.25); const k=Math.min(1,dt*12);
  const vid=s[9]-1; if(vid>=0&&VEH[vid]){ const v=VEH[vid]; if(g.veh!==v){ if(g.veh) g.veh.driver=null; g.veh=v; v.driver=g; } const dh=wrapA(s[13]-v.h); v.x+=(s[0]-v.x)*k; v.z+=(s[2]-v.z)*k; v.h+=dh*k; if(v.type==='plane'){ const ny=v.y+(s[1]-v.y)*k; v.pit+=(clamp((s[1]-v.y)*0.4,-0.5,0.5)-v.pit)*k; v.rol+=(clamp(-dh*4,-0.7,0.7)-v.rol)*k; v.y=ny; if(v.prop) v.prop.rotation.z+=dt*30; } placeVeh(v); if(v.type==='tank') aimTurret(v,s[3],s[4]); } else if(g.veh){ g.veh.driver=null; g.veh=null; }
  g.x+=(s[0]-g.x)*k; g.y+=(s[1]-g.y)*k; g.z+=(s[2]-g.z)*k; g.yaw+=wrapA(s[3]-g.yaw)*k; g.pitch=s[4]; g.spd=s[5]; g.w=clamp(s[6]|0,0,NW-1); g.hp=s[7]; g.aim=!!s[10]; if(s[11]&&g.atkT<=0) g.atkT=0.35; g.thrT=s[12]?0.3:0; }
@@ -1083,28 +1128,27 @@ function renderLobby(){ if($('lobby').hidden) return; if(!NET.lobby){ $('lobStat
  $('lobStat').textContent='اعمل أوضة وصحابك اللي فاتحين اللعبة هيلاقوها هنا، أو ادخل ماتش مفتوح.';
  const peers=NET.lobby.peers();
  const rooms=peers.filter(p=>!p.sameTab&&p.presence&&p.presence.wopen&&typeof p.presence.wopen.code==='string'&&/^war-[a-z0-9]{4,10}$/.test(p.presence.wopen.code)).map(p=>p.presence.wopen);
- $('rooms').innerHTML=rooms.length?rooms.map(o=>{ const cap=o.mode==='duel'?2:10, k=clamp(o.k|0,1,cap), full=k>=cap; return `<li><span><b>${esc(String(o.n).slice(0,14))}</b> · ${o.mode==='duel'?'واحد ضد واحد':'فريق ضد فريق'}<br><small>${AD(k)}/${AD(cap)} لاعبين، ${o.ph==='play'?'الماتش شغال':'مستنيين'}</small></span><button data-code="${esc(o.code)}" data-mode="${o.mode==='duel'?'duel':'team'}" ${full?'disabled':''}>${full?'كامل':'ادخل'}</button></li>`; }).join(''):'<li class="empty">مفيش ماتشات مفتوحة. اعمل أوضة!</li>';
+ $('rooms').innerHTML=rooms.length?rooms.map(o=>{ const cap=SQ.length*SQCAP, k=clamp(o.k|0,1,cap), full=k>=cap; return `<li><span><b>${esc(String(o.n).slice(0,14))}</b> · ٥ فرق<br><small>${AD(k)}/${AD(cap)} لاعبين، ${o.ph==='play'?'الماتش شغال':'مستنيين'}</small></span><button data-code="${esc(o.code)}" data-mode="${o.mode==='duel'?'duel':'team'}" ${full?'disabled':''}>${full?'كامل':'ادخل'}</button></li>`; }).join(''):'<li class="empty">مفيش ماتشات مفتوحة. اعمل أوضة!</li>';
  const ppl=peers.filter(p=>p.presence&&p.presence.pl&&typeof p.presence.pl.n==='string');
 
  OP.render(); }
-function renderRoom(){ if($('roomOv').hidden||!NET.room) return; const m=hostMode(); const ps=roomPeers(); const H=hostPeer();
- const list=t=>ps.filter(p=>teamOf(p)===t).map(p=>`<li>${esc(String(p.presence.n).slice(0,14))}${p.sameTab?' (إنت)':''}${p.presence.hs===1?' ★':''}${(p.sameTab?VOICE.mic:p.presence.vm===1)?' 🎙':''}</li>`).join('')||'<li style="opacity:.6">لسه محدش</li>';
- $('tR').innerHTML=list('r'); $('tB').innerHTML=list('b');
- const nR=ps.filter(p=>teamOf(p)==='r').length, nB=ps.filter(p=>teamOf(p)==='b').length, cap=m==='duel'?1:5;
- $('roomT').textContent=m==='duel'?'واحد ضد واحد':'فريق ضد فريق';
- $('roomInfo').textContent=(NET.host?'إنت صاحب الأوضة. ':'')+'كل فريق لحد '+AD(cap)+(cap===1?' لاعب':' لاعبين')+'. الماتش بيخلص لما فريق يخلّص على كل لاعبين الفريق التاني.'+(!NET.host&&!H?' صاحب الأوضة خرج.':'');
- $('modeSeg').hidden=!NET.host; document.querySelectorAll('#modeSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===m));
- $('joinR').disabled=NET.team==='r'||ps.filter(p=>!p.sameTab&&teamOf(p)==='r').length>=cap; $('joinB').disabled=NET.team==='b'||ps.filter(p=>!p.sameTab&&teamOf(p)==='b').length>=cap;
- $('startM').hidden=!NET.host; $('startM').disabled=!(nR>=1&&nB>=1); $('startM').textContent=nR&&nB?'ابدأ الماتش':'لازم لاعب في كل فريق';
+function renderRoom(){ if($('roomOv').hidden||!NET.room) return; const ps=roomPeers(); const H=hostPeer();
+ $('sqs').innerHTML=SQ.map(t=>{ const mem=ps.filter(p=>teamOf(p)===t); const full=mem.length>=SQCAP;
+  const li=mem.map(p=>`<li>${esc(String(p.presence.n).slice(0,14))}${p.sameTab?' (إنت)':''}${p.presence.hs===1?' ★':''}${(p.sameTab?VOICE.mic:p.presence.vm===1)?' 🎙':''}</li>`).join('')+(mem.length<SQCAP?`<li class="cpu">+${AD(SQCAP-mem.length)} كمبيوتر</li>`:'');
+  return `<div class="sq ${NET.team===t?'mine':''}" style="--c:${SQC[t]}"><h3>${SQN[t]}</h3><ul>${li}</ul><button data-sq="${t}" ${NET.team===t||full?'disabled':''}>${NET.team===t?'فريقك':full?'كامل':'انضم'}</button></div>`; }).join('');
+ $('roomT').textContent='أوضة الماتش';
+ $('roomInfo').textContent=(NET.host?'إنت صاحب الأوضة. ابدأ وقت ما تحب، والكمبيوتر هيكمّل الأماكن الفاضية. ':'مستنيين صاحب الأوضة يبدأ. ')+'اختار فريقك، كل فريق لحد ٤.'+(!NET.host&&!H?' صاحب الأوضة خرج.':'');
+ $('startM').hidden=!NET.host; $('startM').disabled=false; $('startM').textContent='ابدأ الماتش';
  $('invite').hidden=NET.lobby&&NET.lobby.mode!=='p2p'; }
+$('sqs').onclick=e=>{ const b=e.target.closest('button[data-sq]'); if(b&&!b.disabled) pickTeam(b.dataset.sq); };
 $('toHub').onclick=()=>{ location.href='index.html'; };
-$('newTeam').onclick=()=>{ initAudio(); joinRoom('war-'+Math.random().toString(36).slice(2,8),true,'team'); };
-$('newDuel').onclick=()=>{ initAudio(); joinRoom('war-'+Math.random().toString(36).slice(2,8),true,'duel'); };
-$('quick').onclick=()=>{ initAudio(); const o=[...document.querySelectorAll('#rooms button[data-code]:not(:disabled)')][0]; if(o) joinRoom(o.dataset.code,false,o.dataset.mode); else joinRoom('war-'+Math.random().toString(36).slice(2,8),true,'team'); };
+$('newTeam').onclick=()=>{ initAudio(); joinRoom('war-'+Math.random().toString(36).slice(2,8),true,'squad'); };
+$('quick').onclick=()=>{ initAudio(); const o=[...document.querySelectorAll('#rooms button[data-code]:not(:disabled)')][0]; if(o) joinRoom(o.dataset.code,false,o.dataset.mode); else joinRoom('war-'+Math.random().toString(36).slice(2,8),true,'squad'); };
 $('rooms').onclick=e=>{ const b=e.target.closest('button[data-code]'); if(b&&!b.disabled){ initAudio(); joinRoom(b.dataset.code,false,b.dataset.mode); } };
-$('train').onclick=()=>{ const list=[{me:true,team:'r'},{bot:true,team:'r',name:BOTNAMES[0]},{bot:true,team:'b',name:BOTNAMES[1]},{bot:true,team:'b',name:BOTNAMES[2]},{bot:true,team:'b',name:BOTNAMES[3]}]; startMatch(list,true); };
-$('modeSeg').onclick=e=>{ const b=e.target.closest('button'); if(!b||!NET.host) return; mode=b.dataset.v; if(mode==='duel'){ /* keep one per side */ } renderRoom(); };
-$('joinR').onclick=()=>pickTeam('r'); $('joinB').onclick=()=>pickTeam('b');
+function renderOutfits(){ $('outs').innerHTML=OUTFITS.map(o=>`<button data-o="${o.id}" aria-pressed="${o.id===MYOUT}"><i>${o.ico}</i>${o.name}</button>`).join(''); }
+$('outs').onclick=e=>{ const b=e.target.closest('button[data-o]'); if(!b) return; MYOUT=b.dataset.o; try{ localStorage.setItem('war-outfit',MYOUT); }catch(er){} renderOutfits(); };
+renderOutfits();
+$('train').onclick=()=>{ initAudio(); startMatch(buildRoster([{me:true,team:SQ[Math.floor(rnd()*5)],o:MYOUT}]),true); };
 $('startM').onclick=()=>startOnline();
 $('leaveR').onclick=()=>leaveRoom();
 $('invite').onclick=async()=>{ const base=(location.protocol==='https:'&&location.hostname!=='localhost')?location.origin+location.pathname:'https://adomja1212.github.io/Acc/war.html'; const url=base+'?match='+NET.code; try{ await navigator.clipboard.writeText(url); $('invMsg').textContent='اتنسخ! ابعته لصحابك: '+url; }catch(e){ $('invMsg').textContent='ابعت الرابط ده لصحابك: '+url; } };
@@ -1127,10 +1171,10 @@ function prepMini(){ const c=document.createElement('canvas'); c.width=c.height=
  g.fillStyle='#e9d6b8'; g.strokeStyle='#5b361c'; g.lineWidth=2; for(const h of HOUSES){ const [x,y]=mp(h.x0,h.z1); g.fillRect(x,y,(h.x1-h.x0)*s,(h.z1-h.z0)*s); g.strokeRect(x,y,(h.x1-h.x0)*s,(h.z1-h.z0)*s); }
  miniBase={c,mp}; }
 function drawMini(){ mg.drawImage(miniBase.c,0,0); const mp=miniBase.mp;
- for(const f of fighters()){ if(!f.alive||(f!==me&&me&&f.team!==me.team)) continue; const [x,y]=mp(f.x,f.z); mg.fillStyle=f.team==='r'?'#ff4d5a':'#101014'; mg.beginPath(); mg.arc(x,y,f===me?8:6,0,7); mg.fill(); if(f===me){ mg.strokeStyle='#fff'; mg.lineWidth=3; mg.stroke(); mg.beginPath(); mg.moveTo(x,y); mg.lineTo(x+Math.sin(f.yaw)*18,y-Math.cos(f.yaw)*18); mg.stroke(); } }
+ for(const f of fighters()){ if(!f.alive||(f!==me&&me&&f.team!==me.team)) continue; const [x,y]=mp(f.x,f.z); mg.fillStyle=f===me?'#ffffff':'#2f8bff'; mg.beginPath(); mg.arc(x,y,f===me?8:6,0,7); mg.fill(); if(f===me){ mg.strokeStyle='#fff'; mg.lineWidth=3; mg.stroke(); mg.beginPath(); mg.moveTo(x,y); mg.lineTo(x+Math.sin(f.yaw)*18,y-Math.cos(f.yaw)*18); mg.stroke(); } }
  for(const v of VEH){ const [x,y]=mp(v.x,v.z); mg.fillStyle='rgba(30,30,30,.8)'; mg.fillRect(x-4,y-4,8,8); } }
 let hudT=0;
-function updHUD(dt){ if(!me) return; $('aR').textContent=AD(aliveCount('r')); $('aB').textContent=AD(aliveCount('b'));
+function updHUD(dt){ if(!me) return; const all=fighters().filter(f=>f.alive); $('aR').textContent=AD(all.filter(f=>f.team===me.team).length); $('aB').textContent=AD(all.filter(f=>f.team!==me.team).length); $('aS').textContent=AD(SQ.filter(t=>all.some(f=>f.team===t)).length);
  $('hpN').textContent=AD(Math.ceil(me.hp)); $('hpBar').style.width=me.hp+'%'; $('hpBar').classList.toggle('low',me.hp<35);
  const w=W[me.w]; $('slots').innerHTML=W.map((x,i)=>`<span class="${i===me.w?'on':''}">${AD(i+1)} ${x.name}</span>`).join('');
  $('ammo').innerHTML=w.melee?w.name:(me.reloadT>0?'<small>بيعمّر…</small>':AD(me.ammo[me.w])+'<small>/'+AD(w.mag)+'</small>');
@@ -1143,7 +1187,7 @@ function updHUD(dt){ if(!me) return; $('aR').textContent=AD(aliveCount('r')); $(
 
 // ================= loop =================
 let last=performance.now();
-if(/[?&]debug=1/.test(location.search)) window.__war={get me(){ return me; },VEH,get IN(){ return IN; }};
+if(/[?&]debug=1/.test(location.search)) window.__war={get me(){ return me; },VEH,get IN(){ return IN; },get F(){ return fighters(); }};
 function update(dt){ clock+=dt; netTick(dt); readKeys(); updFX(dt); updGrenades(dt); updProj(dt); updVehicles(dt); if(!$('arsenal').hidden&&((clock*4)|0)!==((clock*4-dt*4)|0)) renderArsenal();
  if(state==='play'||state==='end'){ if(state==='play') matchT+=dt; else endT+=dt;
   if(me){ me.aim=state==='play'&&me.alive&&!me.veh&&(aimHeld||me.aimToggle)&&true; me.cool-=dt; me.kick=Math.max(0,me.kick-dt*8); me.atkT=Math.max(0,me.atkT-dt); me.thrT=Math.max(0,me.thrT-dt);
@@ -1156,7 +1200,8 @@ function update(dt){ clock+=dt; netTick(dt); readKeys(); updFX(dt); updGrenades(
   animFighters(dt); checkEnd(); updHUD(dt); joyHome(); }
  else if(DEMO.on){ demoTick(dt); animFighters(dt); }
 }
-function animFighters(dt){ for(const f of fighters()){ const c=f.char; const inside=!!(f.veh&&(f.veh.type==='tank'||f.veh.type==='plane')); c.root.visible=!inside; if(c.wg) c.wg.visible=!inside; c.root.position.x=f.x; c.root.position.z=f.z; c.root.rotation.y=f.yaw; if(!f.alive) f.deadT+=dt;
+function animFighters(dt){ for(const f of fighters()){ const c=f.char; const inside=!!(f.veh&&(f.veh.type==='tank'||f.veh.type==='plane')); c.root.visible=!inside; if(c.wg) c.wg.visible=!inside;
+   if(c.mk){ const mate=!!me&&f.team===me.team; c.mk.visible=!!me&&f!==me&&f.alive&&state==='play'; c.mk.material=mate?MK_BLUE:MK_RED; if(c.tag) c.tag.visible=!me||mate; } c.root.position.x=f.x; c.root.position.z=f.z; c.root.rotation.y=f.yaw; if(!f.alive) f.deadT+=dt;
    animChar(c,{spd:f.spd,pitch:f.pitch,yaw:f.yaw,w:f.w,aim:f.aim,atk:f.atkT/0.35,thr:f.thrT/0.45,dead:!f.alive&&state!=='end',pose:state==='end'?f.pose:null,drive:!!f.veh,y:f.y,kick:f.kick},dt);
    if(f.veh){ c.root.position.y=0; const v=f.veh; c.root.position.x=v.x; c.root.position.z=v.z; c.root.rotation.y=v.h; } } }
 function render(dt){ if(me){ updCamera(dt); sun.target.position.set(me.x,0,me.z); }
