@@ -300,12 +300,17 @@ const OUTFITS=[
  {id:'red',name:'الأحمر',ico:'🔴',body:0x8f2b2b,vest:0x6e1a1e,pouch:0x7f2025,head:'band',band:0xd62828},
  {id:'desert',name:'الصحراوي',ico:'🏜️',body:0xc4ae86,vest:0x8a7650,pouch:0x7a6644,head:'helmet',helm:0xb59a68},
  {id:'forest',name:'الغابة',ico:'🌲',body:0x6c7a52,vest:0x3e4a2c,pouch:0x4b5a33,head:'helmet',helm:0x55663a},
- {id:'urban',name:'المدينة',ico:'🏙️',body:0x7c8592,vest:0x2f3640,pouch:0x39424e,head:'cap',helm:0x1f242c}];
+ {id:'urban',name:'المدينة',ico:'🏙️',body:0x7c8592,vest:0x2f3640,pouch:0x39424e,head:'cap',helm:0x1f242c},
+ // tank tops, shorts, a visor helmet, a backpack and a grenade on the belt
+ {id:'tiger',name:'النمر',ico:'🐯',br:{top:0xe3b21a,top2:0x141414,pat:1,sleeve:0,bottom:0x18181a,shorts:1,shoe:0x2a2a2a,glove:0x1a1a1a},vest:false,head:'visor',helm:0x2c2e30,pack:0x4a4436,gren:1,body:0xffffff,pouch:0x333333},
+ {id:'ranger',name:'الرينجر',ico:'🪖',br:{top:0x6f7a4c,top2:0x3b4228,pat:2,sleeve:1,bottom:0x5b5a44,shorts:0,shoe:0x3a2c20,glove:0x2a2620},vest:true,vest2:0x3f4430,head:'visor',helm:0x4b5235,pack:0x5c5a3e,gren:1,body:0xffffff,pouch:0x4a4c36},
+ {id:'street',name:'الشارع',ico:'🧢',br:{top:0x1d1d22,top2:0xd62828,pat:3,sleeve:0,bottom:0x3b5a85,shorts:1,shoe:0xf0f0f0,glove:0xc68a62},vest:false,head:'visor',helm:0x1b1b1f,pack:0x2e2e33,gren:1,body:0xffffff,pouch:0x333333}];
+const SKINS=[0xc68a62,0x8d5a3b,0xe2b48f,0xa86f4c];
 const outfitOf=id=>OUTFITS.find(o=>o.id===id)||OUTFITS[0];
 // boy or girl; the girl uses her own model with the soldier's movements
 let MYGEN='m'; try{ const g=localStorage.getItem('war-gender'); if(g==='f'||g==='m') MYGEN=g; }catch(e){}
 let FEMALE=null, FSCALE=1, GIRLCLIPS=null, HDRTEX=null; const GIRLMAP={};
-const PANTS={hood:0x222327,red:0x7d2424,desert:0xb59d72,forest:0x5d6b45,urban:0x6b7380};
+const PANTS={hood:0x222327,red:0x7d2424,desert:0xb59d72,forest:0x5d6b45,urban:0x6b7380,tiger:0x18181a,ranger:0x5b5a44,street:0x3b5a85};
 function setupFemale(g){ if(!g) return; FEMALE=g; SOLDIER.scene.updateMatrixWorld(true); g.scene.updateMatrixWorld(true); const hs=new THREE.Box3().setFromObject(SOLDIER.scene).getSize(new THREE.Vector3()).y, hf=new THREE.Box3().setFromObject(g.scene).getSize(new THREE.Vector3()).y; FSCALE=hf>0?hs*0.95/hf:1;
  GIRLCLIPS=SOLDIER.animations.map(c=>{ const k=c.clone(); k.tracks=k.tracks.filter(t=>!t.name.endsWith('.position')); return k; }); }
 // her trousers take the outfit colour (shading kept); skin and hair stay as they are
@@ -315,7 +320,7 @@ function girlMap(outfit){ if(GIRLMAP[outfit]) return GIRLMAP[outfit]; let src=nu
  for(let i=0;i<d.length;i+=4){ const r=d[i]/255, gg=d[i+1]/255, b=d[i+2]/255, mx=Math.max(r,gg,b), mn=Math.min(r,gg,b), dl=mx-mn, sat=mx?dl/mx:0; if(sat<0.42||mx<0.38||dl<1e-3) continue;
   let h=mx===r?((gg-b)/dl)%6:mx===gg?(b-r)/dl+2:(r-gg)/dl+4; h*=60; if(h<0) h+=360; if(h<36||h>70) continue; const k=Math.min(1.1,mx/0.9)*0.92; d[i]=Math.min(255,pr*k); d[i+1]=Math.min(255,pg*k); d[i+2]=Math.min(255,pb*k); }
  g.putImageData(id,0,0); const t=new THREE.CanvasTexture(cv); t.flipY=src.flipY; t.colorSpace=THREE.SRGBColorSpace; t.wrapS=src.wrapS; t.wrapT=src.wrapT; t.anisotropy=4; GIRLMAP[outfit]=t; return t; }
-let MYOUT='hood'; try{ const o=localStorage.getItem('war-outfit'); if(o&&OUTFITS.some(x=>x.id===o)) MYOUT=o; }catch(e){}
+let MYOUT='tiger'; try{ const o=localStorage.getItem('war-outfit'); if(o&&OUTFITS.some(x=>x.id===o)) MYOUT=o; }catch(e){}
 // markers over heads: blue = on your squad, red = enemy
 const MKTEX=(()=>{ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); g.fillStyle='#fff'; g.strokeStyle='rgba(0,0,0,.6)'; g.lineWidth=5; g.beginPath(); g.moveTo(8,10); g.lineTo(56,10); g.lineTo(32,52); g.closePath(); g.stroke(); g.fill(); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
 const MK_BLUE=new THREE.SpriteMaterial({map:MKTEX,color:0x2f8bff,depthTest:false,depthWrite:false}), MK_RED=new THREE.SpriteMaterial({map:MKTEX,color:0xff2a2a,depthWrite:false});
@@ -715,18 +720,44 @@ function weaponMeshes(parent){ const w={}; const mk=(id,fn)=>{ const g=new THREE
  return w; }
 function nameTag(text,col){ const c=document.createElement('canvas'); c.width=256; c.height=64; const g=c.getContext('2d'); g.font='800 30px Cairo'; g.textAlign='center'; g.textBaseline='middle'; g.direction='rtl'; g.lineWidth=7; g.strokeStyle='rgba(20,5,9,.85)'; g.strokeText(text,128,34); g.fillStyle=col; g.fillText(text,128,34);
  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthWrite:false})); s.scale.set(1.6,0.4,1); s.position.y=2.25; return s; }
-const BN={lUp:'LeftUpLeg',lLeg:'LeftLeg',rUp:'RightUpLeg',rLeg:'RightLeg',spine:'Spine1',spine2:'Spine2',head:'Head',lArm:'LeftArm',lFore:'LeftForeArm',lHand:'LeftHand',rArm:'RightArm',rFore:'RightForeArm',rHand:'RightHand'};
+const BN={hips:'Hips',lUp:'LeftUpLeg',lLeg:'LeftLeg',rUp:'RightUpLeg',rLeg:'RightLeg',spine:'Spine1',spine2:'Spine2',head:'Head',lArm:'LeftArm',lFore:'LeftForeArm',lHand:'LeftHand',rArm:'RightArm',rFore:'RightForeArm',rHand:'RightHand'};
 function findBone(root,n){ return root.getObjectByName('mixamorig'+n)||root.getObjectByName('mixamorig:'+n)||null; }
 const BLOB=(()=>{ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const gr=g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(0,0,0,.55)'); gr.addColorStop(0.6,'rgba(0,0,0,.25)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64);
  return new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}); })();
 const BLOBGEO=new THREE.PlaneGeometry(1.25,1.25).rotateX(-Math.PI/2);
 // keep the suit's stitching, folds and wear but drop its own orange colour, so each outfit reads as real fabric
+function brSkin(m,B,skin){ const U={uTop:{value:new THREE.Color(B.top)},uTop2:{value:new THREE.Color(B.top2)},uBottom:{value:new THREE.Color(B.bottom)},uSkin:{value:new THREE.Color(skin)},uShoe:{value:new THREE.Color(B.shoe)},uGlove:{value:new THREE.Color(B.glove)},uPat:{value:B.pat},uSleeve:{value:B.sleeve},uShorts:{value:B.shorts}};
+ m.color.set(0xffffff); m.roughness=0.82; m.metalness=0.02;
+ m.onBeforeCompile=sh=>{ Object.assign(sh.uniforms,U);
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vBind;').replace('#include <begin_vertex>','#include <begin_vertex>\nvBind = position;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
+varying vec3 vBind; uniform vec3 uTop,uTop2,uBottom,uSkin,uShoe,uGlove; uniform float uPat,uSleeve,uShorts;
+vec3 topCol(vec3 b){ vec2 p=vec2(b.x+b.y*0.8,b.z)/3.2;
+ if(uPat<0.5) return uTop;
+ if(uPat<1.5){ vec2 c=floor(p), f=fract(p); float k=mod(c.x+c.y,2.0); float tooth=step(0.5,f.x)*step(f.y,0.5)*step(f.x-f.y,0.5); return mix(uTop,uTop2,abs(k-tooth)); }
+ if(uPat<2.5){ float n=sin(p.x*0.55+sin(p.y*0.45)*2.2)*sin(p.y*0.5+sin(p.x*0.38)*1.7); return n>0.3?uTop2:(n<-0.35?uTop*0.62:uTop); }
+ float st=step(0.5,fract(b.z/6.0)); return mix(uTop,uTop2,st*step(128.0,b.z)*step(b.z,136.0)); }`)
+  .replace('#include <map_fragment>',`#ifdef USE_MAP
+ float lum=dot(texture2D(map,vMapUv).rgb,vec3(0.299,0.587,0.114));
+#else
+ float lum=0.5;
+#endif
+ vec3 b=vBind; float ax=abs(b.x); vec3 col; float cloth=1.0;
+ if(b.z>153.0){ col=uSkin; cloth=0.0; }
+ else if(ax>64.0){ col=uGlove; }
+ else if(ax>18.5&&b.z>128.0){ float sl=uSleeve>1.5?1.0:(uSleeve>0.5?step(ax,38.0):0.0); col=mix(uSkin,topCol(b),sl); cloth=sl; }
+ else if(b.z>99.0){ col=topCol(b); }
+ else if(b.z>14.0){ float c2=uShorts>0.5?step(63.0,b.z):1.0; col=mix(uSkin,uBottom,c2); cloth=c2; }
+ else col=uShoe;
+ float det=mix(mix(0.92,1.05,smoothstep(0.1,0.7,lum)),mix(0.7,1.22,smoothstep(0.05,0.65,lum)),cloth);
+ diffuseColor.rgb*=col*det;`); };
+ m.customProgramCacheKey=()=>'br'; }
 function fabric(m){ m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>','#ifdef USE_MAP\n vec4 sampledDiffuseColor = texture2D( map, vMapUv ); float lum = dot( sampledDiffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) ); diffuseColor.rgb *= vec3( pow( lum, 0.9 ) * 1.65 );\n#endif'); }; m.customProgramCacheKey=()=>'fabric'; }
 function makeChar(outfit,name,isMe,gen='m',target=scene){ const OF=outfitOf(outfit); const SRC=gen==='f'&&FEMALE?FEMALE:SOLDIER, girl=SRC===FEMALE;
  const root=new THREE.Group(); root.rotation.order='YXZ';
  const model=SkeletonUtils.clone(SRC.scene); model.rotation.y=Math.PI; if(girl) model.scale.multiplyScalar(FSCALE); root.add(model);
  const hooded=OF.head==='hood', tint=new THREE.Color(OF.body);
- model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; o.material=o.material.clone(); if(girl){ const m=girlMap(outfit); if(m) o.material.map=m; o.material.roughness=0.8; o.material.metalness=0; } else if(/Body/i.test(o.material.name)){ o.material.color.copy(tint); o.material.roughness=0.85; o.material.metalness=0.05; o.material.envMapIntensity=0.8; fabric(o.material); } else if(hooded&&/Visor/i.test(o.material.name)){ o.material.color.set(0x0b0b0d); } } });
+ model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; o.material=o.material.clone(); if(girl){ const m=girlMap(outfit); if(m) o.material.map=m; o.material.roughness=0.8; o.material.metalness=0; } else if(/Body/i.test(o.material.name)){ if(OF.br) brSkin(o.material,OF.br,SKINS[(name||'').length%SKINS.length]); else { o.material.color.copy(tint); o.material.roughness=0.85; o.material.metalness=0.05; o.material.envMapIntensity=0.8; fabric(o.material); } } else if(hooded&&/Visor/i.test(o.material.name)){ o.material.color.set(0x0b0b0d); } } });
  const mixer=new THREE.AnimationMixer(model), A={}; if(!girl) for(const c of SOLDIER.animations) A[c.name]=mixer.clipAction(c);
  for(const n of ['Idle','Walk','Run']) if(A[n]){ A[n].play(); A[n].setEffectiveWeight(n==='Idle'?1:0); }
  const bones={}; for(const k in BN) bones[k]=findBone(model,BN[k]);
@@ -734,12 +765,17 @@ function makeChar(outfit,name,isMe,gen='m',target=scene){ const OF=outfitOf(outf
  model.updateMatrixWorld(true);
  const gear=bone=>{ const g=new THREE.Group(); if(!bone) return g; const q=new THREE.Quaternion(), sc=new THREE.Vector3(); bone.getWorldQuaternion(q); bone.getWorldScale(sc); g.quaternion.copy(q.invert()); g.scale.setScalar(1/sc.x); bone.add(g); return g; };
  const put=(g,geo,mat,x,y,z,sx=1,sy=1,sz=1)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.scale.set(sx,sy,sz); m.castShadow=true; g.add(m); return m; };
- const vestM=pm({color:OF.vest,roughness:.9}), pouchM=pm({color:OF.pouch,roughness:.85});
- const chest=gear(bones.spine2);
- put(chest,new RoundedBoxGeometry(0.38,0.34,0.07,2,0.02),vestM,0,0.03,0.155); put(chest,new RoundedBoxGeometry(0.38,0.34,0.07,2,0.02),vestM,0,0.03,-0.155);
+ const vestM=pm({color:typeof OF.vest==='number'?OF.vest:(OF.vest2||0x2c2c30),roughness:.9}), pouchM=pm({color:OF.pouch,roughness:.85});
+ const chest=gear(bones.spine2); const wearVest=OF.vest!==false;
+ if(wearVest){ put(chest,new RoundedBoxGeometry(0.38,0.34,0.07,2,0.02),vestM,0,0.03,0.155); put(chest,new RoundedBoxGeometry(0.38,0.34,0.07,2,0.02),vestM,0,0.03,-0.155);
  for(const sx of [-1,1]){ put(chest,new THREE.BoxGeometry(0.06,0.2,0.3),vestM,sx*0.2,-0.04,0); put(chest,new THREE.BoxGeometry(0.07,0.04,0.33),vestM,sx*0.12,0.2,0); }
  for(const x of [-0.12,0,0.12]) put(chest,new RoundedBoxGeometry(0.1,0.13,0.06,2,0.015),pouchM,x,-0.1,0.205);
- put(chest,new RoundedBoxGeometry(0.12,0.08,0.05,2,0.015),pouchM,0.1,0.1,0.205);
+ put(chest,new RoundedBoxGeometry(0.12,0.08,0.05,2,0.015),pouchM,0.1,0.1,0.205); }
+ if(OF.pack){ const pk=pm({color:OF.pack,roughness:.9}), strap=pm({color:0x1c1c1c,roughness:.8});
+  put(chest,new RoundedBoxGeometry(0.36,0.44,0.2,3,0.06),pk,0,-0.02,-0.27); put(chest,new RoundedBoxGeometry(0.3,0.14,0.08,2,0.03),pk,0,-0.14,-0.39);
+  put(chest,new THREE.CylinderGeometry(0.075,0.075,0.4,14).rotateZ(Math.PI/2),pm({color:0x3a3530,roughness:.95}),0,0.23,-0.26);
+  for(const sx of [-1,1]){ put(chest,new THREE.BoxGeometry(0.045,0.36,0.02),strap,sx*0.1,0.02,0.16); put(chest,new THREE.BoxGeometry(0.045,0.02,0.34),strap,sx*0.1,0.2,-0.02); } }
+ if(OF.gren&&bones.hips){ const hp=gear(bones.hips), gm=pm({color:0x4a5a2a,roughness:.6}); put(hp,new THREE.SphereGeometry(0.048,12,10),gm,0.17,-0.02,0.08,1,1.15,1); put(hp,new THREE.BoxGeometry(0.012,0.06,0.02),pm({color:0x888888,metalness:.7,roughness:.4}),0.19,0.03,0.08); put(hp,new THREE.TorusGeometry(0.11,0.012,6,24).rotateX(Math.PI/2),pm({color:0x222222,roughness:.8}),0,0,0,1.6,1,1.2); }
  const head=gear(bones.head);
  if(hooded){ // black hood, a glossy mask and glowing red eyes
   const hood=pm({color:0x0f0f12,roughness:.95,side:THREE.DoubleSide});
@@ -749,6 +785,13 @@ function makeChar(outfit,name,isMe,gen='m',target=scene){ const OF=outfitOf(outf
   const eye=new THREE.MeshBasicMaterial({color:new THREE.Color(2.4,0.0,0.0),toneMapped:false});
   for(const sx of [-1,1]) put(head,new THREE.SphereGeometry(0.02,12,8),eye,sx*0.045,0.125,0.142,1.7,0.6,0.5);
  } else if(OF.head==='band') put(head,new THREE.TorusGeometry(0.13,0.025,8,20).rotateX(Math.PI/2),pm({color:OF.band,emissive:OF.band,emissiveIntensity:0.4}),0,0.12,0);
+ else if(OF.head==='visor'){ const hm=pm({color:OF.helm,roughness:.45,metalness:.35});
+  put(head,new THREE.SphereGeometry(0.172,24,14,0,Math.PI*2,0,Math.PI*0.56),hm,0,0.11,-0.005,1,0.98,1.1);
+  put(head,new THREE.TorusGeometry(0.168,0.014,8,28).rotateX(Math.PI/2),hm,0,0.085,-0.005,1,1,1.1);
+  for(const sx of [-1,1]) put(head,new RoundedBoxGeometry(0.03,0.11,0.12,2,0.012),hm,sx*0.165,0.03,0.0);
+  const vis=new THREE.MeshPhysicalMaterial({color:0x0c0d0f,roughness:.08,metalness:.5,clearcoat:1,clearcoatRoughness:.05});
+  put(head,new THREE.CylinderGeometry(0.182,0.182,0.075,24,1,true,-0.95,1.9),vis,0,0.065,0,1,1,1.05);
+  put(head,new THREE.BoxGeometry(0.12,0.012,0.012),pm({color:0xcccccc,metalness:.8,roughness:.3}),0,0.108,0.19); }
  else if(OF.head==='helmet'){ const hm=pm({color:OF.helm,roughness:.75}); put(head,new THREE.SphereGeometry(0.165,20,12,0,Math.PI*2,0,Math.PI*0.52),hm,0,0.11,0,1,0.95,1.08); put(head,new THREE.TorusGeometry(0.163,0.012,6,24).rotateX(Math.PI/2),hm,0,0.105,0); }
  else { const cm=pm({color:OF.helm,roughness:.9}); put(head,new THREE.SphereGeometry(0.155,20,12,0,Math.PI*2,0,Math.PI*0.5),cm,0,0.12,0); put(head,new THREE.CylinderGeometry(0.11,0.11,0.015,16,1,false,-Math.PI/2,Math.PI),cm,0,0.125,0.12); }
  const wg=new THREE.Group(); wg.scale.setScalar(1.2); target.add(wg); const wm=weaponMeshes(wg);
