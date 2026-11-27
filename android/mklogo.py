@@ -98,3 +98,31 @@ wm = Image.new('L', (W, H), 0); ImageDraw.Draw(wm).rounded_rectangle([0, 0, W - 
 out = Image.new('RGBA', (W, H), (0, 0, 0, 0)); out.paste(wide, (0, 0), wm)
 out.save(f'{OUT}/logo-wide.png')
 print('ok', OUT)
+
+# ---------- 3) أيقونة متكيفة لأندرويد 8+ (خلفية + رمز) وأيقونة كاملة للإصدارات الأقدم ----------
+A = 432  # 108dp × 4 (xxxhdpi)
+# خلفية شعاعية: مركزها بلون خلفية الرمز نفسه، وأطرافها أغمق — حتى يندمج الرمز بلا حدود ظاهرة
+def border_avg(img):
+    w, h = img.size; px = [img.getpixel((x, y)) for x in range(0, w, 6) for y in (2, h - 3)] + [img.getpixel((x, y)) for y in range(0, h, 6) for x in (2, w - 3)]
+    return tuple(sum(p[i] for p in px) // len(px) for i in range(3))
+CEN = border_avg(emblem); EDGE = tuple(int(c * .55) for c in CEN)
+abg = Image.new('RGB', (A, A))
+import math
+for y in range(A):
+    for x in range(A):
+        t = min(1, math.hypot(x - A / 2, y - A / 2) / (A * .62))
+        abg.putpixel((x, y), tuple(int(CEN[i] + (EDGE[i] - CEN[i]) * t * t) for i in range(3)))
+abg.save(f'{OUT}/ic-bg.png')
+# الرمز داخل المنطقة الآمنة (66dp من 108dp) حتى لا يقصّه شكل الأيقونة في أي جهاز
+fg = Image.new('RGBA', (A, A), (0, 0, 0, 0))
+ew = 330; eh = int(ew * emblem.height / emblem.width)
+e3 = emblem.resize((ew, eh), Image.LANCZOS).convert('RGBA')
+m3 = Image.new('L', (ew, eh), 0); ImageDraw.Draw(m3).rounded_rectangle([6, 4, ew - 7, eh - 5], radius=40, fill=255)
+e3.putalpha(m3.filter(ImageFilter.GaussianBlur(14)))
+fg.paste(e3, ((A - ew) // 2, (A - eh) // 2), e3)
+fg.save(f'{OUT}/ic-fg.png')
+# أيقونة كاملة مربعة (بدون زوايا شفافة) للأجهزة الأقدم
+leg = abg.copy().convert('RGBA'); leg.alpha_composite(fg)
+legm = Image.new('L', (A, A), 0); ImageDraw.Draw(legm).rounded_rectangle([0, 0, A - 1, A - 1], radius=96, fill=255)
+lg = Image.new('RGBA', (A, A), (0, 0, 0, 0)); lg.paste(leg, (0, 0), legm)
+lg.save(f'{OUT}/ic-legacy.png')

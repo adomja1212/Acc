@@ -120,30 +120,73 @@ def manifest(vcode, vname):
     return struct.pack('<HHI', 0x0003, 8, 8 + len(body)) + body
 
 
-# ---------- resources.arsc (one icon: mipmap/ic_launcher, xxxhdpi) ----------
+# ---------- resources.arsc: أيقونة متكيفة (أندرويد 8+) + أيقونة عادية للأقدم ----------
+# mipmap/ic_launcher (0x7f010000): xxxhdpi → PNG كامل، anydpi-v26 → XML adaptive-icon
+# mipmap/ic_fg (0x7f010001) و mipmap/ic_bg (0x7f010002): طبقتا الأيقونة المتكيفة
 ICON_PATH = 'res/mipmap-xxxhdpi-v4/ic_launcher.png'
+FG_PATH = 'res/mipmap-xxxhdpi-v4/ic_fg.png'
+BG_PATH = 'res/mipmap-xxxhdpi-v4/ic_bg.png'
+ADAPT_PATH = 'res/mipmap-anydpi-v26/ic_launcher.xml'
+NO_ENTRY = 0xffffffff
+
+
+def _config(density, sdk):
+    c = bytearray(64)
+    struct.pack_into('<I', c, 0, 64)
+    struct.pack_into('<H', c, 14, density)
+    struct.pack_into('<H', c, 24, sdk)
+    return bytes(c)
 
 
 def arsc():
-    gpool = string_pool([ICON_PATH])
+    gpool = string_pool([ICON_PATH, FG_PATH, BG_PATH, ADAPT_PATH])
     tpool = string_pool(['mipmap'])
-    kpool = string_pool(['ic_launcher'])
-    spec = struct.pack('<HHIBBHI', 0x0202, 16, 16 + 4, 1, 0, 0, 1) + struct.pack('<I', 0x0100)  # varies by density
-    config = bytearray(64)
-    struct.pack_into('<I', config, 0, 64)
-    struct.pack_into('<H', config, 14, 640)  # density xxxhdpi
-    struct.pack_into('<H', config, 24, 4)    # sdkVersion v4
-    entries = struct.pack('<HHI', 8, 0, 0) + struct.pack('<HBBI', 8, 0, T_STR, 0)
-    thdr = 20 + 64
-    tbody = struct.pack('<I', 0) + entries
-    typ = struct.pack('<HHIBBHII', 0x0201, thdr, thdr + len(tbody), 1, 0, 0, 1, thdr + 4) + bytes(config) + tbody
+    kpool = string_pool(['ic_launcher', 'ic_fg', 'ic_bg'])
+    spec = struct.pack('<HHIBBHI', 0x0202, 16, 16 + 12, 1, 0, 0, 3) + struct.pack('<III', 0x0100 | 0x0400, 0x0100, 0x0100)
+
+    def typ(config, vals):  # vals: [(key, string)] أو None لكل مدخل
+        n = len(vals); thdr = 20 + 64; offs = []; ents = b''
+        for v in vals:
+            if v is None: offs.append(NO_ENTRY); continue
+            offs.append(len(ents)); ents += struct.pack('<HHI', 8, 0, v[0]) + struct.pack('<HBBI', 8, 0, T_STR, v[1])
+        body = b''.join(struct.pack('<I', o) for o in offs) + ents
+        return struct.pack('<HHIBBHII', 0x0201, thdr, thdr + len(body), 1, 0, 0, n, thdr + 4 * n) + config + body
+    t1 = typ(_config(640, 4), [(0, 0), (1, 1), (2, 2)])
+    t2 = typ(_config(0xfffe, 26), [(0, 3), None, None])
     name = PKG.encode('utf-16-le').ljust(256, b'\0')
     phdr = 288
-    pkg_body = tpool + kpool + spec + typ
+    pkg_body = tpool + kpool + spec + t1 + t2
     pkg = struct.pack('<HHII', 0x0200, phdr, phdr + len(pkg_body), 0x7f) + name + \
-        struct.pack('<IIIII', phdr, 1, phdr + len(tpool), 1, 0) + pkg_body
+        struct.pack('<IIIII', phdr, 1, phdr + len(tpool), 3, 0) + pkg_body
     body = gpool + pkg
     return struct.pack('<HHII', 0x0002, 12, 12 + len(body), 1) + body
+
+
+def adaptive_xml():
+    """<adaptive-icon><background drawable=@mipmap/ic_bg/><foreground drawable=@mipmap/ic_fg/></adaptive-icon>"""
+    DRAW = 0x01010199
+    strings = ['drawable', 'android', NS, 'adaptive-icon', 'background', 'foreground']
+    S = strings.index
+    def start(tag, attrs):
+        ab = b''.join(struct.pack('<IIIHBBI', S(NS), S('drawable'), 0xffffffff, 8, 0, T_REF, ref) for ref in attrs)
+        ext = struct.pack('<IIHHHHHH', 0xffffffff, S(tag), 20, 20, len(attrs), 0, 0, 0)
+        return struct.pack('<HHIII', 0x0102, 16, 16 + len(ext) + len(ab), 1, 0xffffffff) + ext + ab
+    end = lambda tag: struct.pack('<HHIIIII', 0x0103, 16, 24, 1, 0xffffffff, 0xffffffff, S(tag))
+    nodes = start('adaptive-icon', []) + start('background', [0x7f010002]) + end('background') + \
+        start('foreground', [0x7f010001]) + end('foreground') + end('adaptive-icon')
+    ns_s = struct.pack('<HHIIIII', 0x0100, 16, 24, 1, 0xffffffff, S('android'), S(NS))
+    ns_e = struct.pack('<HHIIIII', 0x0101, 16, 24, 1, 0xffffffff, S('android'), S(NS))
+    rmap = struct.pack('<HHII', 0x0180, 8, 12, DRAW)
+    body = string_pool(strings) + rmap + ns_s + nodes + ns_e
+    return struct.pack('<HHI', 0x0003, 8, 8 + len(body)) + body
+
+
+def logo_png(name, size=None):
+    import os
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logo', name)
+    im = Image.open(p)
+    if size: im = im.resize((size, size), Image.LANCZOS)
+    b = io.BytesIO(); im.save(b, 'PNG', optimize=True); return b.getvalue()
 
 
 # ---------- icon ----------
@@ -176,7 +219,10 @@ def write_apk(dex_path, out, vcode, vname):
     files = [('AndroidManifest.xml', manifest(vcode, vname), zipfile.ZIP_DEFLATED),
              ('classes.dex', open(dex_path, 'rb').read(), zipfile.ZIP_DEFLATED),
              ('resources.arsc', arsc(), zipfile.ZIP_STORED),
-             (ICON_PATH, icon(), zipfile.ZIP_STORED)]
+             (ICON_PATH, logo_png('ic-legacy.png', 192), zipfile.ZIP_STORED),
+             (FG_PATH, logo_png('ic-fg.png'), zipfile.ZIP_STORED),
+             (BG_PATH, logo_png('ic-bg.png'), zipfile.ZIP_STORED),
+             (ADAPT_PATH, adaptive_xml(), zipfile.ZIP_DEFLATED)]
     with zipfile.ZipFile(out, 'w') as z:
         for name, data, method in files:
             zi = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
@@ -193,5 +239,4 @@ if __name__ == '__main__':
     vcode = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     vname = sys.argv[4] if len(sys.argv) > 4 else '1.0'
     write_apk(dex, out, vcode, vname)
-    open(out.rsplit('/', 1)[0] + '/icon-preview.png', 'wb').write(icon(512))
     print('wrote', out)
