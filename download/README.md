@@ -1,4 +1,9 @@
-# تحميل تطبيق نظام المحاسب (أندرويد)
+# نظام المحاسب
+
+## 🌐 فتح البرنامج من المتصفح (كمبيوتر أو موبايل)
+https://claude.ai/artifact/TYazG5Y6QwK2zjpyHDPfAc
+
+## 📱 تحميل تطبيق أندرويد
 
 **رابط التحميل المباشر (ثابت — دايماً آخر نسخة):**
 https://github.com/adomja1212/Acc/raw/claude/accounting-database-webpage-nrered/download/nezam-almohaseb.apk
