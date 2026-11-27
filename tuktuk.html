@@ -174,7 +174,7 @@ body.touch #touch{display:block}
      <div class="seg" id="vehType"><button data-v="tuk">توكتوك</button><button data-v="moto">موتوسيكل</button><button data-v="deliv">دليفري</button></div></div>
     <div class="row"><label>الجو</label><div class="seg" id="wx"><button data-v="day">نهار</button><button data-v="sunset">مغرب</button><button data-v="night">ليل</button><button data-v="rain">مطر</button><button data-v="snow">تلج</button></div></div>
     <div class="row" id="steerRow" hidden><label>السواقة على الموبايل</label><div class="seg" id="steer"><button data-v="btn" aria-pressed="true">بالأزرار</button><button data-v="tilt">بإمالة الموبايل</button></div><p class="tsub" id="steerMsg"></p></div>
-    <div class="row"><label>جودة الجرافيك</label><div class="seg" id="qual"><button data-v="high">عالية</button><button data-v="med">متوسطة</button><button data-v="low">خفيفة</button></div></div>
+    <div class="row"><label>جودة الجرافيك</label><div class="seg" id="qual"><button data-v="ultra">أقصى</button><button data-v="high">عالية</button><button data-v="med">متوسطة</button><button data-v="low">خفيفة</button></div></div>
    </details>
    <button class="go" id="start">يلّا بينا!</button>
    <button class="go alt online" id="online">العب أونلاين مع صحابك</button>
@@ -1364,10 +1364,11 @@ function togglePause(){ if(state!=='race'&&state!=='count') return; if(NET.inRac
 
 // ================= quality =================
 function applyQuality(q){ quality=q; try{ localStorage.setItem('tuk-q',q); }catch(e){}
- const pr=q==='high'?Math.min(devicePixelRatio,2):q==='med'?Math.min(devicePixelRatio,1.5):1;
+ const ultra=q==='ultra', top=q==='high'||ultra; const pr=ultra?Math.min(devicePixelRatio,3):q==='high'?Math.min(devicePixelRatio,2):q==='med'?Math.min(devicePixelRatio,1.5):1;
+ const smp=ultra?8:4; if(rt.samples!==smp){ rt.samples=smp; rt.dispose(); } grade.uniforms.sat.value=ultra?1.16:1.12; grade.uniforms.vig.value=ultra?0.34:0.3;
  renderer.setPixelRatio(pr); composer.setPixelRatio(pr); onResize();
- const sh=q!=='low'; renderer.shadowMap.enabled=sh; sun.castShadow=sh; const ms=q==='high'?4096:2048; sun.shadow.mapSize.set(ms,ms); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
- renderer.shadowMap.type=q==='high'?THREE.PCFSoftShadowMap:THREE.PCFShadowMap;
+ const sh=q!=='low'; renderer.shadowMap.enabled=sh; sun.castShadow=sh; const ms=top?4096:2048; sun.shadow.mapSize.set(ms,ms); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
+ renderer.shadowMap.type=top?THREE.PCFSoftShadowMap:THREE.PCFShadowMap;
  bloom.enabled=q!=='low';
  scene.traverse(o=>{ if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); } });
  document.querySelectorAll('#qual button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===q)); }
