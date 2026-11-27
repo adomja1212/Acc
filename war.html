@@ -100,13 +100,22 @@ button{font:inherit;color:inherit;cursor:pointer}
 #endBtns .go{margin:0}
 body.ended #cross,body.ended #help,body.ended #weap,body.ended #hpBox,body.ended #spect,body.ended #prompt,body.ended #scope,body.ended #hitm{display:none!important}
 #tools{position:fixed;z-index:15;top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;gap:6px}
+#voice{position:fixed;z-index:35;top:calc(56px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:8px;zoom:var(--ui,1)}
+#voice button{min-height:40px;padding:0 12px;border-radius:999px;border:2px solid rgba(255,255,255,.35);background:rgba(34,9,15,.78);color:#fff;font:800 14px Cairo,sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap}
+#voice button[aria-pressed=true]{background:#1f9d55;border-color:#9ff0b9}
+#voice #vMic[aria-pressed=false]{opacity:.9}
+#voice .live{width:8px;height:8px;border-radius:50%;background:#9ff0b9;box-shadow:0 0 6px #9ff0b9}
+html.roomOn #voice{top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px))}
 #tools button{width:44px;height:44px;border-radius:12px;border:2px solid rgba(255,183,3,.5);background:rgba(34,9,15,.7);font-size:15px;font-weight:800}
 #help{position:absolute;bottom:calc(70px + env(safe-area-inset-bottom,0px));left:max(14px,env(safe-area-inset-left,0px));font-size:13px;opacity:.85;background:rgba(34,9,15,.6);border-radius:8px;padding:4px 10px;max-width:340px}
 #touch{position:fixed;inset:0;z-index:12;display:none}
 body.touch.playing #touch{display:block}
 body.touch #help{display:none}
 #joy{position:absolute;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.3);pointer-events:none}
-#joy i{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.45)}
+#joy i{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.45);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+#joy{background:radial-gradient(circle,rgba(0,0,0,.12),rgba(0,0,0,.28))!important;border-color:rgba(255,255,255,.45)!important}
+#joy b{position:absolute;font-size:12px;line-height:1;color:rgba(255,255,255,.7);pointer-events:none}
+#joy .ju{top:5px;left:50%;transform:translateX(-50%)}#joy .jd{bottom:5px;left:50%;transform:translateX(-50%)}#joy .jl{left:6px;top:50%;transform:translateY(-50%)}#joy .jr{right:6px;top:50%;transform:translateY(-50%)}
 .tb{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(34,9,15,.55);font-family:Lalezar,Cairo;color:#fff;touch-action:none;display:grid;place-items:center;font-size:17px;line-height:1.05;text-align:center}
 .tb.on{background:rgba(255,183,3,.8);color:#2a0f00}
 #tFire{right:calc(max(16px,env(safe-area-inset-right,0px)) + 0px);bottom:calc(40px + env(safe-area-inset-bottom,0px));width:96px;height:96px;background:rgba(200,16,46,.65);font-size:24px}
@@ -122,8 +131,8 @@ body.touch #weap .slots{display:none}
 body.touch #ammo{font-size:30px}
 body.touch #hpBox{bottom:auto;top:calc(168px + env(safe-area-inset-top,0px));width:150px}
 body.touch #feed{top:calc(60px + env(safe-area-inset-top,0px))}
-html.rot body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}html.rot body.touch #tRun{bottom:calc(150px + env(safe-area-inset-bottom,0px))}html.rot body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}html.rot body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}
-@media (orientation:landscape) and (max-height:500px){body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}body.touch #tRun{bottom:calc(150px + env(safe-area-inset-bottom,0px))}body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}}
+html.rot body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}html.rot body.touch #tRun{bottom:calc(182px + env(safe-area-inset-bottom,0px))}html.rot body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}html.rot body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}
+@media (orientation:landscape) and (max-height:500px){body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}body.touch #tRun{bottom:calc(182px + env(safe-area-inset-bottom,0px))}body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}}
 @media (max-width:600px){ html:not(.rot) #score{top:calc(62px + env(safe-area-inset-top,0px));padding:2px 12px} html:not(.rot) #score b{font-size:20px} html:not(.rot) #feed{top:calc(100px + env(safe-area-inset-top,0px))!important} html:not(.rot) #mini{width:110px;height:110px} html:not(.rot) body.touch #hpBox{top:calc(128px + env(safe-area-inset-top,0px));width:110px} html:not(.rot) #feed{font-size:12px} }
 </style>
 </head>
@@ -139,7 +148,6 @@ html.rot body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:17
  <div class="row2"><button class="go alt" id="newTeam">أوضة فريق ضد فريق</button><button class="go alt" id="newDuel">أوضة واحد ضد واحد</button></div>
  <button class="go ghost" id="train">تدريب لوحدك ضد الكمبيوتر</button>
  <span class="lbl">ماتشات مفتوحة</span><ul class="nlist" id="rooms"></ul>
- <span class="lbl" id="pplT">أونلاين دلوقتي</span><ul class="nlist" id="ppl"></ul>
 </div></div></div>
 
 <div class="ov" id="roomOv" hidden><div class="card"><div class="truck"></div><div class="in">
@@ -170,10 +178,11 @@ html.rot body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:17
  <div id="endBtns" hidden><button class="go" id="again">جولة تانية</button><button class="go alt" id="toRoom">رجوع للأوضة</button></div>
  <div id="help">دوس على الشاشة عشان تمسك الماوس · <b>WASD</b> مشي · <b>Shift</b> جري سريع · اطلع السلم للدور التاني والسطح · <b>مسافة</b> نط · كليك ضرب · كليك يمين زووم · <b>1-5</b> السلاح · <b>G</b> قنبلة · <b>E</b> اركب/انزل · <b>V</b> الكاميرا · <b>R</b> تعمير</div>
 </div>
+<div id="voice" hidden><button id="vMic" aria-pressed="false">🎤 المايك مقفول</button><button id="vSpk" aria-pressed="true">🔊 صوت فريقك</button></div>
 <div id="tools" hidden><button id="bSnd" aria-label="الصوت">🔊</button><button id="bCam" aria-label="الكاميرا">📷</button><button id="bExit" aria-label="خروج">✕</button></div>
 
 <div id="touch">
- <div id="joy" hidden><i></i></div>
+ <div id="joy" hidden><i></i><b class="ju">▲</b><b class="jd">▼</b><b class="jl">◀</b><b class="jr">▶</b></div>
  <button class="tb" id="tFire">ضرب</button><button class="tb" id="tAim">زووم</button><button class="tb" id="tJump">نط</button>
  <button class="tb" id="tGren">قنبلة</button><button class="tb" id="tWeap">سلاح</button><button class="tb" id="tVeh" hidden>اركب</button><button class="tb" id="tRun">جري</button>
 </div>
@@ -191,7 +200,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { getLobby, esc, AD, COLORS, myProfile, GAME_NAMES } from './net.js';
+import { getLobby, esc, AD, COLORS, myProfile, saveProfile, GAME_NAMES, onlinePanel } from './net.js';
 
 document.documentElement.lang='ar'; document.documentElement.dir='rtl';
 const $=id=>document.getElementById(id);
@@ -218,6 +227,9 @@ applyRot();
 let triedLock=false;
 if(isTouch) addEventListener('pointerdown',()=>{ if(triedLock) return; triedLock=true; try{ const d=document.documentElement, fs=d.requestFullscreen||d.webkitRequestFullscreen; const p=fs&&fs.call(d,{navigationUI:'hide'}); Promise.resolve(p).then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape')).catch(()=>{}); }catch(e){} },{capture:true});
 const PROFILE=myProfile();
+// your name and who's online: a small side panel on the menus
+const OP=onlinePanel({getLobby:()=>NET.lobby||null,getName:()=>PROFILE.n,setName:n=>{ PROFILE.n=n; saveProfile(n,null); try{ lobbyAnnounce(); }catch(e){} }});
+OP.show(false);
 const TEAMC={r:0xd62828,b:0x1c1c22};
 
 // ================= renderer =================
@@ -630,7 +642,7 @@ function initAudio(){ if(AU.ctx){ AU.ctx.resume(); return; } try{ const C=new (w
  const b=C.createBuffer(1,C.sampleRate*2,C.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; AU.noise=b; }catch(e){ AU.ctx=null; } }
 function nz(dur,type,f0,f1,q,vol,delay=0){ const C=AU.ctx, t=C.currentTime+delay, s=C.createBufferSource(); s.buffer=AU.noise; const f=C.createBiquadFilter(); f.type=type; f.Q.value=q; f.frequency.setValueAtTime(f0,t); f.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur); const g=C.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0008,t+dur); s.connect(f); f.connect(g); g.connect(AU.master); s.start(t,Math.random()); s.stop(t+dur+0.05); }
 function tn(f0,f1,dur,type,vol,delay=0){ const C=AU.ctx, t=C.currentTime+delay, o=C.createOscillator(), g=C.createGain(); o.type=type; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0008,t+dur); o.connect(g); g.connect(AU.master); o.start(t); o.stop(t+dur+0.05); }
-function sfx(type,x,y,z){ if(!AU.ctx||!AU.on) return; const d=x===undefined?0:Math.hypot(x-camera.position.x,y-camera.position.y,z-camera.position.z); const v=1/(1+d/16); if(v<0.02) return;
+function sfx(type,x,y,z){ if(!AU.ctx||!AU.on) return; const d=x===undefined?0:Math.hypot(x-camera.position.x,y-camera.position.y,z-camera.position.z); const v=(DEMO.on?0.35:1)/(1+d/16); if(v<0.02) return;
  switch(type){
   case 'pistol': nz(0.14,'bandpass',2400,500,0.8,0.9*v); tn(180,55,0.12,'sine',0.7*v); break;
   case 'akm': nz(0.09,'highpass',900,300,0.6,1.0*v); tn(140,50,0.07,'square',0.25*v); break;
@@ -718,10 +730,14 @@ tbtn('tWeap',()=>{ if(me) selectWeapon((me.w+1)%5); });
 tbtn('tVeh',()=>toggleVehicle());
 tbtn('tRun',()=>{ IN.runLock=!IN.runLock; IN.sprint=IN.runLock; setTimeout(()=>$('tRun').classList.toggle('on',IN.runLock),0); });
 const tz=$('touch');
-tz.addEventListener('pointerdown',e=>{ if(e.target!==tz) return; initAudio(); if(PX(e)<VW()*0.45&&!TP.joy){ TP.joy={id:e.pointerId,x:PX(e),y:PY(e)}; joy.hidden=false; joy.style.left=(PX(e)-60)+'px'; joy.style.top=(PY(e)-60)+'px'; } else if(!TP.look){ TP.look={id:e.pointerId,x:PX(e),y:PY(e)}; } });
+tz.addEventListener('pointerdown',e=>{ if(e.target!==tz) return; initAudio(); if(PX(e)<VW()*0.45&&!TP.joy){ TP.joy={id:e.pointerId,x:PX(e),y:PY(e)}; joy.hidden=false; joyKey=''; joy.style.left=(PX(e)-60)+'px'; joy.style.top=(PY(e)-60)+'px'; } else if(!TP.look){ TP.look={id:e.pointerId,x:PX(e),y:PY(e)}; } });
 addEventListener('pointermove',e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ let dx=PX(e)-TP.joy.x, dy=PY(e)-TP.joy.y; const L=Math.hypot(dx,dy), m=50; if(L>m){ dx*=m/L; dy*=m/L; } joy.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`; IN.mx=dx/m; IN.my=-dy/m; IN.sprint=IN.runLock||Math.hypot(dx,dy)>=m*0.95; }
  for(const k of ['look','fire']){ const p=TP[k]; if(p&&e.pointerId===p.id){ look(PX(e)-p.x,PY(e)-p.y,0.006); p.x=PX(e); p.y=PY(e); } } });
-const tEnd=e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ TP.joy=null; joy.hidden=true; IN.mx=IN.my=0; IN.sprint=!!IN.runLock; joy.firstElementChild.style.transform=''; } if(TP.look&&e.pointerId===TP.look.id) TP.look=null; };
+// the movement circle always sits bottom-left while playing; touching the left side moves it under your thumb
+let joyKey='';
+function joyHome(){ const show=isTouch&&state==='play'&&!!me&&me.alive; if(TP.joy) return; const top=Math.round(VH()-150), k=show+':'+top; if(k===joyKey) return; joyKey=k;
+ joy.hidden=!show; joy.style.left='30px'; joy.style.top=top+'px'; joy.firstElementChild.style.transform=''; }
+const tEnd=e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ TP.joy=null; joyKey=''; IN.mx=IN.my=0; IN.sprint=!!IN.runLock; joy.firstElementChild.style.transform=''; } if(TP.look&&e.pointerId===TP.look.id) TP.look=null; };
 addEventListener('pointerup',tEnd); addEventListener('pointercancel',tEnd);
 function readKeys(){ if(isTouch) return; IN.mx=(K.KeyD?1:0)-(K.KeyA?1:0); IN.my=(K.KeyW?1:0)-(K.KeyS?1:0); IN.fire=mouseDown||K.KeyF; IN.jump=IN.jump||K.Space; IN.sprint=K.ShiftLeft||K.ShiftRight; }
 
@@ -817,6 +833,15 @@ function spectateTarget(){ const mates=fighters().filter(f=>f!==me&&f.alive&&f.t
 
 // ================= practice bots =================
 const BOTNAMES=['ميدو','زيزو','بندق','حمادة','شيكو','توتو'];
+// ---- menu background: the red and black teams fight it out behind the menus ----
+const DEMO={on:false,ang:1.2,c:new THREE.Vector3(0,0,-20)};
+function demoSpawn(team,i){ const f=newFighter('demo'+team+i,BOTNAMES[(i+(team==='b'?3:0))%BOTNAMES.length],team,COLORS[(i+2)%6][0],false);
+ f.isBot=true; f.demo=i; f.think=rr(0,0.3); f.cool=1+rr(0,1.5); f.w=i%2; f.seed=rr(0,9); f.stuck=0; const s=team==='r'?-1:1;
+ f.x=s*rr(14,20); f.z=-20+(i-1.5)*2.2; f.yaw=team==='r'?Math.PI/2:-Math.PI/2; f.wp={x:-s*6,z:-20+rr(-3,3)}; bots.push(f); return f; }
+function demoStart(){ if(DEMO.on||state==='play'||state==='end') return; clearFighters(); resetVehicles(); DEMO.on=true; for(const t of ['r','b']) for(let i=0;i<4;i++) demoSpawn(t,i); }
+function demoTick(dt){ for(let k=0;k<bots.length;k++){ const b=bots[k]; b.kick=Math.max(0,b.kick-dt*8); b.atkT=Math.max(0,b.atkT-dt);
+  if(b.alive){ if(!b.target&&!(b.wpT>clock)){ b.wpT=clock+2; let best=null,bd=1e9; for(const t of bots){ if(t.team===b.team||!t.alive) continue; const d=Math.hypot(t.x-b.x,t.z-b.z); if(d<bd){ bd=d; best=t; } } if(best) b.wp={x:best.x+rr(-4,4),z:best.z+rr(-4,4)}; } botThink(b,dt); }
+  else if(b.deadT>5){ removeFighter(b); bots.splice(k,1); demoSpawn(b.team,b.demo); k--; } } }
 function botThink(b,dt){ if(!b.wp) b.wp={x:rr(-60,60),z:rr(-60,60)}; b.think-=dt; b.cool-=dt; b.reloadT=Math.max(0,b.reloadT-dt); if(b.reloadT===0&&b.ammo[b.w]===0) b.ammo[b.w]=W[b.w].mag;
  if(b.think<=0){ b.think=0.3; b.target=null; let bd=60; for(const t of fighters()){ if(t.team===b.team||!t.alive) continue; const d=Math.hypot(t.x-b.x,t.z-b.z); if(d<bd&&los(b,t)){ bd=d; b.target=t; } }
   if(!b.wp||Math.hypot(b.wp.x-b.x,b.wp.z-b.z)<2||(b.stuck>1.5)){ b.wp={x:rr(-80,80),z:rr(-80,80)}; b.stuck=0; } }
@@ -830,15 +855,15 @@ function botThink(b,dt){ if(!b.wp) b.wp={x:rr(-60,60),z:rr(-60,60)}; b.think-=dt
 let matchT=0, state='lobby', mode='team', roster=[], rid=null, practice=false, endT=0, result=null, clock=0;
 const SPAWN={r:[-82,1],b:[82,-1]};
 function spawnPos(team,i){ return [SPAWN[team][0]+(i%2)*3*SPAWN[team][1],-16+i*7]; }
-function clearFighters(){ document.body.classList.remove('playing','ended'); removeFighter(me); me=null; ghosts.forEach(removeFighter); ghosts.clear(); bots.forEach(removeFighter); bots=[]; GRENS.forEach(g=>scene.remove(g.m)); GRENS.length=0; }
-function startMatch(list,isPractice){ initAudio(); stopMusic(); clearFighters(); resetVehicles(); practice=isPractice; roster=list; state='play'; result=null; endT=0; matchT=0; document.body.classList.add('playing');
+function clearFighters(){ DEMO.on=false; document.body.classList.remove('playing','ended'); removeFighter(me); me=null; ghosts.forEach(removeFighter); ghosts.clear(); bots.forEach(removeFighter); bots=[]; GRENS.forEach(g=>scene.remove(g.m)); GRENS.length=0; }
+function startMatch(list,isPractice){ OP.show(false); initAudio(); stopMusic(); clearFighters(); resetVehicles(); practice=isPractice; roster=list; state='play'; result=null; endT=0; matchT=0; document.body.classList.add('playing');
  const idx={r:0,b:0};
  for(const r of list){ const i=idx[r.team]++; const [x,z]=spawnPos(r.team,i);
   let f; if(r.me){ f=me=newFighter('me',PROFILE.n,r.team,COLORS[PROFILE.c][0],true); f.peer=myPeer(); }
   else if(r.bot){ f=newFighter('bot'+i+r.team,r.name,r.team,COLORS[(i+2)%6][0],false); f.isBot=true; f.think=rr(0,0.3); f.cool=1; f.w=rnd()<.5?0:1; f.seed=rr(0,9); f.stuck=0; bots.push(f); }
   else { f=newFighter(r.peer,r.name,r.team,COLORS[clamp(r.c|0,0,5)][0],false); f.peer=r.peer; ghosts.set(r.peer,f); }
   f.x=x; f.z=z; f.yaw=r.team==='r'?Math.PI/2:-Math.PI/2; }
- ['lobby','roomOv'].forEach(id=>$(id).hidden=true); $('hud').hidden=false; $('tools').hidden=false; $('big').hidden=true; $('endBtns').hidden=true; $('feed').innerHTML='';
+ ['lobby','roomOv'].forEach(id=>$(id).hidden=true); $('hud').hidden=false; $('tools').hidden=false; voiceSync(); $('big').hidden=true; $('endBtns').hidden=true; $('feed').innerHTML='';
  msg('يلّا!',1.2); }
 let msgT=0; function msg(t,d){ $('msg').textContent=t; $('msg').hidden=false; msgT=d; }
 function aliveCount(team){ return fighters().filter(f=>f.team===team&&f.alive).length; }
@@ -858,17 +883,42 @@ function sendShot(a,b){ if(practice||!NET.room) return; NET.shotN++; NET.shot=[N
 function roomPeers(){ return NET.room?NET.room.peers().filter(p=>p.presence&&typeof p.presence.n==='string'):[]; }
 function hostPeer(){ return roomPeers().find(p=>p.presence.hs===1)||null; }
 function pack(f){ return [R2(f.x),R2(f.y),R2(f.z),R2(f.yaw),R2(f.pitch),R2(f.spd),f.w,Math.round(f.hp),f.alive?1:0,f.veh?f.veh.id+1:0,f.aim?1:0,f.atkT>0?1:0,f.thrT>0?1:0,f.veh?R2(f.veh.h):0]; }
-function presenceNow(){ const p={n:PROFILE.n,c:PROFILE.c,t:NET.team||null,hs:NET.host?1:0,jt:NET.jt,ev:NET.ev,sh:NET.shot,kb:me&&me.killedBy?me.killedBy:null};
+function presenceNow(){ const p={n:PROFILE.n,c:PROFILE.c,t:NET.team||null,vm:VOICE.mic?1:0,hs:NET.host?1:0,jt:NET.jt,ev:NET.ev,sh:NET.shot,kb:me&&me.killedBy?me.killedBy:null};
  if(NET.host){ p.mode=mode; p.ph=state==='play'||state==='end'?state:'room'; p.rid=rid; p.roster=roster.filter(r=>!r.bot).map(r=>[r.peer,r.team,r.name,r.c|0]); p.res=NET.res; }
  if(me&&(state==='play'||state==='end')) p.s=pack(me); return p; }
 function lobbyAnnounce(){ if(!NET.lobby) return; const st=NET.room?(state==='play'?'race':'wait'):'lobby'; NET.lobby.presence({pl:{n:PROFILE.n,c:PROFILE.c,st,game:'war',code:NET.room?NET.code:null},wopen:NET.host?{code:NET.code,n:PROFILE.n,mode,k:roomPeers().length,ph:state==='play'||state==='end'?'play':'wait',t:Date.now()}:null}).catch(()=>{}); }
-async function joinRoom(code,host,m){ if(!NET.lobby||NET.room) return; try{ const r=await NET.lobby.join(code); NET.room=r; NET.code=code; NET.host=host; NET.sawHost=false; NET.jt=Date.now(); NET.team=null; NET.res=null; NET.seen={}; if(m) mode=m; state='room'; r.onPeers(()=>renderRoom(),()=>leaveRoom());
+async function joinRoom(code,host,m){ if(!NET.lobby||NET.room) return; try{ const r=await NET.lobby.join(code); NET.room=r; NET.code=code; NET.host=host; NET.sawHost=false; NET.jt=Date.now(); NET.team=null; NET.res=null; NET.seen={}; if(m) mode=m; state='room'; r.onPeers(()=>{ renderRoom(); voiceSync(); },()=>leaveRoom()); voiceJoin(r);
   setTimeout(()=>{ if(!NET.team) pickTeam(autoTeam()); },900); showRoom(); }catch(e){ $('lobStat').textContent='مقدرناش ندخل الأوضة دي، جرّب تاني.'; } }
-async function leaveRoom(){ const r=NET.room; NET.room=null; NET.host=false; NET.team=null; if(r) try{ await r.leave(); }catch(e){} clearFighters(); stopMusic(); state='lobby'; showLobby(); lobbyAnnounce(); }
+async function leaveRoom(){ voiceLeave(); const r=NET.room; NET.room=null; NET.host=false; NET.team=null; if(r) try{ await r.leave(); }catch(e){} clearFighters(); stopMusic(); state='lobby'; showLobby(); lobbyAnnounce(); }
+// ================= team voice chat =================
+// Your voice goes only to players on your team; anything from the other team is muted on arrival too.
+const VOICE={mic:null,sentTo:new Set(),spk:true,els:new Map(),off:null,busy:false};
+function voiceMates(){ if(!NET.room||!NET.team) return new Set(); return new Set(roomPeers().filter(p=>!p.sameTab&&p.presence.t===NET.team).map(p=>p.peer)); }
+function voiceNote(t){ if(state==='room') $('invMsg').textContent=t; else msg(t,3); }
+function voiceUI(){ const on=!!(NET.room&&NET.room.streamTo); $('voice').hidden=!on; document.documentElement.classList.toggle('roomOn',state==='room');
+ if(!on) return; $('vMic').setAttribute('aria-pressed',!!VOICE.mic); $('vMic').innerHTML=VOICE.mic?'<i class="live"></i>🎤 المايك مفتوح':'🎤 المايك مقفول';
+ $('vSpk').setAttribute('aria-pressed',VOICE.spk); $('vSpk').textContent=VOICE.spk?'🔊 صوت فريقك':'🔇 صوت فريقك مقفول'; }
+function voiceSync(){ const R=NET.room; if(!R||!R.streamTo){ voiceUI(); return; } const mates=voiceMates();
+ if(VOICE.mic){ const add=[...mates].filter(id=>!VOICE.sentTo.has(id)), rem=[...VOICE.sentTo].filter(id=>!mates.has(id)); if(add.length) R.streamTo(VOICE.mic,add); if(rem.length) R.unstreamTo(VOICE.mic,rem); VOICE.sentTo=new Set(mates); }
+ VOICE.els.forEach((a,id)=>{ a.muted=!VOICE.spk||!mates.has(id); if(!a.muted&&a.paused) a.play().catch(()=>{}); });
+ voiceUI(); }
+function voiceJoin(r){ if(!r.onStream){ voiceUI(); return; } VOICE.off=r.onStream((stream,id)=>{ let a=VOICE.els.get(id);
+  if(!stream){ if(a){ a.srcObject=null; a.remove(); VOICE.els.delete(id); } return; }
+  if(!a){ a=document.createElement('audio'); a.autoplay=true; a.setAttribute('playsinline',''); a.muted=true; document.body.appendChild(a); VOICE.els.set(id,a); }
+  a.srcObject=stream; voiceSync(); a.play().catch(()=>{}); }); voiceUI(); }
+function micOff(){ const R=NET.room; if(VOICE.mic){ if(R&&R.unstreamTo&&VOICE.sentTo.size) R.unstreamTo(VOICE.mic,[...VOICE.sentTo]); VOICE.mic.getTracks().forEach(t=>t.stop()); } VOICE.mic=null; VOICE.sentTo=new Set(); voiceUI(); }
+async function micOn(){ if(VOICE.mic||VOICE.busy) return; if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ voiceNote('المايك مش متاح هنا.'); return; }
+ VOICE.busy=true; try{ VOICE.mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false}); VOICE.sentTo=new Set(); if(!NET.room){ micOff(); return; } voiceSync(); if(!NET.team) voiceNote('اختار فريق عشان صحابك يسمعوك.'); }
+ catch(e){ VOICE.mic=null; voiceNote(window.Capacitor?'مقدرناش نفتح المايك. اسمح للتطبيق بالمايك، أو نزّل آخر نسخة من التطبيق.':'مقدرناش نفتح المايك. اسمح للصفحة تستخدم المايك.'); }
+ finally{ VOICE.busy=false; voiceUI(); } }
+function voiceLeave(){ micOff(); if(VOICE.off){ VOICE.off(); VOICE.off=null; } VOICE.els.forEach(a=>{ a.srcObject=null; a.remove(); }); VOICE.els.clear(); $('voice').hidden=true; }
+$('vMic').onclick=()=>{ initAudio(); if(VOICE.mic) micOff(); else micOn(); };
+$('vSpk').onclick=()=>{ VOICE.spk=!VOICE.spk; voiceSync(); };
+addEventListener('pointerdown',()=>{ VOICE.els.forEach(a=>{ if(!a.muted&&a.paused) a.play().catch(()=>{}); }); },{capture:true});
 function teamOf(p){ return p.sameTab?NET.team:p.presence.t; }
 function autoTeam(){ const ps=roomPeers().filter(p=>!p.sameTab); const r=ps.filter(p=>p.presence.t==='r').length, b=ps.filter(p=>p.presence.t==='b').length; return r<=b?'r':'b'; }
 function teamCap(){ return mode==='duel'?1:5; }
-function pickTeam(t){ const n=roomPeers().filter(p=>!p.sameTab&&p.presence.t===t).length; if(n>=teamCap()) return; NET.team=t; renderRoom(); }
+function pickTeam(t){ const n=roomPeers().filter(p=>!p.sameTab&&p.presence.t===t).length; if(n>=teamCap()) return; NET.team=t; renderRoom(); voiceSync(); }
 function hostMode(){ const h=hostPeer(); return NET.host?mode:(h&&h.presence.mode==='duel'?'duel':'team'); }
 function startOnline(){ if(!NET.host) return; const ps=roomPeers().filter(p=>teamOf(p)); const R=ps.filter(p=>teamOf(p)==='r').slice(0,teamCap()), B=ps.filter(p=>teamOf(p)==='b').slice(0,teamCap()); if(!R.length||!B.length) return;
  rid=Math.random().toString(36).slice(2,8); NET.res=null; const list=[...R,...B].map(p=>({peer:p.peer,team:teamOf(p),name:String(p.presence.n).slice(0,14),c:p.presence.c|0,me:p.sameTab})); startMatch(list,false); }
@@ -902,18 +952,18 @@ function ghostUpd(g,dt){ const n=g.net; if(!n) return; const s=n.s; const age=cl
 function backToRoom(){ stopMusic(); clearFighters(); resetVehicles(); state='room'; showRoom(); }
 
 // ================= UI: lobby and room =================
-function showLobby(){ $('hud').hidden=true; $('tools').hidden=true; $('roomOv').hidden=true; $('lobby').hidden=false; renderLobby(); }
-function showRoom(){ $('hud').hidden=true; $('tools').hidden=true; $('lobby').hidden=true; $('roomOv').hidden=false; renderRoom(); }
+function showLobby(){ OP.show(true); $('hud').hidden=true; $('tools').hidden=true; $('roomOv').hidden=true; $('lobby').hidden=false; demoStart(); renderLobby(); voiceUI(); }
+function showRoom(){ OP.show(true); $('hud').hidden=true; $('tools').hidden=true; $('lobby').hidden=true; $('roomOv').hidden=false; demoStart(); renderRoom(); voiceSync(); }
 function renderLobby(){ if($('lobby').hidden) return; if(!NET.lobby){ $('lobStat').textContent=NET.off?'مش متصل بالنت. تقدر تلعب تدريب لوحدك.':'بنوصل…'; return; }
  $('lobStat').textContent='اعمل أوضة وصحابك اللي فاتحين اللعبة هيلاقوها هنا، أو ادخل ماتش مفتوح.';
  const peers=NET.lobby.peers();
  const rooms=peers.filter(p=>!p.sameTab&&p.presence&&p.presence.wopen&&typeof p.presence.wopen.code==='string'&&/^war-[a-z0-9]{4,10}$/.test(p.presence.wopen.code)).map(p=>p.presence.wopen);
  $('rooms').innerHTML=rooms.length?rooms.map(o=>{ const cap=o.mode==='duel'?2:10, k=clamp(o.k|0,1,cap), full=k>=cap; return `<li><span><b>${esc(String(o.n).slice(0,14))}</b> · ${o.mode==='duel'?'واحد ضد واحد':'فريق ضد فريق'}<br><small>${AD(k)}/${AD(cap)} لاعبين، ${o.ph==='play'?'الماتش شغال':'مستنيين'}</small></span><button data-code="${esc(o.code)}" data-mode="${o.mode==='duel'?'duel':'team'}" ${full?'disabled':''}>${full?'كامل':'ادخل'}</button></li>`; }).join(''):'<li class="empty">مفيش ماتشات مفتوحة. اعمل أوضة!</li>';
  const ppl=peers.filter(p=>p.presence&&p.presence.pl&&typeof p.presence.pl.n==='string');
- $('pplT').textContent='أونلاين دلوقتي ('+AD(ppl.length)+')';
- $('ppl').innerHTML=ppl.map(p=>{ const pl=p.presence.pl; return `<li><i style="background:${COLORS[clamp(pl.c|0,0,5)][0]}"></i><span>${esc(String(pl.n).slice(0,14))}${p.sameTab?' (إنت)':''}</span><small>${GAME_NAMES[pl.game]||GAME_NAMES.tuk}</small></li>`; }).join(''); }
+
+ OP.render(); }
 function renderRoom(){ if($('roomOv').hidden||!NET.room) return; const m=hostMode(); const ps=roomPeers(); const H=hostPeer();
- const list=t=>ps.filter(p=>teamOf(p)===t).map(p=>`<li>${esc(String(p.presence.n).slice(0,14))}${p.sameTab?' (إنت)':''}${p.presence.hs===1?' ★':''}</li>`).join('')||'<li style="opacity:.6">لسه محدش</li>';
+ const list=t=>ps.filter(p=>teamOf(p)===t).map(p=>`<li>${esc(String(p.presence.n).slice(0,14))}${p.sameTab?' (إنت)':''}${p.presence.hs===1?' ★':''}${(p.sameTab?VOICE.mic:p.presence.vm===1)?' 🎙':''}</li>`).join('')||'<li style="opacity:.6">لسه محدش</li>';
  $('tR').innerHTML=list('r'); $('tB').innerHTML=list('b');
  const nR=ps.filter(p=>teamOf(p)==='r').length, nB=ps.filter(p=>teamOf(p)==='b').length, cap=m==='duel'?1:5;
  $('roomT').textContent=m==='duel'?'واحد ضد واحد':'فريق ضد فريق';
@@ -977,12 +1027,15 @@ function update(dt){ clock+=dt; netTick(dt); readKeys(); updFX(dt); updGrenades(
    IN.jump=false; }
   for(const b of bots){ b.kick=Math.max(0,b.kick-dt*8); b.atkT=Math.max(0,b.atkT-dt); if(state==='play'&&b.alive) botThink(b,dt); }
   ghosts.forEach(g=>{ g.atkT=Math.max(0,g.atkT-dt); ghostUpd(g,dt); });
-  for(const f of fighters()){ const c=f.char; c.root.position.x=f.x; c.root.position.z=f.z; c.root.rotation.y=f.yaw; if(!f.alive) f.deadT+=dt;
-   animChar(c,{spd:f.spd,pitch:f.pitch,yaw:f.yaw,w:f.w,aim:f.aim,atk:f.atkT/0.35,thr:f.thrT/0.45,dead:!f.alive&&state!=='end',pose:state==='end'?f.pose:null,drive:!!f.veh,y:f.y,kick:f.kick},dt);
-   if(f.veh){ c.root.position.y=0; const v=f.veh; c.root.position.x=v.x; c.root.position.z=v.z; c.root.rotation.y=v.h; } }
-  checkEnd(); updHUD(dt); }
+  animFighters(dt); checkEnd(); updHUD(dt); joyHome(); }
+ else if(DEMO.on){ demoTick(dt); animFighters(dt); }
 }
-function render(dt){ if(me){ updCamera(dt); sun.target.position.set(me.x,0,me.z); } else { const t=performance.now()/9000; camera.position.set(Math.sin(t)*70,28,Math.cos(t)*70); camera.lookAt(0,0,0); camera.fov=60; camera.updateProjectionMatrix(); sun.target.position.set(0,0,0); }
+function animFighters(dt){ for(const f of fighters()){ const c=f.char; c.root.position.x=f.x; c.root.position.z=f.z; c.root.rotation.y=f.yaw; if(!f.alive) f.deadT+=dt;
+   animChar(c,{spd:f.spd,pitch:f.pitch,yaw:f.yaw,w:f.w,aim:f.aim,atk:f.atkT/0.35,thr:f.thrT/0.45,dead:!f.alive&&state!=='end',pose:state==='end'?f.pose:null,drive:!!f.veh,y:f.y,kick:f.kick},dt);
+   if(f.veh){ c.root.position.y=0; const v=f.veh; c.root.position.x=v.x; c.root.position.z=v.z; c.root.rotation.y=v.h; } } }
+function render(dt){ if(me){ updCamera(dt); sun.target.position.set(me.x,0,me.z); }
+ else if(DEMO.on&&bots.length){ let n=0; const c=new THREE.Vector3(); for(const b of bots) if(b.alive){ c.x+=b.x; c.z+=b.z; n++; } if(n){ c.multiplyScalar(1/n); DEMO.c.lerp(c,Math.min(1,dt*1.5)); }
+  DEMO.ang+=dt*0.1; const R=VW()<VH()?26:19; camera.position.set(DEMO.c.x+Math.sin(DEMO.ang)*R,7.5,DEMO.c.z+Math.cos(DEMO.ang)*R); camera.lookAt(DEMO.c.x,1.3,DEMO.c.z); camera.fov=55; camera.updateProjectionMatrix(); sun.target.position.set(DEMO.c.x,0,DEMO.c.z); } else { const t=performance.now()/9000; camera.position.set(Math.sin(t)*70,28,Math.cos(t)*70); camera.lookAt(0,0,0); camera.fov=60; camera.updateProjectionMatrix(); sun.target.position.set(0,0,0); }
  sun.position.copy(sun.target.position).addScaledVector(lightDir,140); renderer.render(scene,camera); }
 function loop(now){ requestAnimationFrame(loop); const dt=Math.min((now-last)/1000,0.05); last=now; update(dt); render(dt); }
 

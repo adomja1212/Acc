@@ -246,6 +246,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { onlinePanel } from './net.js';
 
 document.documentElement.lang='ar'; document.documentElement.dir='rtl';
 const $=id=>document.getElementById(id);
@@ -1331,7 +1332,7 @@ function startRace(){
   NET.seats=seats.map(pe=>{ const P=ps.find(p=>p.peer===pe); return {peer:pe,me:pe===me,n:P&&P.presence?P.presence.n:'لاعب',c:P&&P.presence?P.presence.c:0,vt:P&&P.presence?P.presence.vt:'tuk'}; }); NET.inRace=true; }
  else { NET.seats=null; NET.inRace=false; }
  buildRacers(); if(!NET.inRace||NET.host) resetTraffic(); state='count'; countT=3.99; raceT=0; paused=false; countShown=-1;
- $('menu').hidden=true; $('results').hidden=true; $('hud').hidden=false; $('tools').hidden=false; camMode=0; camPos.set(player.x-Math.sin(player.h)*12,5,player.z-Math.cos(player.h)*12);
+ if(OP) OP.show(false); $('menu').hidden=true; $('results').hidden=true; $('hud').hidden=false; $('tools').hidden=false; camMode=0; camPos.set(player.x-Math.sin(player.h)*12,5,player.z-Math.cos(player.h)*12);
  player.onLap=()=>{ if(state!=='race') return; const lt=raceT-player.lapStart; if(player.lap>1){ player.best=Math.min(player.best,lt); if(lt<getBest()){ setBest(lt); player.rec=true; } } player.lapStart=raceT;
   if(player.lap>LAPS){ finishPlayer(); } else if(player.lap===LAPS&&LAPS>1){ flash('آخر لفة!',1.6,true); beep(880,0.2); beep(1175,0.3,'square',0.18,0.18);} else if(player.lap>1){ flash('اللفة '+AD(player.lap),1.2,true); beep(880,0.15); } };
  racers.forEach(r=>{ if(!r.isP) r.onLap=()=>{ if(r.lap>LAPS&&!r.finished){ r.finished=true; r.ft=raceT; } }; });
@@ -1346,7 +1347,8 @@ function showResults(){ const st=standings(); const pos=st.indexOf(player)+1;
  const lead=st[0].ft;
  $('rTable').innerHTML=st.map((r,i)=>{ let t; if(r.finished) t=fmt(r.ft); else { const rem=(LAPS+1-r.lap)*LEN-DIST[r.idx]; t='≈ '+fmt(raceT+Math.max(0,rem)/Math.max(18,Math.abs(r.vf))); } return `<tr class="${r.isP?'me':''}"><td>${AD(i+1)}</td><td><i style="background:${r.col}"></i>${esc(r.name)}</td><td>${t}</td></tr>`; }).join('');
  $('results').hidden=false; }
-function toMenu(){ if(NET.room) netLeave(); NET.seats=null; NET.inRace=false; state='menu'; paused=false; $('pause').hidden=true; $('results').hidden=true; $('hud').hidden=true; $('tools').hidden=true; $('menu').hidden=false; seed=777; buildRacers(); }
+let OP=null;
+function toMenu(){ if(OP) OP.show(true); if(NET.room) netLeave(); NET.seats=null; NET.inRace=false; state='menu'; paused=false; $('pause').hidden=true; $('results').hidden=true; $('hud').hidden=true; $('tools').hidden=true; $('menu').hidden=false; seed=777; buildRacers(); }
 function togglePause(){ if(state!=='race'&&state!=='count') return; if(NET.inRace&&!paused) return; paused=!paused; $('pause').hidden=!paused; }
 
 // ================= quality =================
@@ -1381,6 +1383,9 @@ function setupUI(){
  $('netName').oninput=e=>{ setName(e.target.value); $('pname').value=e.target.value; };
  $('pname').oninput=e=>{ setName(e.target.value); $('netName').value=e.target.value; };
  try{ NET.name=localStorage.getItem('tuk-name')||''; }catch(er){} $('pname').value=NET.name;
+ // your name and who's online: a small side panel on the menu
+ OP=onlinePanel({getLobby:()=>NET.lobby||null,getName:()=>NET.name,setName:n=>{ setName(n); $('pname').value=NET.name; $('netName').value=NET.name; try{ lobbyMe(); }catch(er){} }});
+ OP.show(state==='menu');
  if(isTouch) $('steerRow').hidden=false;
  $('steer').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; if(b.dataset.v==='tilt') enableTilt(); else setSteer('btn'); };
  $('netQuick').onclick=()=>{ initAudio(); quickJoin(); };

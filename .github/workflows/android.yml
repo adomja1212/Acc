@@ -56,6 +56,10 @@ jobs:
           cp android-res/MainActivity.java android/app/src/main/java/eg/tuktuk/rally/MainActivity.java
           sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]*\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
+          # microphone for team voice chat in Street War
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#&\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />#' $M
+          grep -q RECORD_AUDIO $M && grep -q MODIFY_AUDIO_SETTINGS $M
 
       - name: Stable signing key, so updates install over the old app
         env:

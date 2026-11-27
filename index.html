@@ -13,7 +13,7 @@
    PICTURE two big game posters: a tuk-tuk at sunset, a street-war skyline
    COLOUR night maroon #22090f, saffron #ffb703, red #e63946, turquoise #22c3b5
    TYPE Lalezar display + Cairo text
-   LAYOUT title and profile on top, two posters side by side (stacked on phones), who's online below */
+   LAYOUT title and description on top, game icons below, exit button at the bottom */
 :root{--bg:#22090f;--ink:#fff6e6;--sf:#ffb703;--red:#e63946;--tq:#22c3b5;--card:#2e0f17}
 *{box-sizing:border-box;min-width:0}
 [hidden]{display:none!important}
@@ -21,12 +21,9 @@ html,body{min-height:100%;margin:0;background:var(--bg);color:var(--ink);font:16
 body{background:radial-gradient(1200px 600px at 50% -10%,#5a1622 0%,transparent 60%),var(--bg)}
 .truck{height:12px;background:repeating-linear-gradient(90deg,var(--red) 0 22px,var(--sf) 22px 44px,var(--tq) 44px 66px,#1f7a3a 66px 88px)}
 .wrap{max-width:1100px;margin:0 auto;padding:20px max(5vw,16px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(5vw,16px,env(safe-area-inset-left,0px))}
-header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end;margin-bottom:18px}
+header{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:end;margin-bottom:18px}
 h1{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:clamp(48px,9vw,84px);line-height:1;margin:6px 0 0;color:var(--sf);text-shadow:3px 3px 0 var(--red)}
 .sub{margin:6px 0 0;font-size:17px;opacity:.9}
-.me{background:var(--card);border:1px solid rgba(255,183,3,.3);border-radius:16px;padding:12px 14px;display:grid;gap:8px;min-width:280px}
-.me label{font-weight:800;font-size:14px;color:#ffd98a}
-.me input{width:100%;font:600 16px Cairo,sans-serif;padding:8px 12px;border-radius:10px;border:2px solid rgba(255,183,3,.5);background:rgba(255,255,255,.08);color:var(--ink)}
 .sw{display:flex;gap:8px;flex-wrap:wrap}
 .sw button{width:34px;height:34px;border-radius:50%;border:3px solid transparent;outline:2px solid rgba(255,255,255,.25);cursor:pointer}
 .sw button[aria-pressed=true]{border-color:#fff;outline-color:var(--sf)}
@@ -42,15 +39,8 @@ h1{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:clamp(48px,9vw
 .app:hover .ico,.app:focus-visible .ico{transform:translateY(-3px) scale(1.04)}
 .app:active .ico{transform:scale(.95)}
 .app:focus-visible{outline:none}
-.online{margin-top:22px;background:var(--card);border-radius:18px;padding:14px 16px}
-.online h3{margin:0 0 8px;font-size:17px;color:#ffd98a}
-.online ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
-.online li{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border-radius:999px;padding:4px 12px 4px 8px;font-weight:600}
-.online li i{width:12px;height:12px;border-radius:50%}
-.online li small{opacity:.75;font-weight:400}
-.online .empty{opacity:.75;background:none;padding:0}
 footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;font-size:14px;opacity:.85;flex-wrap:wrap}
-footer button{background:none;border:0;color:#ffd98a;font:600 15px Cairo,sans-serif;text-decoration:underline;cursor:pointer;min-height:44px}
+footer button{background:var(--red);border:0;border-radius:999px;color:var(--ink);font:800 16px Cairo,sans-serif;cursor:pointer;min-height:44px;padding:0 20px;box-shadow:0 4px 0 #8f1520}
 .ov{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;overflow-y:auto;background:rgba(20,5,9,.65);padding:16px}
 .ov .card{margin-block:auto;width:min(480px,100%);background:var(--card);border-radius:18px;overflow:hidden;border:1px solid rgba(255,183,3,.3)}
 .ov .in{padding:20px}
@@ -61,7 +51,6 @@ footer button{background:none;border:0;color:#ffd98a;font:600 15px Cairo,sans-se
 .btns button.alt{background:var(--tq);color:#062b28;box-shadow:0 5px 0 #11756c}
 @media (max-width:720px){
  header{grid-template-columns:minmax(0,1fr)}
- .me{min-width:0}
  }
 </style>
 </head>
@@ -70,9 +59,6 @@ footer button{background:none;border:0;color:#ffd98a;font:600 15px Cairo,sans-se
 <div class="wrap">
  <header>
   <div><h1>ألعاب جماعية</h1><p class="sub">العب لوحدك أو أونلاين مع صحابك، وكل اللي فاتحين اللعبة بيشوفوا بعض.</p></div>
-  <div class="me">
-   <label for="pname">اسمك</label><input id="pname" maxlength="14" autocomplete="off" placeholder="اكتب اسمك">
-  </div>
  </header>
 
  <section class="apps" aria-label="الألعاب">
@@ -80,41 +66,19 @@ footer button{background:none;border:0;color:#ffd98a;font:600 15px Cairo,sans-se
   <a class="app" href="war.html" id="gWar"><span class="ico war"><img src="assets/icons/sniper.png" alt=""></span><b>حرب شوارع</b></a>
  </section>
 
- <section class="online">
-  <h3 id="onT">أونلاين دلوقتي</h3>
-  <ul id="onL"><li class="empty">بنشوف مين أونلاين…</li></ul>
- </section>
-
- <footer><span id="ver"></span><button id="exitApp" hidden>خروج من اللعبة</button></footer>
+ <footer><span id="ver"></span><button id="exitApp" hidden>⏻ خروج من التطبيق</button></footer>
 </div>
 
 <div class="ov" id="confirm" hidden><div class="card"><div class="truck"></div><div class="in"><h2 id="cfT">خروج</h2><p id="cfQ">هل تريد الخروج؟</p><div class="btns"><button id="cfYes">نعم</button><button class="alt" id="cfNo">لا</button></div></div></div></div>
 
 <script type="module">
-import { getLobby, esc, AD, COLORS, myProfile, saveProfile, GAME_NAMES } from './net.js';
+import { AD, myProfile, saveProfile } from './net.js';
 document.documentElement.lang = 'ar'; document.documentElement.dir = 'rtl';
 const $ = (id) => document.getElementById(id);
 
-// ---- profile shared by every game ----
+// ---- profile shared by every game (name and who's online now live inside each game) ----
 const me = myProfile();
-$('pname').value = me.n;
 saveProfile(me.n, me.c);
-$('pname').oninput = (e) => { me.n = e.target.value.trim().slice(0, 14) || me.n; saveProfile(me.n, null); announce(); };
-
-// ---- who's online ----
-let lobby = null;
-function announce() { if (lobby) lobby.presence({ pl: { n: me.n, c: me.c, st: 'lobby', game: 'hub', code: null } }).catch(() => {}); }
-function renderOnline() {
-  if (!lobby) return;
-  const ppl = lobby.peers().filter((p) => p.presence && p.presence.pl && typeof p.presence.pl.n === 'string');
-  $('onT').textContent = 'أونلاين دلوقتي (' + AD(ppl.length) + ')';
-  $('onL').innerHTML = ppl.length ? ppl.map((p) => { const pl = p.presence.pl; const g = GAME_NAMES[pl.game] || GAME_NAMES.tuk; const col = COLORS[Math.max(0, Math.min(COLORS.length - 1, pl.c | 0))][0];
-    return `<li><i style="background:${col}"></i>${esc(String(pl.n).slice(0, 14))}${p.sameTab ? ' (إنت)' : ''} <small>${g}</small></li>`; }).join('') : '<li class="empty">مفيش حد تاني دلوقتي.</li>';
-}
-getLobby().then((l) => {
-  if (!l) { $('onL').innerHTML = '<li class="empty">مش متصل بالنت دلوقتي. تقدر تلعب لوحدك عادي.</li>'; return; }
-  lobby = l; l.onPeers(renderOnline, () => {}); announce(); setInterval(() => { announce(); renderOnline(); }, 3000);
-});
 
 // ---- dialogs, exit, Android back button ----
 let cfYes = null;
@@ -122,10 +86,14 @@ function askConfirm(t, q, onYes, yes = 'نعم', no = 'لا') { $('cfT').textCon
 $('cfNo').onclick = () => { $('confirm').hidden = true; };
 $('cfYes').onclick = () => { $('confirm').hidden = true; const f = cfYes; if (f) f(); };
 const capApp = () => window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
-const exitGame = () => { const A = capApp(); if (A && A.exitApp) A.exitApp(); };
-const askExit = () => askConfirm('خروج من اللعبة', 'هل تريد الخروج من اللعبة؟', exitGame);
+// inside the app the newest copy is opened from the web, where the app's own exit isn't reachable:
+// hop back to the copy bundled in the app and close from there
+const IN_APP = (() => { const q = new URLSearchParams(location.search).get('app'); try { if (q) localStorage.setItem('tuk-inapp', q); return +localStorage.getItem('tuk-inapp') || 0; } catch (e) { return +q || 0; } })();
+const exitGame = () => { const A = capApp(); if (A && A.exitApp) A.exitApp(); else if (IN_APP) location.replace('https://localhost/index.html?offline=1&exit=1'); };
+const askExit = () => askConfirm('خروج من التطبيق', 'هل تريد الخروج من التطبيق؟', exitGame);
 $('exitApp').onclick = askExit;
-setTimeout(() => { const A = capApp(); if (A && A.addListener) { $('exitApp').hidden = false; try { A.addListener('backButton', () => { if (!$('confirm').hidden) $('confirm').hidden = true; else askExit(); }); } catch (e) {} } }, 0);
+if (IN_APP) $('exitApp').hidden = false;
+setTimeout(() => { const A = capApp(); if (A && /[?&]exit=1/.test(location.search) && A.exitApp) { A.exitApp(); return; } if (A && A.addListener) { $('exitApp').hidden = false; try { A.addListener('backButton', () => { if (!$('confirm').hidden) $('confirm').hidden = true; else askExit(); }); } catch (e) {} } }, 0);
 
 // ---- live updates: the app opens the newest version of the games straight from the web ----
 // The copy inside the app is used when there is no internet or the site can't be reached.
@@ -146,7 +114,7 @@ async function goLive() {
 }
 goLive();
 // arriving from the app: keep the name and colour it passed along
-{ const h = new URLSearchParams(location.hash.slice(1)); if (h.get('n')) { saveProfile(h.get('n'), +h.get('c') || 0); me.n = h.get('n').slice(0, 14); me.c = +h.get('c') || 0; $('pname').value = me.n; history.replaceState(null, '', location.pathname + location.search); } }
+{ const h = new URLSearchParams(location.hash.slice(1)); if (h.get('n')) { saveProfile(h.get('n'), +h.get('c') || 0); me.n = h.get('n').slice(0, 14); me.c = +h.get('c') || 0; history.replaceState(null, '', location.pathname + location.search); } }
 </script>
 </body>
 </html>
