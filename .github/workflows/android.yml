@@ -6,6 +6,8 @@ on:
     paths:
       - '*.html'
       - net.js
+      - bgm.js
+      - assets/**
       - android-res/**
       - tools/**
       - package.json
@@ -122,10 +124,65 @@ jobs:
             echo "::error::The APK is not signed with the saved key"; exit 1
           fi
 
+      # ---- «حرب شوارع» as its own app: same game, its own icon, held sideways like PUBG ----
+      - name: Street War app project
+        run: |
+          node tools/build-war.mjs
+          sed -i "s/const WAR_BUILD=0;/const WAR_BUILD=${{ github.run_number }};/" www-war/index.html
+          grep -q "const WAR_BUILD=${{ github.run_number }};" www-war/index.html
+          mkdir warapp && cd warapp
+          ln -s ../node_modules node_modules && cp ../package.json .
+          mv ../www-war www
+          cat > capacitor.config.json <<'JSON'
+          {"appId":"eg.streetwar.game","appName":"حرب شوارع","webDir":"www","server":{"androidScheme":"https","allowNavigation":["adomja1212.github.io"]}}
+          JSON
+          npx cap add android
+          RES=android/app/src/main/res
+          rm -rf $RES/mipmap-anydpi-v26
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            for n in ic_launcher ic_launcher_round ic_launcher_foreground; do cp ../android-res/war-icons/$d.png $RES/mipmap-$d/$n.png; done
+          done
+          mkdir -p android/app/src/main/java/eg/streetwar/game
+          sed 's/package eg.tuktuk.rally;/package eg.streetwar.game;/' ../android-res/MainActivity.java > android/app/src/main/java/eg/streetwar/game/MainActivity.java
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]*\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#&\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />#' $M
+          # landscape only, turning with the phone
+          sed -i 's#<activity#<activity android:screenOrientation="sensorLandscape"#' $M
+          grep -q sensorLandscape $M && grep -q RECORD_AUDIO $M
+          if [ -f "$HOME/tuk-signing.keystore" ]; then
+            cat >> android/app/build.gradle <<GRADLE
+          android {
+              signingConfigs {
+                  debug {
+                      storeFile file("$HOME/tuk-signing.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+          }
+          GRADLE
+          fi
+
+      - name: Build the Street War APK
+        run: |
+          cd warapp/android
+          chmod +x gradlew
+          for i in 1 2 3; do
+            ./gradlew assembleDebug --no-daemon && break
+            if [ $i = 3 ]; then exit 1; fi
+            echo "Build failed, retrying in 60s ($i/3)"; sleep 60
+          done
+          cp app/build/outputs/apk/debug/app-debug.apk ../../street-war.apk
+          keytool -printcert -jarfile ../../street-war.apk | head -5
+
       - uses: actions/upload-artifact@v4
         with:
           name: tuktuk-rally-apk
-          path: tuktuk-rally.apk
+          path: |
+            tuktuk-rally.apk
+            street-war.apk
 
       - name: Publish the download
         uses: softprops/action-gh-release@v2
@@ -134,8 +191,10 @@ jobs:
           name: ألعاب جماعية للأندرويد (نسخة ${{ github.run_number }})
           target_commitish: ${{ github.sha }}
           make_latest: true
-          files: tuktuk-rally.apk
+          files: |
+            tuktuk-rally.apk
+            street-war.apk
           body: |
-            نزّل ملف tuktuk-rally.apk على الموبايل وافتحه.
+            نزّل ملف tuktuk-rally.apk (ألعاب جماعية) أو street-war.apk (حرب شوارع لوحدها) على الموبايل وافتحه.
             لو الموبايل سأل، اسمح بتثبيت التطبيقات من المصدر ده.
             اللعب لوحدك شغال من غير نت، والسباق أونلاين محتاج نت.

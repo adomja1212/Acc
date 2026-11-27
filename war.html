@@ -401,7 +401,10 @@ const grade=new ShaderPass({uniforms:{tDiffuse:{value:null},sat:{value:1.12},con
  vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
  fragmentShader:'uniform sampler2D tDiffuse; uniform float sat,con,vig,sharp,grain,tm; uniform vec2 px; varying vec2 vUv; float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); } void main(){ vec4 c=texture2D(tDiffuse,vUv); if(sharp>0.0){ vec3 n=texture2D(tDiffuse,vUv+vec2(0.0,px.y)).rgb+texture2D(tDiffuse,vUv-vec2(0.0,px.y)).rgb+texture2D(tDiffuse,vUv+vec2(px.x,0.0)).rgb+texture2D(tDiffuse,vUv-vec2(px.x,0.0)).rgb; c.rgb=clamp(c.rgb+(c.rgb*4.0-n)*sharp*0.25,0.0,1.0); } float l=dot(c.rgb,vec3(0.2126,0.7152,0.0722)); c.rgb=mix(vec3(l),c.rgb,sat); c.rgb=(c.rgb-0.5)*con+0.5; c.rgb*=vec3(1.03,1.0,0.96); float d=distance(vUv,vec2(0.5)); c.rgb*=1.0-vig*smoothstep(0.35,0.85,d); c.rgb+=(h(vUv*1000.0+tm)-0.5)*grain; gl_FragColor=c; }'});
 composer.addPass(grade);
-let QUAL=isTouch?'med':'high'; try{ const q=localStorage.getItem('war-q'); if(['low','med','high','ultra'].includes(q)) QUAL=q; }catch(e){}
+// ---- «حرب شوارع» as its own app ----
+const SOLO_APP=!!window.STANDALONE||/[?&]standalone=1/.test(location.search); const WAR_BUILD=0; const LIVE_WAR='https://adomja1212.github.io/Acc/war.html';
+if(SOLO_APP){ try{ sessionStorage.setItem('war-standalone','1'); }catch(e){} }
+let QUAL=SOLO_APP?'high':isTouch?'med':'high'; try{ const q=localStorage.getItem('war-q'); if(['low','med','high','ultra'].includes(q)) QUAL=q; }catch(e){}
 function applyQuality(q){ QUAL=q; try{ localStorage.setItem('war-q',q); }catch(e){}
  const ultra=q==='ultra', top=q==='high'||ultra;
  const pr=q==='low'?1:q==='med'?Math.min(devicePixelRatio,1.5):ultra?Math.min(devicePixelRatio,3):Math.min(devicePixelRatio,2); renderer.setPixelRatio(pr); composer.setPixelRatio(pr);
@@ -1588,7 +1591,13 @@ function renderRoom(){ if($('roomOv').hidden||!NET.room) return; const ps=roomPe
  $('startM').hidden=!NET.host; $('startM').disabled=false; $('startM').textContent='ابدأ الماتش';
  $('invite').hidden=NET.lobby&&NET.lobby.mode!=='p2p'; }
 $('sqs').onclick=e=>{ const b=e.target.closest('button[data-sq]'); if(b&&!b.disabled) pickTeam(b.dataset.sq); };
-$('toHub').onclick=()=>{ location.href='index.html'; };
+function exitApp(){ const A=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App; if(A&&A.exitApp) A.exitApp(); else if(SOLO_APP&&!window.STANDALONE) location.replace('https://localhost/index.html?offline=1&exit=1'); }
+if(SOLO_APP){ $('toHub').textContent='⏻ خروج من اللعبة'; }
+$('toHub').onclick=()=>{ if(SOLO_APP) askConfirm('خروج','هل تريد الخروج من اللعبة؟',exitApp); else location.href='index.html'; };
+// the app opens the newest version from the web when online (the copy inside the app is used offline)
+(async()=>{ const A=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App; if(window.STANDALONE&&A&&/[?&]exit=1/.test(location.search)&&A.exitApp){ A.exitApp(); return; }
+ if(!window.STANDALONE||!WAR_BUILD||!navigator.onLine||/[?&]offline=1/.test(location.search)) return;
+ try{ const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),3500); const r=await fetch('https://adomja1212.github.io/Acc/net.js',{cache:'no-store',signal:ctl.signal}); clearTimeout(t); if(r.ok) location.replace(LIVE_WAR+'?standalone=1&app='+WAR_BUILD+'&v='+Date.now()); }catch(e){} })();
 $('newTeam').onclick=()=>{ initAudio(); joinRoom('war-'+Math.random().toString(36).slice(2,8),true,'squad'); };
 $('quick').onclick=()=>{ initAudio(); const o=[...document.querySelectorAll('#rooms button[data-code]:not(:disabled)')][0]; if(o) joinRoom(o.dataset.code,false,o.dataset.mode); else joinRoom('war-'+Math.random().toString(36).slice(2,8),true,'squad'); };
 $('rooms').onclick=e=>{ const b=e.target.closest('button[data-code]'); if(b&&!b.disabled){ initAudio(); joinRoom(b.dataset.code,false,b.dataset.mode); } };
@@ -1634,7 +1643,7 @@ $('bCam').onclick=()=>{ camFP=!camFP; };
 // exit with yes/no
 let cfYes=null; function askConfirm(t,q,y){ $('cfT').textContent=t; $('cfQ').textContent=q; cfYes=y; $('confirm').hidden=false; if(document.exitPointerLock) document.exitPointerLock(); }
 $('cfNo').onclick=()=>{ $('confirm').hidden=true; }; $('cfYes').onclick=()=>{ $('confirm').hidden=true; cfYes&&cfYes(); };
-function askLeave(){ if(state==='play'||state==='end') askConfirm('خروج من الماتش','هل تريد الخروج من الماتش؟',()=>{ if(practice){ stopMusic(); clearFighters(); state='lobby'; showLobby(); } else leaveRoom(); }); else location.href='index.html'; }
+function askLeave(){ if(state==='play'||state==='end') askConfirm('خروج من الماتش','هل تريد الخروج من الماتش؟',()=>{ if(practice){ stopMusic(); clearFighters(); state='lobby'; showLobby(); } else leaveRoom(); }); else if(SOLO_APP) askConfirm('خروج','هل تريد الخروج من اللعبة؟',exitApp); else location.href='index.html'; }
 $('bExit').onclick=askLeave;
 setTimeout(()=>{ const A=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App; if(A&&A.addListener) try{ A.addListener('backButton',()=>{ if(!$('confirm').hidden) $('confirm').hidden=true; else if(state==='room') leaveRoom(); else askLeave(); }); }catch(e){} },0);
 
