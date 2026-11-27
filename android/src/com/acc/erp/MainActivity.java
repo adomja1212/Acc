@@ -42,7 +42,7 @@ import java.io.OutputStream;
  */
 public class MainActivity extends Activity {
     // رابط البرنامج المنشور — لتغييره: عدّل هذا السطر وأعد بناء التطبيق بنفس مفتاح التوقيع
-    static final String APP_URL = "https://claude.ai/artifact/TYazG5Y6QwK2zjpyHDPfAc";
+    static final String APP_URL = "https://adomja1212.github.io/Acc/";
     static final int PICK_FILE = 41;
 
     WebView web;
@@ -193,12 +193,12 @@ public class MainActivity extends Activity {
         return Math.round(v * getResources().getDisplayMetrics().density);
     }
 
-    // روابط claude.ai وتسجيل الدخول تبقى داخل التطبيق، وأي رابط آخر يفتح في المتصفح
+    // رابط البرنامج على GitHub وقاعدة البيانات تبقى داخل التطبيق، وأي رابط آخر يفتح في المتصفح
     boolean handleUrl(String url) {
         Uri u = Uri.parse(url);
         String host = u.getHost() == null ? "" : u.getHost();
         String scheme = u.getScheme() == null ? "" : u.getScheme();
-        if (scheme.equals("https") && (host.equals("claude.ai") || host.endsWith(".claude.ai") || host.endsWith(".anthropic.com") || host.endsWith("claudeusercontent.com"))) return false;
+        if (scheme.equals("https") && (host.equals("adomja1212.github.io") || host.endsWith(".supabase.co") || host.equals("claude.ai") || host.endsWith(".claude.ai") || host.endsWith(".anthropic.com") || host.endsWith("claudeusercontent.com"))) return false;
         if (scheme.equals("https") || scheme.equals("http") || scheme.equals("mailto") || scheme.equals("tel") || scheme.equals("intent")) {
             openExternal(url);
             return true;

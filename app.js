@@ -83,7 +83,7 @@
 
   // الكتابة للسحابة: عدة عمليات متوازية (أسرع كثيراً عند الاستيراد)، مع إعادة المحاولة عند الضغط أو الانقطاع المؤقت،
   // ولا تُكتب وثيقتان لنفس المسار في نفس الوقت حتى يبقى الترتيب صحيحاً
-  const PUMP_WORKERS = 4, WRITE_GAP = 220; // حد السرعة: حوالي 4.5 عملية في الثانية حتى لا نتجاوز حد السحابة
+  const PUMP_WORKERS = 4; let WRITE_GAP = 220; // حد السرعة: حوالي 4.5 عملية في الثانية حتى لا نتجاوز حد السحابة
   store.inflight = new Map(); // عمليات قيد الإرسال الآن: تُعامل كتعديلات لم تُحفظ بعد حتى لا ترجعها لقطة أقدم من السحابة
   let nextSlot = 0, pauseUntil = 0, pauseStep = 0;
   const waitSlot = async () => { for (;;) { const now = Date.now(), at = Math.max(nextSlot, pauseUntil); if (at <= now) { nextSlot = now + WRITE_GAP; return; } await sleep(at - now); } };
@@ -145,10 +145,157 @@
     scheduleRender();
   }
 
+  // =====================================================================
+  //   قاعدة بيانات Supabase — عند فتح البرنامج من رابط GitHub أو تطبيق أندرويد (خارج claude.ai)
+  //   البيانات في جدول واحد docs(path, body)، والحماية بقواعد على الخادم (supabase/setup.sql)
+  // =====================================================================
+  const SUPA = { url: 'https://rodzewcqzlamcerxvokq.supabase.co', key: 'sb_publishable_LvymxkvGinQx8ObxsVDJsg_hCtFQnI1', emailDomain: 'nezam-almohaseb.app',
+    lib: 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js' };
+  const SUPA_REM = 'acc-supa-remember';
+  // اسم المستخدم (قد يكون عربياً) ← بريد داخلي ثابت لا يظهر لأحد
+  const loginEmail = uname => 'u' + [...enc.encode(String(uname).trim().toLowerCase())].map(b => b.toString(16).padStart(2, '0')).join('') + '@' + SUPA.emailDomain;
+  const supaStorage = { // الجلسة في هذه النافذة فقط، إلا إذا اختار المستخدم "حفظ بيانات الدخول"
+    area() { try { return localStorage.getItem(SUPA_REM) ? localStorage : sessionStorage; } catch { return sessionStorage; } },
+    getItem(k) { try { return this.area().getItem(k); } catch { return null; } },
+    setItem(k, v) { try { this.area().setItem(k, v); } catch {} },
+    removeItem(k) { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch {} },
+  };
+  const loadScript = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('load')); document.head.appendChild(s); });
+  const supa = { sb: null, user: null };
+  async function supaClient() {
+    if (supa.sb) return supa.sb;
+    if (!window.supabase?.createClient) await loadScript(SUPA.lib);
+    supa.sb = window.supabase.createClient(SUPA.url, SUPA.key, { auth: { storage: supaStorage, persistSession: true, autoRefreshToken: true, storageKey: 'acc-supa-auth' } });
+    return supa.sb;
+  }
+  function supaErr(e) {
+    const msg = String(e?.message || e || '');
+    const code = e?.code === '42501' || /row-level security|not allowed|permission/i.test(msg) ? 'not_granted'
+      : e?.status === 429 || /rate limit|too many/i.test(msg) ? 'resource_exhausted'
+      : /fetch|network|timeout|Failed to/i.test(msg) || e?.status === 0 || e?.status >= 500 ? 'unavailable' : 'unknown';
+    return Object.assign(new Error(msg), { code });
+  }
+  // واجهة مطابقة لقاعدة claude.ai (collection/doc/onSnapshot/set/delete) حتى يعمل باقي البرنامج كما هو
+  function supaAdapter(sb) {
+    const docs = new Map(), colL = new Map(), docL = new Map(), errL = new Set();
+    let loaded = false, flushT = null; const dirty = new Set();
+    const collOf = p => p.split('/')[0];
+    const emitColl = c => { const ls = colL.get(c); if (!ls?.size) return; const list = [];
+      for (const [p, b] of docs) if (p.startsWith(c + '/') && p.split('/').length === 2) list.push({ id: p.slice(c.length + 1), data: () => b });
+      const snap = { docs: list, metadata: { fromCache: false } }; ls.forEach(f => f(snap)); };
+    const docSnap = p => { const b = docs.get(p); return { id: p, exists: b !== undefined, data: () => b }; };
+    const emitDoc = p => { const ls = docL.get(p); if (ls?.size) ls.forEach(f => f(docSnap(p))); };
+    const flush = () => { flushT = null; const cs = new Set(); for (const p of dirty) { emitDoc(p); cs.add(collOf(p)); } dirty.clear(); cs.forEach(emitColl); };
+    const touch = p => { dirty.add(p); if (!flushT) flushT = setTimeout(flush, 120); };
+    async function loadAll() {
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await sb.from('docs').select('path,body').order('path').range(from, from + 999);
+        if (error) throw supaErr(error);
+        for (const r of data) docs.set(r.path, r.body);
+        if (data.length < 1000) break;
+      }
+    }
+    const start = (async () => {
+      sb.channel('acc-docs').on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, ev => {
+        if (ev.eventType === 'DELETE') { if (ev.old?.path) { docs.delete(ev.old.path); touch(ev.old.path); } }
+        else if (ev.new?.path) { docs.set(ev.new.path, ev.new.body); touch(ev.new.path); }
+      }).subscribe(st => { if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') errL.forEach(f => f({ code: 'unavailable' })); });
+      await loadAll(); loaded = true;
+      for (const c of colL.keys()) emitColl(c);
+      for (const p of docL.keys()) emitDoc(p);
+    })().catch(e => errL.forEach(f => f(supaErr(e))));
+    const add = (m, k, f) => { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(f); return () => m.get(k).delete(f); };
+    return {
+      ready: start,
+      collection: c => ({ onSnapshot(cb, err) { if (err) errL.add(err); const off = add(colL, c, cb); if (loaded) emitColl(c); return off; } }),
+      doc: p => ({
+        onSnapshot(cb, err) { if (err) errL.add(err); const off = add(docL, p, cb); if (loaded) cb(docSnap(p)); return off; },
+        async get() { await start; return docSnap(p); },
+        async set(body) { const { error } = await sb.from('docs').upsert({ path: p, coll: collOf(p), body }); if (error) throw supaErr(error); docs.set(p, body); touch(p); },
+        async delete() { const { error } = await sb.from('docs').delete().eq('path', p); if (error) throw supaErr(error); docs.delete(p); touch(p); },
+      }),
+    };
+  }
+  // بعد نجاح تسجيل الدخول: تحميل البيانات والاشتراك في التغييرات
+  let supaReady = null;
+  function supaConnect() {
+    if (supaReady) return supaReady;
+    store.me = { id: supa.user.id, name: '', avatarUrl: '', isOwner: false, canEdit: false };
+    store.cloud = supaAdapter(supa.sb);
+    supaReady = new Promise(res => { store.onReady = res; });
+    loadPrefs(store.cloud).then(() => attachCloud());
+    return supaReady;
+  }
+  // صلاحيات قاعدة البيانات حسب دور المستخدم في البرنامج
+  function supaApplyUser(u) {
+    const admin = isAdminUser(u);
+    store.canAdmin = admin; store.canWrite = true;
+    store.me = { ...store.me, name: u.name, isOwner: admin, canEdit: admin };
+  }
+  // إنشاء/تغيير بيانات دخول مستخدم على الخادم
+  async function supaSetPassword(u, pass) {
+    const sb = await supaClient();
+    if (!u.authId) {
+      const tmp = window.supabase.createClient(SUPA.url, SUPA.key, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'acc-supa-tmp' } });
+      const { data, error } = await tmp.auth.signUp({ email: loginEmail(u.username), password: pass });
+      if (error) throw new Error(/registered|exists/i.test(error.message) ? 'اسم المستخدم مسجّل من قبل على الخادم — اختر اسماً آخر' : 'تعذّر إنشاء حساب الدخول: ' + error.message);
+      if (!data.user?.id || data.user.identities?.length === 0) throw new Error('اسم المستخدم مسجّل من قبل على الخادم — اختر اسماً آخر');
+      u.authId = data.user.id; u.authEmail = loginEmail(u.username);
+    } else if (u.authId === supa.user?.id) {
+      const { error } = await sb.auth.updateUser({ password: pass }); if (error) throw new Error('تعذّر تغيير كلمة المرور: ' + error.message);
+    } else {
+      const { error } = await sb.rpc('acc_admin_set_password', { target: u.authId, new_password: pass }); if (error) throw new Error('تعذّر تعيين كلمة المرور: ' + error.message);
+    }
+    delete u.passHash; delete u.salt; delete u.iter;
+  }
+  async function supaSyncLogin(u) { // تغيير اسم المستخدم يغيّر بريد الدخول الداخلي
+    if (!u.authId || u.authEmail === loginEmail(u.username)) return;
+    const { error } = await supa.sb.rpc('acc_admin_set_login', { target: u.authId, new_email: loginEmail(u.username) });
+    if (error) throw new Error('تعذّر تغيير اسم الدخول: ' + error.message);
+    u.authEmail = loginEmail(u.username);
+  }
+  // عند استعادة نسخة احتياطية: يبقى حساب المدير الحالي مرتبطاً بدخوله، وتُنقل روابط الدخول لمن له حساب بنفس الاسم،
+  // وتُحذف بصمات كلمات المرور القديمة (الدخول هنا عبر الخادم فقط)
+  function supaMergeUsers(oldUsers) {
+    const me = oldUsers.find(x => x.authId === supa.user?.id);
+    db.appUsers = db.appUsers.filter(u => !me || u.username !== me.username).map(u => {
+      const ex = oldUsers.find(x => x.username === u.username && x.authId);
+      const nu = { ...u, ...(ex ? { authId: ex.authId, authEmail: ex.authEmail } : {}) };
+      delete nu.passHash; delete nu.salt; delete nu.iter; return nu;
+    });
+    if (me) db.appUsers.unshift(me);
+  }
+  async function bootSupa() {
+    store.mode = 'cloud'; store.backend = 'supa'; store.canAdmin = false; WRITE_GAP = 40;
+    try { await supaClient(); }
+    catch { content.innerHTML = '<div class="boot"><p>تعذّر الاتصال بالخادم — تحقق من الإنترنت ثم أعد فتح البرنامج</p></div>'; return; }
+    const { data: hu } = await supa.sb.rpc('acc_has_users');
+    store.hasUsers = hu !== false;
+    const { data: { session: s } } = await supa.sb.auth.getSession();
+    let remembered = false; try { remembered = !!localStorage.getItem(SUPA_REM); } catch {}
+    setSync('saved');
+    // جلسة مفتوحة في نفس النافذة (تحديث الصفحة): متابعة بدون طلب الدخول. غير ذلك: شاشة الدخول دائماً
+    if (s?.user && !remembered) { supa.user = s.user; supaConnect(); return; }
+    let msg = ''; try { msg = sessionStorage.getItem('acc-logout-msg') || ''; sessionStorage.removeItem('acc-logout-msg'); } catch {}
+    showAuth(store.hasUsers ? 'login' : 'setup', msg);
+  }
+  async function supaLogin(uname, password, remember) {
+    try { if (remember) localStorage.setItem(SUPA_REM, '1'); else localStorage.removeItem(SUPA_REM); } catch {}
+    const { data, error } = await supa.sb.auth.signInWithPassword({ email: loginEmail(uname), password });
+    if (error) return { error: /invalid|credentials/i.test(error.message) ? 'bad' : error.message };
+    supa.user = data.user; return { ok: true };
+  }
+  async function supaLogout(msg) {
+    let remembered = false; try { remembered = !!localStorage.getItem(SUPA_REM); sessionStorage.setItem('acc-logout-msg', msg || ''); } catch {}
+    if (!remembered) await supa.sb?.auth.signOut().catch(() => {});
+    location.reload();
+  }
+
   // ----- الاتصال -----
   async function boot() {
     content.innerHTML = '<div class="boot"><div class="spinner"></div><p>جارٍ الاتصال بقاعدة البيانات…</p></div>';
     const hasRuntime = typeof window.claude?.use === 'function';
+    if (!hasRuntime && SUPA.url && location.protocol !== 'file:') return bootSupa();
     const [cloud, user] = hasRuntime ? await Promise.all([claude.use('db').catch(() => null), claude.use('user').catch(() => null)]) : [null, null];
     store.user = user;
     if (user) {
@@ -165,7 +312,7 @@
 
   function attachCloud() {
     const waiting = new Set([...TABLES, SETTINGS_PATH, APPR_PATH]);
-    const ready = () => { if (store.ready) return; store.ready = true; clearTimeout(slowTimer); setSync('saved'); authGate(); };
+    const ready = () => { if (store.ready) return; store.ready = true; clearTimeout(slowTimer); setSync('saved'); authGate(); store.onReady?.(); };
     const got = key => { waiting.delete(key); if (!waiting.size) ready(); else if (store.ready) scheduleRender(); };
     const slowTimer = setTimeout(() => { setSync('slow'); ready(); }, 10000);
     const fail = e => { if (e?.code === 'revoked') { store.canWrite = false; applyRole(); } setSync('error'); };
@@ -2658,7 +2805,11 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         const data = JSON.parse(await e.target.files[0].text());
         if (!Array.isArray(data.accounts)) throw 0;
         if (!confirm('ستحل النسخة الاحتياطية محل كل البيانات الحالية لكل المستخدمين. متابعة؟')) return;
-        db = normalize(data); save({ settings: true }); renderBrand(); renderNav(); renderDatabase(); toast('جارٍ رفع النسخة الاحتياطية إلى قاعدة البيانات…', 4000);
+        const oldUsers = db.appUsers;
+        db = normalize(data);
+        if (store.backend === 'supa') supaMergeUsers(oldUsers);
+        save({ settings: true }); renderBrand(); renderNav(); renderDatabase(); toast('جارٍ رفع النسخة الاحتياطية إلى قاعدة البيانات…', 4000);
+        if (store.backend === 'supa' && db.appUsers.some(u => !u.authId)) setTimeout(() => toast('المستخدمون القادمون من النسخة الاحتياطية يحتاجون كلمة مرور جديدة: من شاشة المستخدمين اضغط "تعيين كلمة مرور" لكل مستخدم', 9000), 4500);
       } catch { toast('الملف غير صالح'); }
     };
     $('#demoBtn')?.addEventListener('click', async () => {
@@ -2751,7 +2902,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(salt), iterations: iter }, key, 256));
   }
   const sha = async s => hex(await crypto.subtle.digest('SHA-256', enc.encode(s)));
-  async function setPassword(u, pass) { u.salt = randHex(16); u.iter = 150000; u.passHash = await hashPass(pass, u.salt, u.iter); }
+  async function setPassword(u, pass) { if (store.backend === 'supa') return supaSetPassword(u, pass); u.salt = randHex(16); u.iter = 150000; u.passHash = await hashPass(pass, u.salt, u.iter); }
   const USERNAME_RE = /^[A-Za-z0-9._\-؀-ۿ]{3,30}$/;
   const checkPass = (p, c) => p.length < 8 ? 'كلمة المرور يجب ألا تقل عن 8 أحرف' : !(/[0-9]/.test(p) && /[^0-9]/.test(p)) ? 'كلمة المرور يجب أن تحتوي على حروف وأرقام معاً' : p !== c ? 'كلمتا المرور غير متطابقتين' : '';
 
@@ -2783,9 +2934,11 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   }
   async function sessionStillValid() {
     const u = curUser();
+    if (store.backend === 'supa') return !!u && u.active !== false;
     return !!u && u.active !== false && session.sig === await sha(u.passHash + session.exp + (store.me.id || ''));
   }
   function logout(msg) {
+    if (store.backend === 'supa') { session = null; content.innerHTML = ''; return supaLogout(msg); }
     session = null;
     try { localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); } catch {}
     content.innerHTML = '';
@@ -2800,6 +2953,13 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   document.addEventListener('visibilitychange', () => { if (!document.hidden && session && Date.now() - lastAct > IDLE_MS) logout('تم تسجيل الخروج تلقائياً لعدم النشاط 30 دقيقة'); });
 
   async function authGate() {
+    if (store.backend === 'supa') {
+      if (!supa.user) return showAuth(store.hasUsers ? 'login' : 'setup');
+      const u = db.appUsers.find(x => x.authId === supa.user.id);
+      if (u && u.active !== false) { supaApplyUser(u); await startSession(u); clearFails(); return unlock(); }
+      if (!db.appUsers.length && !store.hasUsers) return; // إنشاء أول مدير يكمل من شاشة الإعداد
+      return supaLogout('هذا الحساب غير مفعّل في البرنامج — راجع مدير النظام');
+    }
     if (!db.appUsers.length) return showAuth('setup');
     if (await restoreSession()) return unlock();
     showAuth('login');
@@ -2842,7 +3002,7 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     const box = $('#auth'); box.hidden = false;
     const company = db.settings.company || 'نظام المحاسب';
     const letter = [...company.trim()][0] || 'م';
-    const canSetup = store.mode !== 'cloud' || store.canAdmin;
+    const canSetup = store.mode !== 'cloud' || store.canAdmin || store.backend === 'supa';
     const rem = getRemember();
     const lastUser = rem?.username || (() => { try { return localStorage.getItem(LAST_USER_KEY) || ''; } catch { return ''; } })();
     const SAVED_PW = '\u2022saved\u2022';
@@ -2932,6 +3092,21 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         const uname = d.username.trim().toLowerCase();
         if (!USERNAME_RE.test(uname)) return fail('اسم المستخدم من 3 إلى 30 حرفاً أو رقماً بدون مسافات');
         const pe = checkPass(d.password, d.confirm); if (pe) return fail(pe);
+        if (store.backend === 'supa') {
+          const { data: hu } = await supa.sb.rpc('acc_has_users');
+          if (hu) { store.hasUsers = true; return showAuth('login', 'تم إعداد النظام من قبل — سجّل الدخول'); }
+          let r = await supa.sb.auth.signUp({ email: loginEmail(uname), password: d.password });
+          if (r.error && /registered|exists/i.test(r.error.message)) r = await supa.sb.auth.signInWithPassword({ email: loginEmail(uname), password: d.password });
+          if (r.error || !r.data?.user) return fail('تعذّر إنشاء الحساب: ' + (r.error?.message || 'تحقق من إعدادات Supabase (إلغاء تأكيد البريد)'));
+          if (!r.data.session) return fail('يجب إلغاء "Confirm email" من إعدادات Supabase أولاً');
+          supa.user = r.data.user;
+          await supaConnect();
+          if (db.appUsers.length) return showAuth('login');
+          const u = { id: genId(), name: d.name.trim(), username: uname, role: 'admin', active: true, authId: supa.user.id, authEmail: loginEmail(uname), ...ROLES.admin.build(), createdAt: new Date().toISOString() };
+          db.appUsers.push(u); supaApplyUser(u); save();
+          await startSession(u); unlock(); toast(`مرحباً ${u.name} — تم إنشاء حساب مدير النظام`, 3500);
+          return;
+        }
         if (db.appUsers.length) return showAuth('login');
         const u = { id: genId(), name: d.name.trim(), username: uname, role: 'admin', active: true, ...ROLES.admin.build(), createdAt: new Date().toISOString() };
         await setPassword(u, d.password);
@@ -2942,6 +3117,28 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       lockUntil = Math.max(lockUntil, lockGet().until || 0);
       if (Date.now() < lockUntil) return fail(`محاولات كثيرة خاطئة — انتظر ${Math.ceil((lockUntil - Date.now()) / 1000)} ثانية`);
       const uname = d.username.trim().toLowerCase();
+      if (store.backend === 'supa') {
+        if (pw?.dataset.saved) { // دخول بالجلسة المحفوظة على هذا الجهاز
+          const { data: { session: s } } = await supa.sb.auth.getSession();
+          if (s?.user && s.user.email === loginEmail(uname)) {
+            if (!d.remember) { try { localStorage.removeItem(SUPA_REM); } catch {} clearRemember(); }
+            supa.user = s.user; await supaConnect(); return;
+          }
+          clearRemember(); delete pw.dataset.saved; pw.value = ''; f.querySelector('.af-saved')?.remove(); pw.focus();
+          return fail('انتهى الدخول المحفوظ — اكتب كلمة المرور من جديد');
+        }
+        const r = await supaLogin(uname, d.password, !!d.remember);
+        if (r.error) {
+          if (r.error !== 'bad') return fail('تعذّر الاتصال بالخادم: ' + r.error);
+          const mins = registerFail();
+          if (mins) return fail(`محاولات كثيرة خاطئة — تم إيقاف الدخول ${mins} دقيقة`);
+          return fail(`اسم المستخدم أو كلمة المرور غير صحيحة (متبقي ${5 - failCount} محاولات)`);
+        }
+        clearFails();
+        if (d.remember) { try { localStorage.setItem(REMEMBER_KEY, JSON.stringify({ uid: supa.user.id, username: uname, exp: Date.now() + 30 * 864e5, sig: 'supa' })); } catch {} } else clearRemember();
+        try { localStorage.setItem(LAST_USER_KEY, uname); } catch {}
+        await supaConnect(); return;
+      }
       const u = db.appUsers.find(x => x.username === uname);
       // الدخول بكلمة المرور المحفوظة على هذا الجهاز
       if (pw?.dataset.saved) {
@@ -2977,7 +3174,8 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
       { key: 'password', label: 'كلمة المرور الجديدة', input: 'password' }, { key: 'confirm', label: 'تأكيدها', input: 'password' }], {}, async d => {
       const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
       const u = db.appUsers.find(x => x.id === d.uid); if (!u) return;
-      await setPassword(u, d.password); u.active = true; save(); toast(`تم تعيين كلمة مرور جديدة للمستخدم ${u.username}`, 3500);
+      try { await setPassword(u, d.password); } catch (e) { toast(e.message, 5000); return false; }
+      u.active = true; save(); toast(`تم تعيين كلمة مرور جديدة للمستخدم ${u.username}`, 3500);
     });
   }
 
@@ -2993,6 +3191,15 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
   });
   function changeOwnPassword() {
     const u = curUser(); if (!u) return;
+    if (store.backend === 'supa') return openModal('تغيير كلمة المرور', [{ key: 'current', label: 'كلمة المرور الحالية', input: 'password', full: true },
+      { key: 'password', label: 'كلمة المرور الجديدة', input: 'password' }, { key: 'confirm', label: 'تأكيد كلمة المرور', input: 'password' }], {}, async d => {
+      const chk = await supa.sb.auth.signInWithPassword({ email: loginEmail(u.username), password: d.current });
+      if (chk.error) { toast('كلمة المرور الحالية غير صحيحة'); return false; }
+      const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
+      const { error } = await supa.sb.auth.updateUser({ password: d.password });
+      if (error) { toast('تعذّر تغيير كلمة المرور: ' + error.message, 5000); return false; }
+      toast('تم تغيير كلمة المرور');
+    });
     if (!canWriteUsers()) { toast('لحماية الحسابات: تغيير كلمة المرور يتم عن طريق مالك النظام فقط', 4500); return; }
     openModal('تغيير كلمة المرور', [{ key: 'current', label: 'كلمة المرور الحالية', input: 'password', full: true },
       { key: 'password', label: 'كلمة المرور الجديدة', input: 'password' }, { key: 'confirm', label: 'تأكيد كلمة المرور', input: 'password' }], {}, async d => {
@@ -3073,13 +3280,17 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
         if (losingAdmin && activeAdmins().length <= 1) { toast('لا يمكن إلغاء صلاحية آخر مدير للنظام'); return false; }
         if (live.id === session.uid && !active) { toast('لا يمكنك إيقاف حسابك الحالي'); return false; }
         const roleChanged = live.role !== d.role;
+        if (store.backend === 'supa' && live.authId && live.username !== uname) {
+          const old = live.username; live.username = uname;
+          try { await supaSyncLogin(live); } catch (e) { live.username = old; toast(e.message, 5000); return false; }
+        }
         Object.assign(live, { name: d.name.trim(), username: uname, role: d.role, active });
         if (roleChanged && (d.role === 'admin' || confirm(`تطبيق صلاحيات الدور "${ROLES[d.role].title}" على المستخدم؟ (ستُستبدل صلاحياته الحالية)`))) Object.assign(live, ROLES[d.role].build());
         save(); scheduleRender(); toast('تم حفظ بيانات المستخدم');
       } else {
         const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
         const nu = { id: genId(), name: d.name.trim(), username: uname, role: d.role, active, ...ROLES[d.role].build(), createdAt: new Date().toISOString() };
-        await setPassword(nu, d.password);
+        try { await setPassword(nu, d.password); } catch (e) { toast(e.message, 5000); return false; }
         db.appUsers.push(nu); save(); scheduleRender();
         toast(`تمت إضافة ${nu.name} — يمكنك تعديل صلاحياته بالتفصيل`, 3500);
       }
@@ -3090,7 +3301,8 @@ C('openDr', 'رصيد أول المدة — مدين', { ...M, optional: true, f
     openModal(`تعيين كلمة مرور: ${u.name}`, [{ key: 'password', label: 'كلمة المرور الجديدة', input: 'password' }, { key: 'confirm', label: 'تأكيد كلمة المرور', input: 'password' }], {}, async d => {
       const pe = checkPass(d.password, d.confirm); if (pe) { toast(pe); return false; }
       const live = db.appUsers.find(x => x.id === u.id); if (!live) return;
-      await setPassword(live, d.password); save();
+      try { await setPassword(live, d.password); } catch (e) { toast(e.message, 5000); return false; }
+      save();
       if (live.id === session.uid) { await startSession(live); if (getRemember()?.uid === live.id) await saveRemember(live); }
       toast('تم تعيين كلمة المرور — ستنتهي جلسات هذا المستخدم المفتوحة', 3500);
     });
