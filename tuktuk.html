@@ -245,6 +245,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { onlinePanel } from './net.js';
 
@@ -345,6 +346,11 @@ composer.addPass(new RenderPass(scene,camera));
 const bloom=new UnrealBloomPass(new THREE.Vector2(VW(),VH()),0.42,0.45,0.86);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+// film-like colour grading: richer colour, a little contrast, warm light, darker corners
+const grade=new ShaderPass({uniforms:{tDiffuse:{value:null},sat:{value:1.12},con:{value:1.07},vig:{value:0.3}},
+ vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+ fragmentShader:'uniform sampler2D tDiffuse; uniform float sat,con,vig; varying vec2 vUv; void main(){ vec4 c=texture2D(tDiffuse,vUv); float l=dot(c.rgb,vec3(0.2126,0.7152,0.0722)); c.rgb=mix(vec3(l),c.rgb,sat); c.rgb=(c.rgb-0.5)*con+0.5; c.rgb*=vec3(1.03,1.0,0.96); float d=distance(vUv,vec2(0.5)); c.rgb*=1.0-vig*smoothstep(0.35,0.85,d); gl_FragColor=c; }'});
+composer.addPass(grade);
 
 // ================= textures =================
 function ctex(w,h,draw,{rep=true,srgb=true}={}){ const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); draw(g,w,h); const t=new THREE.CanvasTexture(c); if(srgb) t.colorSpace=THREE.SRGBColorSpace; if(rep){ t.wrapS=t.wrapT=THREE.RepeatWrapping; } t.anisotropy=MAXANI; return t; }
@@ -1355,7 +1361,7 @@ function togglePause(){ if(state!=='race'&&state!=='count') return; if(NET.inRac
 function applyQuality(q){ quality=q; try{ localStorage.setItem('tuk-q',q); }catch(e){}
  const pr=q==='high'?Math.min(devicePixelRatio,2):q==='med'?Math.min(devicePixelRatio,1.5):1;
  renderer.setPixelRatio(pr); composer.setPixelRatio(pr); onResize();
- const sh=q!=='low'; renderer.shadowMap.enabled=sh; sun.castShadow=sh; const ms=q==='high'?2048:1024; sun.shadow.mapSize.set(ms,ms); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
+ const sh=q!=='low'; renderer.shadowMap.enabled=sh; sun.castShadow=sh; const ms=q==='high'?4096:2048; sun.shadow.mapSize.set(ms,ms); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; }
  renderer.shadowMap.type=q==='high'?THREE.PCFSoftShadowMap:THREE.PCFShadowMap;
  bloom.enabled=q!=='low';
  scene.traverse(o=>{ if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); } });

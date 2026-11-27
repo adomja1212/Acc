@@ -11,7 +11,7 @@ const nm = (p) => path.join(root, 'node_modules', p);
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(path.join(out, 'lib/three/build'), { recursive: true });
 fs.copyFileSync(nm('three/build/three.module.js'), path.join(out, 'lib/three/build/three.module.js'));
-for (const d of ['objects', 'geometries', 'postprocessing', 'shaders', 'utils']) {
+for (const d of ['objects', 'geometries', 'postprocessing', 'shaders', 'utils', 'math']) {
   fs.cpSync(nm('three/examples/jsm/' + d), path.join(out, 'lib/three/examples/jsm', d), { recursive: true });
 }
 
