@@ -1,4 +1,4 @@
-# Sawah System — نظام المحاسب
+# Sawah ERP — نظام المحاسب
 
 ## 🌐 فتح البرنامج من أي متصفح (كمبيوتر أو موبايل)
 https://adomja1212.github.io/nezam-almohaseb/
@@ -12,4 +12,4 @@ https://github.com/adomja1212/Acc/raw/claude/accounting-database-webpage-nrered/
 - التطبيق يفتح البرنامج المنشور، وأي تحديث للبرنامج يظهر فوراً بدون إعادة تثبيت.
 - الدخول باسم المستخدم وكلمة المرور اللذين يحددهما مدير النظام فقط.
 
-الإصدار الحالي: 1.4 (versionCode 5) — اسم التطبيق Sawah System، — يفتح رابط GitHub مباشرة
+الإصدار الحالي: 1.5 (versionCode 6) — اسم التطبيق Sawah ERP بالشعار الجديد، — يفتح رابط GitHub مباشرة

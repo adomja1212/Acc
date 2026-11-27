@@ -7,7 +7,7 @@ import struct, sys, zipfile, io
 from PIL import Image, ImageDraw, ImageFont
 
 PKG = 'com.acc.erp'
-LABEL = 'Sawah System'
+LABEL = 'Sawah ERP'
 ICON_ID = 0x7f010000
 THEME_ID = 0x01030241  # @android:style/Theme.Material.Light.NoActionBar
 
@@ -148,6 +148,10 @@ def arsc():
 
 # ---------- icon ----------
 def icon(size=192):
+    import os
+    logo = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logo', 'icon-1024.png')
+    if os.path.exists(logo):  # شعار Sawah ERP (يُرسم بـ mklogo.py)
+        b = io.BytesIO(); Image.open(logo).resize((size, size), Image.LANCZOS).save(b, 'PNG', optimize=True); return b.getvalue()
     s = size * 4
     im = Image.new('RGBA', (s, s), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)

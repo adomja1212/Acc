@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 DEST="${1:-../nezam-almohaseb}"
 [ -d "$DEST/.git" ] || git clone https://github.com/adomja1212/nezam-almohaseb "$DEST"
-cp index.html styles.css app.js i18n.js login-hero.jpg "$DEST/"
+cp index.html styles.css app.js i18n.js login-hero.jpg app-icon.png "$DEST/"
 cd "$DEST"
 git add -A
 git diff --cached --quiet && { echo "لا تغييرات"; exit 0; }
