@@ -1,0 +1,115 @@
+1180|Shown in the menu header, invoices and reports|Se muestra en el menú, facturas e informes
+1181|Live sync across all users and devices|Sincronización en vivo entre usuarios y dispositivos
+1182|Bank deposits, payments and transfers|Depósitos, pagos y transferencias bancarias
+1183|Reset customer and supplier opening balances|Poner a cero saldos iniciales de clientes y proveedores
+1184|Reset item opening quantities|Poner a cero cantidades iniciales de artículos
+1186|The administrator can approve at any level|El administrador puede aprobar en cualquier nivel
+1187|Organization structure — linked to employee data|Estructura organizativa — vinculada a los empleados
+1188|Admin tools (clear cashboxes and delete movements|Herramientas de administrador (vaciar cajas y borrar movimientos
+1189|Download a backup of the records before deleting|Descargar copia de los registros antes de eliminar
+1190|Add them from Databases › Sales items|Añádalos desde Bases de datos › Artículos de venta
+1191|JSON file with all tables and settings|Archivo JSON con todas las tablas y la configuración
+1192|Welcome back! Enter your account details to continue|¡Bienvenido de nuevo! Ingrese sus datos para continuar
+1193|Account (accrued salaries, advances, assets, liabilities…|Cuenta (salarios devengados, anticipos, activos, pasivos…
+1194|Choose the account name (expense or debit party|Elija la cuenta (gasto o parte deudora
+1195|Purchase requests (not posted until invoiced|Solicitudes de compra (no se contabilizan hasta facturar
+1196|No start date: includes opening balances|Sin fecha inicial: incluye saldos iniciales
+1197|Reset opening balances in the chart of accounts|Poner a cero saldos iniciales del plan de cuentas
+1198|Enter a debit or a credit amount, not both|Indique un importe deudor o acreedor, no ambos
+1200|You do not have edit permission — view-only mode|No tiene permiso de edición — modo solo lectura
+1201|Posted: Dr. sales of the type, Cr. customer|Contabiliza: Debe ventas del tipo, Haber cliente
+1202|Default tax rate for new invoices %|Tasa de impuesto predeterminada para nuevas facturas %
+1203|The file is empty or has only the header row|El archivo está vacío o solo tiene la fila de encabezados
+1204|Chart of accounts, cashboxes and opening balances|Plan de cuentas, cajas y saldos iniciales
+1205|" is not in the sales items database|" no está en la base de artículos de venta
+1208|Receipts, payments, transfers and running balance|Cobros, pagos, transferencias y saldo acumulado
+1209|Financial, accounting and departmental reports|Informes financieros, contables y por departamento
+1214|" already exists — choose "Add and update" to edit it|" ya existe — elija "Añadir y actualizar" para editarlo
+1215|": add at least one level and choose its approvers|": añada al menos un nivel y elija quién aprueba
+1216|No levels — add at least one level|Sin niveles — añada al menos uno
+1217|Approved leave shows in the employee status automatically|El permiso aprobado aparece en el estado del empleado automáticamente
+1218|Balances = opening balance + posted movements|Saldos = saldo inicial + movimientos contabilizados
+1220|Uploading backup to the database…|Subiendo la copia a la base de datos…
+1221|Too many failed attempts — login paused for 30 seconds|Demasiados intentos fallidos — acceso pausado 30 segundos
+1222|Database unavailable — saving temporarily in the browser|Base de datos no disponible — guardado temporal en el navegador
+1223|" — define the conversion factor in the units database|" — defina el factor de conversión en la base de unidades
+1224|Could not save to the database — check the connection|No se pudo guardar en la base de datos — verifique la conexión
+1225|The conversion loops back to the same unit — check the base unit|La conversión vuelve a la misma unidad — revise la unidad base
+1226|You do not have permission for this action — contact the administrator|No tiene permiso para esta acción — contacte al administrador
+1227|Resetting chart balances is for the administrator only|Poner a cero los saldos del plan es solo para el administrador
+1228|" — by cost type (operating / marketing / administrative|" — por tipo de costo (operativo / comercial / administrativo
+1231|Entry not posted yet — awaiting all approvals|Asiento aún no contabilizado — pendiente de aprobaciones
+1232|Choose the supplier — items have a price and will post to their account|Elija el proveedor — los artículos tienen precio y se cargarán a su cuenta
+1235|Enter the amount in the debit or credit box, not both|Indique el importe en el debe o en el haber, no en ambos
+1236|A save request is open — finish it first and try again|Hay una solicitud de guardado abierta — termínela y reintente
+1237|Cannot delete the selection: all records are used in movements (|No se puede eliminar la selección: todos los registros tienen movimientos (
+1239|A user cannot approve a document they created (segregation of duties|Un usuario no puede aprobar un documento que creó (segregación de funciones
+1240|I am the system owner — reset any user's password|Soy el propietario — restablecer la contraseña de cualquier usuario
+1243|Passwords are hashed (PBKDF2) and nobody can read them|Las contraseñas están cifradas (PBKDF2) y nadie puede leerlas
+1244|Username: 3 to 30 letters or digits without spaces|Usuario: de 3 a 30 letras o números sin espacios
+1247|Calculated from opening, receiving and issue notes and transfers|Calculado desde inicial, entradas, salidas y transferencias
+1248|A completed order posts: Dr. maintenance, Cr. cashbox|La orden completada contabiliza: Debe mantenimiento, Haber caja
+1249|Your session ended or your account changed — sign in again|Su sesión terminó o su cuenta cambió — inicie sesión de nuevo
+1250|Documents created before activation remain posted as they are|Los documentos creados antes de la activación siguen contabilizados
+1251|Manual entries and entries generated automatically from documents|Asientos manuales y generados automáticamente desde documentos
+1253|Cannot change the code of an account with posted movements|No se puede cambiar el código de una cuenta con movimientos
+1254|The second row is a sample from current data — delete or edit it|La segunda fila es un ejemplo de los datos actuales — elimínela o edítela
+1258|Contact the administrator to set a new password for you from the screen|Contacte al administrador para que le asigne una nueva contraseña desde la pantalla
+1259|records used in other movements will not be deleted (delete their movements first).|registros usados en otros movimientos no se eliminarán (elimine primero sus movimientos).
+1260|Each category has its own account in the chart under Customers|Cada categoría tiene su propia cuenta en el plan bajo Clientes
+1262|accounting entries linked to these records; balances and reports will change.|asientos vinculados a estos registros; cambiarán los saldos e informes.
+1263|Each category has its own account in the chart under Suppliers|Cada categoría tiene su propia cuenta en el plan bajo Proveedores
+1264|Income statement, balance sheet and trial balance on one page|Estado de resultados, balance y balance de comprobación en una página
+1265|Movement: invoices, vouchers, transfers, entries, warehouse notes, payroll...|Movimiento: facturas, comprobantes, transferencias, asientos, notas de almacén, nóminas...
+1267|Enter the opening balance in the debit or credit box, not both|Indique el saldo inicial en el debe o en el haber, no en ambos
+1270|Password set — this user's open sessions will end|Contraseña establecida — se cerrarán las sesiones abiertas del usuario
+1272|Cost type sets the wages account: operating, marketing or administrative|El tipo de costo define la cuenta de salarios: operativo, comercial o administrativo
+1273|Status becomes "In maintenance" automatically when a maintenance order is open|El estado pasa a "En mantenimiento" automáticamente si hay una orden abierta
+1274|Current data will be replaced with demo data. Continue?|Los datos actuales se reemplazarán por datos de demostración. ¿Continuar?
+1275|Enter moves to the next box — a new row is added automatically|Enter pasa a la siguiente casilla — se añade una fila nueva automáticamente
+1276|The account has an opening balance; deleting it will unbalance the trial balance. Continue?|La cuenta tiene saldo inicial; eliminarla descuadrará el balance. ¿Continuar?
+1277|Enter the opening balance in the debit or credit box, not both|Indique el saldo inicial en el debe o en el haber, no en ambos
+1278|The parent account has posted movements and will become a main account. Continue?|La cuenta padre tiene movimientos y pasará a ser principal. ¿Continuar?
+1279|for an existing record and choose "Add and update"; empty columns are not changed|de un registro existente y elija "Añadir y actualizar"; las columnas vacías no se cambian
+1280|After collection press ✓ on the bank page or change the cheque status in the voucher|Tras el cobro pulse ✓ en la página del banco o cambie el estado del cheque
+1281|Cash (121) and banks (122) — balance from the chart of accounts|Efectivo (121) y bancos (122) — saldo desde el plan de cuentas
+1284|No screens available for your account — ask the administrator to set your permissions.|No hay pantallas disponibles para su cuenta — pida al administrador que asigne sus permisos.
+1286|Choose the cashboxes / banks whose receipts and payments will be deleted|Elija las cajas / bancos cuyos cobros y pagos se eliminarán
+1287|Add a user and set the username, password and permissions on each screen|Añada un usuario y defina usuario, contraseña y permisos por pantalla
+1289|A bank transfer needs the beneficiary's name, account number and bank|Una transferencia bancaria requiere el nombre, la cuenta y el banco del beneficiario
+1290|2. Choose the file — each row is previewed before saving, with errors explained.|2. Elija el archivo — se previsualiza cada fila antes de guardar, con los errores explicados.
+1292|Posts: Dr. receiving cashbox or bank, Cr. sending one|Contabiliza: Debe caja o banco receptor, Haber el emisor
+1293|Posts: Dr. labor wages (by worker cost type), Cr. cashbox|Contabiliza: Debe salarios (según tipo de costo), Haber caja
+1294|Could not load the Excel reader — save the file as CSV and try again|No se pudo cargar el lector de Excel — guarde el archivo como CSV e inténtelo de nuevo
+1295|Database capacity is full — delete old data or export a backup|La base de datos está llena — elimine datos antiguos o exporte una copia
+1298|The backup will replace all current data for all users. Continue?|La copia reemplazará todos los datos actuales para todos los usuarios. ¿Continuar?
+1301|Enter the debit or credit amount for each account — both totals must be equal|Indique el debe o el haber de cada cuenta — ambos totales deben coincidir
+1302|1 unit = factor × base unit — e.g. ton = 1000 kg, sack = 50 kg|1 unidad = factor × unidad base — p. ej. tonelada = 1000 kg, saco = 50 kg
+1305|This account has all permissions; from it you add other users and set their permissions.|Esta cuenta tiene todos los permisos; desde ella añade otros usuarios y define sus permisos.
+1306|A pending document is not posted and does not affect balances until approved at every level|Un documento pendiente no se contabiliza ni afecta saldos hasta aprobarse en todos los niveles
+1307|Posted automatically: Dr. customer category, Cr. sales of the same category and taxes|Contabiliza automáticamente: Debe categoría del cliente, Haber ventas de la misma categoría e impuestos
+1309|3. Press "Run import". All movements post automatically as if entered manually.|3. Pulse "Ejecutar importación". Todos los movimientos se contabilizan como si se ingresaran a mano.
+1311|The first row holds column names as they are — columns marked * are required for new records|La primera fila contiene los nombres de columnas — las marcadas con * son obligatorias para registros nuevos
+1312|This user is an "administrator" and always has all permissions. Change the role first to restrict it.|Este usuario es "administrador" y siempre tiene todos los permisos. Cambie primero su rol para restringirlo.
+1313|1. Download the template, open it in Excel and fill in the data (you can paste data from your old program).|1. Descargue la plantilla, ábrala en Excel y complete los datos (puede pegar datos de su programa anterior).
+1315|Lists (customer, supplier, cashbox, account...) must match the names in the program|Las listas (cliente, proveedor, caja, cuenta...) deben coincidir con los nombres del programa
+1316|The system owner must first open the program and create the administrator account, then add you as a user.|El propietario debe abrir primero el programa y crear la cuenta de administrador, y luego añadirle como usuario.
+1318|Their salaries post to "Employee salaries" — by cost type (operating / marketing / administrative|Sus salarios se contabilizan en "Salarios de empleados" — por tipo de costo (operativo / comercial / administrativo
+1320|Integrated accounting system for accounts, treasury, sales, purchases, warehouses and personnel|Sistema contable integrado para cuentas, tesorería, ventas, compras, almacenes y personal
+1321|Advance: Dr. advance type (other receivables) · Bonus: Dr. wages · Penalty is not posted|Anticipo: Debe tipo de anticipo (otros deudores) · Bonificación: Debe salarios · La sanción no se contabiliza
+1322|Inventory (chart account) › Group › Item › Unit — Balance = opening + receipts − issues|Inventario (cuenta) › Grupo › Artículo › Unidad — Saldo = inicial + entradas − salidas
+1323|Accrual: Dr. salaries, Cr. accrued salaries · Payment: Dr. accrued, Cr. cashbox|Devengo: Debe salarios, Haber salarios devengados · Pago: Debe devengados, Haber caja
+1325|Each bank movement: type (deposit / payment / transfer), method (cash / cheque / bank transfer) and beneficiary details|Cada movimiento bancario: tipo (depósito / pago / transferencia), método (efectivo / cheque / transferencia) y datos del beneficiario
+1326|View-only mode — you cannot add or edit data. Ask the system owner for "Contributor" or "Editor" access.|Modo solo lectura — no puede añadir ni editar datos. Pida al propietario acceso de "Colaborador" o "Editor".
+1330|Choose what to clear — master data (customers, suppliers, items, accounts, users) stays as is|Elija qué vaciar — los datos maestros (clientes, proveedores, artículos, cuentas, usuarios) se conservan
+1333|Start with master data (customers, suppliers, items, cashboxes) before movements, since movements refer to them by name.|Empiece por los datos maestros (clientes, proveedores, artículos, cajas) antes de los movimientos, que los referencian por nombre.
+1334|Choose the account, then the beneficiary from its list — posts after approval: Dr. cashbox or bank, Cr. the chosen account|Elija la cuenta y luego el beneficiario de su lista — tras la aprobación: Debe caja o banco, Haber la cuenta elegida
+1335|Choose the account, then the beneficiary from its list — posts after approval: Dr. the chosen account, Cr. cashbox or bank|Elija la cuenta y luego el beneficiario de su lista — tras la aprobación: Debe la cuenta elegida, Haber caja o banco
+1337|Issue items to a cost center — several items per note · after approval posts at cost: Dr. the chosen account, Cr. inventory|Salida de artículos a un centro de costo — varios artículos por nota · tras la aprobación al costo: Debe la cuenta elegida, Haber inventario
+1339|Account type (local market / seedlings / scrap / livestock sales) › Item › Unit — shown only on invoices of its type|Tipo de cuenta (ventas mercado local / plantones / chatarra / ganadería) › Artículo › Unidad — solo en facturas de su tipo
+1340|Receive items — several items per note · after approval posts: Dr. inventory and VAT, Cr. supplier and withholding tax|Recepción de artículos — varios artículos por nota · tras la aprobación: Debe inventario e IVA, Haber proveedor y retención
+1344|Opening balance for each cashbox, bank, item in a warehouse, customer, supplier or account — posts after owner approval against account 215 Opening balances|Saldo inicial de cada caja, banco, artículo en almacén, cliente, proveedor o cuenta — se contabiliza tras la aprobación del propietario contra la cuenta 215 Saldos iniciales
+1345|To move a database from another program, enter many movements at once (receipts, payments, transfers, invoices, warehouse notes, returns), or edit existing records.|Para migrar una base de datos de otro programa, ingresar muchos movimientos a la vez (cobros, pagos, transferencias, facturas, notas de almacén, devoluciones) o editar registros existentes.
+1346|Download the table template, fill it in, then upload it. Each row is previewed before saving; rows with errors are skipped with the reason. Imported movements post automatically.|Descargue la plantilla de la tabla, complétela y súbala. Cada fila se previsualiza antes de guardar; las filas con errores se omiten con el motivo. Los movimientos importados se contabilizan automáticamente.
+1347|Goods suppliers (crops / goods / cash): inventory received, branch and document no. · Service suppliers (cars / refrigerated trucks / labor / equipment): month and counter account — posts to the supplier after approval|Proveedores de bienes (cultivos / mercancía / efectivo): inventario recibido, sucursal y n.º de documento · Proveedores de servicios (vehículos / camiones frigoríficos / mano de obra / equipos): mes y contrapartida — se contabiliza al proveedor tras la aprobación
+1348|Goods suppliers (crops / goods / cash): inventory received, branch and supplier invoice no. · Service suppliers (cars / refrigerated trucks / labor / equipment): month and counter account — posts to the supplier after approval|Proveedores de bienes (cultivos / mercancía / efectivo): inventario recibido, sucursal y n.º de factura del proveedor · Proveedores de servicios (vehículos / camiones frigoríficos / mano de obra / equipos): mes y contrapartida — se contabiliza al proveedor tras la aprobación

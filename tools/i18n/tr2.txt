@@ -1,0 +1,441 @@
+451|All pending|Todo lo pendiente
+452|Closing debit|Debe final
+453|Closing credit|Haber final
+454|Over 90|Más de 90
+455|Uncategorized|Sin categoría
+456|Approvals|Aprobaciones
+457|From start|Desde el inicio
+458|Incoming transfer|Transferencia entrante
+459|Outgoing transfer|Transferencia saliente
+460|Movement type|Tipo de movimiento
+461|View only|Solo lectura
+462|). Continue?|). ¿Continuar?
+463|Low stock|Stock bajo
+464|Delete selected|Eliminar seleccionados
+465|Clear screen|Vaciar pantalla
+466|Cleared "|Vaciado "
+467|＋ New line|＋ Nueva línea
+468|＋ New item|＋ Nuevo artículo
+469|Item card|Ficha de artículo
+470|Entries|Asientos
+471|Expand all|Expandir todo
+472|Delete account|Eliminar cuenta
+473|Users|Usuarios
+474|Username|Usuario
+475|" permanently?|" definitivamente?
+476|Choose a role|Elija un rol
+477|Select all|Seleccionar todo
+478|Clear all|Quitar todo
+479|Empty fields|Campos vacíos
+480|Updated|Actualizados
+482|File rows|Filas del archivo
+483|Withholding|Retención
+484|All periods|Todos los períodos
+485|All menus|Todos los menús
+486|Cashbox / Bank|Caja / Banco
+487|Item in warehouse|Artículo en almacén
+488|Worker daily wages|Jornales
+489|Worker bonus|Bonificación de trabajador
+490|Under collection|En cobro
+491|Cost type|Tipo de costo
+492|Credit limit|Límite de crédito
+493|Inventory account|Cuenta de inventario
+494|Storekeeper|Almacenero
+495|Balance value|Valor del saldo
+496|Base unit|Unidad base
+497|Permanent female worker|Trabajadora fija
+498|Temporary female worker|Trabajadora temporal
+499|Department name|Nombre del departamento
+500|Entry lines|Líneas del asiento
+501|Receipt vouchers|Recibos de cobro
+502|Choose account|Elija la cuenta
+503|Invoice payment|Pago de factura
+504|Transfer no.|N.º de transferencia
+505|Payment vouchers|Comprobantes de pago
+506|Choose warehouse|Elija el almacén
+507|Enter quantity|Indique la cantidad
+508|Choose customer|Elija el cliente
+509|Choose supplier|Elija el proveedor
+510|Document no.|N.º de documento
+511|Enter amount|Indique el importe
+512|Purchase invoice|Factura de compra
+513|Return no.|N.º de devolución
+514|In item unit|En unidad del artículo
+515|Deductions|Deducciones
+516|Net salary|Salario neto
+517|Leave type|Tipo de permiso
+518|Fuel (liters|Combustible (litros
+519|Debit is higher|El debe es mayor
+520|Credit is higher|El haber es mayor
+521|Movements|Movimientos
+522|Parent account|Cuenta padre
+523|Income statement|Estado de resultados
+524|Company name|Nombre de la empresa
+525|Records|Registros
+526|System administrator|Administrador del sistema
+527|Password|Contraseña
+528|Received from|Recibido de
+529|Reject document|Rechazar documento
+530|Posted document|Documento contabilizado
+531|Due today|Vence hoy
+532|Payroll sheet|Planilla de nómina
+533|Days left|Días restantes
+534|Document type|Tipo de documento
+535|System owner|Propietario del sistema
+536|Saving…|Guardando…
+537|Collect cheque|Cobrar cheque
+538|Customer balance|Saldo del cliente
+539|Enter quantity of "|Indique la cantidad de "
+540|already exists|ya existe
+541|Salary paid|Salario pagado
+542|Due to supplier|Adeudado al proveedor
+543|records from screen|registros de la pantalla
+544|Returns to|Devoluciones a
+546|Missing columns|Columnas faltantes
+547|Added|Añadidos
+548|Printed by|Impreso por
+549|approved movements|movimientos aprobados
+550|Quick period…|Período rápido…
+551|Accounting System|Sistema Contable
+552|Labor wages|Salarios de mano de obra
+553|Local market|Mercado local
+554|Opening balance|Saldo inicial
+555|Supplier accrual|Devengo de proveedor
+556|Beneficiary bank|Banco del beneficiario
+557|Cost center|Centro de costo
+558|Inventory value|Valor del inventario
+559|Area unit|Unidad de superficie
+560|National ID|DNI
+561|Employees|Empleados
+562|Movement date|Fecha del movimiento
+563|Beneficiary name|Nombre del beneficiario
+564|Invoice no.|N.º de factura
+565|Revenue account|Cuenta de ingresos
+566|Quotations|Cotizaciones
+567|Balance date|Fecha del saldo
+568|Unit cost|Costo unitario
+569|Inventory account|Cuenta de inventario
+570|Expense account|Cuenta de gastos
+571|Purchase orders|Órdenes de compra
+572|Delivery date|Fecha de entrega
+573|Status today|Estado hoy
+574|Contract status|Estado del contrato
+575|Payroll group|Grupo de nómina
+576|Under review|En revisión
+577|Hourly cost|Costo por hora
+578|In progress|En curso
+579|Labor affairs|Mano de obra
+580|Clear screen|Vaciar pantalla
+581|Invoices|Facturas
+582|Account nature|Naturaleza de la cuenta
+583|Sales rep|Vendedor
+584|Administrators|Administradores
+585|Edit user|Editar usuario
+586|Add user|Añadir usuario
+587|Withholding %|Retención %
+588|Paid to|Pagado a
+589|Add and update|Añadir y actualizar
+590|created the document|creó el documento
+591|Net loss|Pérdida neta
+592|Opening debit|Debe inicial
+593|Opening credit|Haber inicial
+594|Outgoing — to pay|Saliente — a pagar
+595|Pending value|Valor pendiente
+596|Current position|Situación actual
+597|At cost|Al costo
+598|Cheque paid|Cheque pagado
+599|Bank movements|Movimientos bancarios
+600|Entry and editing|Entrada y edición
+601|Salary accrual|Devengo de salario
+602|Dr. customers|Debe clientes
+603|after approval|tras la aprobación
+604|Journal|Diario
+606|Entry is balanced|El asiento cuadra
+607|Source: All|Origen: Todos
+608|Warehouse: All|Almacén: Todos
+609|File saved|Archivo guardado
+610|Username|Nombre de usuario
+611|Sign in|Iniciar sesión
+612|View-only for all|Solo lectura para todos
+613|Special permissions|Permisos especiales
+614|Warehouse movements|Movimientos de almacén
+615|Close others|Cerrar los demás
+616|Last month|Mes anterior
+617|Sales invoice|Factura de venta
+618|Return to stock|Devolución al inventario
+619|Purchase return|Devolución de compra
+620|Payroll accrual|Devengo de nómina
+621|Partially paid|Pagada parcialmente
+622|Current balance|Saldo actual
+623|Conversion factor|Factor de conversión
+624|Sales value|Valor de ventas
+625|Cost centers|Centros de costo
+626|Pay (payment voucher|Pagar (comprobante de pago
+627|Credit account|Cuenta acreedora
+628|Withholding tax|Retención
+629|Invoice net|Neto de la factura
+630|Hire date|Fecha de contratación
+631|Worker daily wages|Jornales de trabajadores
+632|Operating hours|Horas de operación
+633|Maintenance cost|Costo de mantenimiento
+634|Machine operation|Operación de equipos
+635|Operating cost|Costo de operación
+636|Maintenance orders|Órdenes de mantenimiento
+637|Technician|Técnico responsable
+638|Required work|Trabajo requerido
+639|Chart of accounts|Plan de cuentas
+640|Warehouse balances|Existencias por almacén
+641|Report center|Centro de informes
+642|Chart of accounts|Plan de cuentas
+643|Personnel|Personal
+644|Total movement|Movimiento total
+645|Account deleted|Cuenta eliminada
+646|Account saved|Cuenta guardada
+647|Commercial register|Registro mercantil
+648|Shared cloud|Nube compartida
+649|Full name|Nombre completo
+650|Net sales|Ventas netas
+651|Connecting…|Conectando…
+652|Pin menu|Fijar menú
+653|Item quantities|Cantidades de artículos
+654|No results|Sin resultados
+655|Items issued to|Artículos entregados a
+656|Sales invoices|Facturas de venta
+657|Dr. sales|Debe ventas
+658|Cr. customers|Haber clientes
+659|Overdue invoice|Factura vencida
+660|Clear selection|Quitar selección
+662|" already exists|" ya existe
+663|No items|Sin artículos
+664|Total debit|Total debe
+665|Total credit|Total haber
+666|No balances|Sin saldos
+667|Total value|Valor total
+668|Initial setup|Configuración inicial
+669|To update: enter|Para actualizar: escriba
+670|Party / Destination|Tercero / Destino
+671|No movements|Sin movimientos
+672|Save settings|Guardar configuración
+673|Loading…|Cargando…
+674|Cost of sales|Costo de ventas
+675|Sales returns|Devoluciones de ventas
+676|Receipt from supplier|Recepción de proveedor
+677|Purchase invoice|Factura de compra
+678|Enter the cheque number|Indique el número de cheque
+679|Joining date|Fecha de ingreso
+680|Salary / Wage|Salario / Jornal
+681|Opening balance|Saldo inicial
+682|Owed to supplier|Adeudado al proveedor
+683|Main warehouse|Almacén principal
+684|Items with stock|Artículos con existencias
+685|Sales items|Artículos de venta
+686|Quantity sold|Cantidad vendida
+687|Crop and variety|Cultivo y variedad
+688|Permanent female workers|Trabajadoras fijas
+689|Temporary female workers|Trabajadoras temporales
+690|Bangladeshi workers|Trabajadores de Bangladés
+691|Passport no.|N.º de pasaporte
+692|Total salaries|Total de salarios
+693|Journal entries|Asientos de diario
+694|Linked account|Cuenta vinculada
+695|From cashbox / bank|Desde caja / banco
+696|Tax rate %|Tasa de impuesto %
+697|Collect (receipt voucher|Cobrar (recibo de cobro
+698|Return invoice|Factura de devolución
+699|Description / Party|Descripción / Tercero
+700|Counter account|Contrapartida
+701|Amount due|Importe adeudado
+702|Basic salary|Salario básico
+703|Dashboard|Panel
+704|Database|Base de datos
+705|Company details|Datos de la empresa
+706|Supplier management|Gestión de proveedores
+707|Databases|Bases de datos
+708|Invalid file|Archivo no válido
+709|Save cancelled|Guardado cancelado
+710|Users|Usuarios
+711|Enter rejection reason|Indique el motivo del rechazo
+712|Document rejected|Documento rechazado
+713|Internal transfers|Transferencias internas
+714|Receipt date|Fecha de recepción
+715|Incoming — to collect|Entrante — a cobrar
+716|Net due|Neto adeudado
+717|Total cost|Costo total
+719|Cheque collected|Cheque cobrado
+720|Account balances|Saldos de cuentas
+721|Balance due|Saldo adeudado
+722|" is not an item of|" no es un artículo de
+723|Cr. sales|Haber ventas
+724|Expense structure|Estructura de gastos
+725|Retry|Reintentar
+726|Delete user "|Eliminar usuario "
+727|Permissions saved|Permisos guardados
+728|" already exists|" ya existe
+729|Party / Description|Tercero / Descripción
+731|Trial balance is balanced|El balance cuadra
+732|Errors (will be skipped|Errores (se omitirán
+733|Accounting entry|Asiento contable
+734|Approval history|Historial de aprobaciones
+735|⎋ Sign out|⎋ Cerrar sesión
+736|Employee salaries|Salarios de empleados
+737|Bangladeshi salaries|Salarios de Bangladés
+738|Cashbox / Bank|Caja / Banco
+739|Choose account name|Elija el nombre de cuenta
+740|Job / Work|Puesto / Trabajo
+741|Customer statement|Estado de cuenta del cliente
+742|Supplier statement|Estado de cuenta del proveedor
+743|Open warehouse page|Abrir página del almacén
+744|Base unit|Unidad base
+745|Cashboxes and banks|Cajas y bancos
+746|To cashbox / bank|A caja / banco
+747|Choose balance type|Elija el tipo de saldo
+748|Due date|Fecha de vencimiento
+749|Inventory received|Inventario recibido
+750|Charged to account|Cargado a la cuenta
+751|Parent branch|Sucursal
+752|Value at cost|Valor al costo
+753|Employee / Worker|Empleado / Trabajador
+754|Advances and penalties|Anticipos y sanciones
+755|Choose advance type|Elija el tipo de anticipo
+756|Equipment and machines|Equipos y máquinas
+757|Driver / Operator|Conductor / Operador
+758|Periodic maintenance|Mantenimiento periódico
+759|Next maintenance|Próximo mantenimiento
+760|Create maintenance order|Crear orden de mantenimiento
+761|Financial statements|Estados financieros
+763|Posted entries|Asientos contabilizados
+764|Used capacity|Capacidad usada
+765|User deleted|Usuario eliminado
+766|Parent account code|Código de cuenta padre
+767|Run import|Ejecutar importación
+768|Import result|Resultado de la importación
+769|Awaiting my approval|Pendiente de mi aprobación
+770|No documents|Sin documentos
+771|Period movement only|Solo movimiento del período
+772|Opening balance of period|Saldo inicial del período
+773|Closing balance of period|Saldo final del período
+774|Banks and cheques|Bancos y cheques
+775|Below reorder level|Bajo punto de pedido
+776|Needs reorder|Requiere reposición
+777|All bank movements|Movimientos de todos los bancos
+778|Bank / Cashbox|Banco / Caja
+779|Items received from|Artículos recibidos de
+780|Cannot convert "|No se puede convertir "
+781|for the same period (|para el mismo período (
+782|No alerts|Sin alertas
+783|Description / Account|Descripción / Cuenta
+784|Available screens|Pantallas disponibles
+785|Set password|Establecer contraseña
+786|Apply template|Aplicar plantilla
+787|" duplicated in file|" duplicado en el archivo
+788|Import mode|Modo de importación
+789|− Withholding tax|− Retención
+790|= Invoice net|= Neto de la factura
+791|Transfer to another warehouse|Transferir a otro almacén
+793|Net profit for the period|Beneficio neto del período
+794|Update key|Clave de actualización
+795|✓ Approve selected|✓ Aprobar seleccionados
+796|Method / Cheque|Método / Cheque
+797|Livestock|Ganadería
+798|Open movements page|Abrir página de movimientos
+799|Cashbox movement statement|Extracto de caja
+800|Convert to invoice|Convertir en factura
+801|Supplier document no.|N.º de documento del proveedor
+802|Period / Document|Período / Documento
+803|Purchase invoices|Facturas de compra
+804|Attendance|Asistencia
+805|Allowances and incentives|Asignaciones e incentivos
+806|Operating status|Estado operativo
+807|Data import|Importación de datos
+808|Items and warehouses|Artículos y almacenes
+809|Remove from favorites|Quitar de favoritos
+810|Total revenue|Ingresos totales
+811|Total expenses|Gastos totales
+812|Changes saved|Cambios guardados
+813|Opening balance|Saldo inicial
+814|Account added|Cuenta añadida
+815|Settings saved|Configuración guardada
+816|Machinery and maintenance|Maquinaria y mantenimiento
+817|Financial reports|Informes financieros
+818|Customer / Depositor|Cliente / Depositante
+819|Party / Beneficiary|Tercero / Beneficiario
+820|Monthly sales|Ventas mensuales
+821|Worker wages and advances|Salarios y anticipos de trabajadores
+822|Awaiting approval|Pendiente de aprobación
+823|Total deposits|Total de depósitos
+824|Total receipts|Total de cobros
+825|Total withdrawals|Total de retiros
+826|Total payments|Total de pagos
+827|Beneficiary / Party|Beneficiario / Tercero
+828|⚖ Balance last line|⚖ Cuadrar última línea
+829|Balances and movements|Saldos y movimientos
+830|Delete all movements (|Eliminar todos los movimientos (
+831|Cashbox and bank transfer|Transferencia entre cajas y bancos
+832|Beneficiary account no.|N.º de cuenta del beneficiario
+833|Choose inventory account|Elija la cuenta de inventario
+834|Agricultural crops|Cultivos agrícolas
+835|Bank account no.|N.º de cuenta bancaria
+836|No return to warehouse|Sin devolución al almacén
+837|Supplier invoice no.|N.º de factura del proveedor
+838|Purchase returns|Devoluciones de compra
+839|Each item's inventory account|Cuenta de inventario de cada artículo
+840|Choose cost center|Elija el centro de costo
+841|Customers and suppliers|Clientes y proveedores
+842|Add to favorites|Añadir a favoritos
+843|Added successfully|Añadido correctamente
+844|Enter beneficiary name|Indique el beneficiario
+845|Hide password|Ocultar contraseña
+846|Show password|Mostrar contraseña
+847|Change password|Cambiar contraseña
+848|Confirm password|Confirmar contraseña
+849|No file selected|Ningún archivo seleccionado
+850|Reading file…|Leyendo archivo…
+851|Total at cost|Total al costo
+852|Clear selected cashboxes|Vaciar cajas seleccionadas
+853|Customer balance will be|El saldo del cliente será
+854|Supplier invoice no.|Factura del proveedor n.º
+855|Credit limit exceeded|Límite de crédito superado
+856|To confirm, type|Para confirmar, escriba
+857|Forgot password?|¿Olvidó su contraseña?
+858|Download Excel template|Descargar plantilla Excel
+859|Item card (movements|Ficha de artículo (movimientos
+860|Item opening balance|Saldo inicial del artículo
+861|Base unit itself|Unidad base propia
+862|All sales invoices|Todas las facturas de venta
+863|No warehouse issue|Sin salida de almacén
+864|Opening balances|Saldos iniciales
+865|Supplier accruals|Devengos de proveedores
+866|Choose supplier account|Elija la cuenta de proveedores
+867|Current supplier balance|Saldo actual del proveedor
+868|Enter invoice value|Indique el valor de la factura
+869|Choose debit account|Elija la cuenta deudora
+870|Warehouse transfers|Transferencias de almacén
+871|Administration and settings|Administración y configuración
+872|Overdue periodic maintenance|Mantenimiento periódico vencido
+873|Database type|Tipo de base de datos
+874|edited and resubmitted|editó y reenvió
+875|Rejected documents|Documentos rechazados
+876|Approved documents|Documentos aprobados
+877|Income statement for the period|Estado de resultados del período
+878|Accounting reports|Informes contables
+879|Customer aging|Antigüedad de clientes
+880|Items below reorder level|Artículos bajo punto de pedido
+881|Local database|Base de datos local
+882|Credit sales invoice|Factura de venta a crédito
+883|Available balance of "|Saldo disponible de "
+884|" to the item unit "|" a la unidad del artículo "
+885|) is not enough. Continue?|) no alcanza. ¿Continuar?
+886|generated from documents|generados de documentos
+887|Debit / Credit movement|Movimiento debe / haber
+888|Add users first|Añada usuarios primero
+889|Save approval workflow|Guardar flujo de aprobación
+890|Beneficiary account and bank|Cuenta y banco del beneficiario
+891|Integrated accounting system|Sistema contable integrado
+892|Operating equipment rental|Alquiler de equipos operativos
+893|Cheque due date|Vencimiento del cheque
+894|General journal|Libro diario general
+895|All return invoices|Todas las facturas de devolución
+896|Quantity (in item unit|Cantidad (en unidad del artículo
+897|Choose counter account|Elija la contrapartida
+898|Screen is already empty|La pantalla ya está vacía
+899|Locked to this screen|Bloqueado en esta pantalla

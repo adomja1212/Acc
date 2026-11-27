@@ -1,0 +1,260 @@
+900|Entry is already balanced|El asiento ya cuadra
+901|Balance sheet|Balance general
+902|Tax registration no.|N.º de registro fiscal
+903|Fiscal year start|Inicio del ejercicio
+904|New password|Nueva contraseña
+905|Current password|Contraseña actual
+906|have all permissions|tienen todos los permisos
+907|Suppliers and purchases|Proveedores y compras
+908|Journal for the period|Diario del período
+909|Supplier aging|Antigüedad de proveedores
+910|Cheques under collection|Cheques en cobro
+911|Sales by customer|Ventas por cliente
+912|Item movement for the period|Movimiento de artículos del período
+913|Admin — all permissions|Administrador — todos los permisos
+914|Connected — live sync|Conectado — sincronización en vivo
+915|Unpin menu|Desfijar menú
+916|To confirm type: تفريغ|Para confirmar escriba: تفريغ
+917|An accrual exists for supplier|Existe un devengo para el proveedor
+918|No matching entries|Sin asientos coincidentes
+919|Download backup|Descargar copia de seguridad
+920|Password recovery|Recuperar contraseña
+921|" must be a number|" debe ser un número
+922|Invalid date in "|Fecha no válida en "
+923|By due date|Por fecha de vencimiento
+924|Operating car rental|Alquiler de vehículos operativos
+925|Beneficiary / Party name|Nombre del beneficiario / tercero
+926|Return invoice no.|N.º de factura de devolución
+927|Enter quantity and cost|Indique cantidad y costo
+928|Counter expense account|Cuenta de gasto contrapartida
+929|Choose inventory received|Elija el inventario recibido
+930|Enter period from — to|Indique el período desde — hasta
+931|Move stock between warehouses|Mover existencias entre almacenes
+932|Approval workflow setup|Configurar flujo de aprobación
+933|Password changed|Contraseña cambiada
+934|Username (for login|Usuario (para acceder
+935|Daily treasury movement|Movimiento diario de tesorería
+936|Cheque bank / Beneficiary|Banco del cheque / Beneficiario
+937|Purchases by supplier|Compras por proveedor
+938|Machine operation and cost|Operación y costo de equipos
+939|Choose the account on line|Elija la cuenta en la línea
+940|Latest posted entries|Últimos asientos contabilizados
+941|Alerts to follow up|Alertas por atender
+942|items · total quantity|artículos · cantidad total
+943|Clear manual entries|Vaciar asientos manuales
+944|System not set up yet|El sistema aún no está configurado
+945|Create account and sign in|Crear cuenta e iniciar sesión
+946|Remember me for 30 days|Recordarme 30 días
+948|No matching records|Sin registros coincidentes
+949|Liabilities and equity|Pasivo y patrimonio
+950|🔑 Change password|🔑 Cambiar contraseña
+951|Permanent female workers' salaries|Salarios de trabajadoras fijas
+952|Temporary female workers' salaries|Salarios de trabajadoras temporales
+953|Deposit / Payment method|Método de depósito / pago
+954|Collection / Payment date|Fecha de cobro / pago
+955|Opening balance — Debit|Saldo inicial — Debe
+956|Opening balance — Credit|Saldo inicial — Haber
+957|Equals in other units|Equivale en otras unidades
+958|Linked stock item|Artículo de inventario vinculado
+959|Total incl. tax|Total con impuestos
+960|Choose cashbox or bank|Elija caja o banco
+961|Amount cannot be negative|El importe no puede ser negativo
+962|Chassis / Serial no.|N.º de chasis / serie
+963|Users and permissions|Usuarios y permisos
+964|Branches and cost centers|Sucursales y centros de costo
+965|Total note at cost|Total de la nota al costo
+966|Main account (first level|Cuenta principal (primer nivel
+967|Automatic by account type|Automático según tipo de cuenta
+968|Balance cannot be negative|El saldo no puede ser negativo
+969|Export and print data|Exportar e imprimir datos
+970|Reset password|Restablecer contraseña
+971|Signed out successfully|Sesión cerrada correctamente
+972|Treasury and bank movements|Movimientos de tesorería y bancos
+973|All pending documents|Todos los documentos pendientes
+974|Approval workflow saved|Flujo de aprobación guardado
+975|Previous / unallocated balances|Saldos anteriores / sin asignar
+976|Attendance summary|Resumen de asistencia
+977|Cashbox movements and balance|Movimientos y saldo de caja
+978|Invoice cost of sales|Costo de ventas de la factura
+979|Return items to stock|Devolver artículos al inventario
+980|and exceeds the credit limit (|y supera el límite de crédito (
+981|already recorded. Continue?|ya registrada. ¿Continuar?
+982|document awaiting your approval|documento pendiente de su aprobación
+983|Cashbox and bank balances|Saldos de cajas y bancos
+984|By main group|Por grupo principal
+986|Restore backup|Restaurar copia de seguridad
+987|Apply role permissions "|Aplicar permisos del rol "
+988|Add new records only|Solo añadir registros nuevos
+990|No matching accounts|Sin cuentas coincidentes
+991|Units and conversion factors|Unidades y factores de conversión
+992|Receiving notes (Goods receipt|Notas de entrada (Recepción
+993|Combined financial statements|Estados financieros combinados
+994|Stock of each item in each warehouse|Existencias de cada artículo en cada almacén
+995|Will not be posted before approval|No se contabilizará antes de la aprobación
+996|User data saved|Datos del usuario guardados
+997|Import from Excel / CSV|Importar desde Excel / CSV
+998|Expenses by group|Gastos por grupo
+999|Clear movements and balances|Vaciar movimientos y saldos
+1000|Choose the customer from customers of "|Elija el cliente entre los clientes de "
+1001|Choose the supplier from suppliers of "|Elija el proveedor entre los proveedores de "
+1002|Will not be posted before approval|No se contabilizará antes de la aprobación
+1003|+ Value added tax|+ Impuesto al valor agregado
+1004|− Withholding tax|− Retención en la fuente
+1005|Item balances by warehouse|Existencias por almacén
+1006|Create administrator account|Crear cuenta de administrador
+1007|" is not in the list "|" no está en la lista "
+1008|Choose file (xlsx / csv|Elegir archivo (xlsx / csv
+1009|Showing the first 200 rows only|Se muestran solo las primeras 200 filas
+1010|Issued to (cost center|Destino (centro de costo
+1011|Opening balance — Debit|Saldo inicial — Debe
+1012|Opening balance — Credit|Saldo inicial — Haber
+1013|Trial balance (balances)|Balance de comprobación (saldos)
+1014|You do not have edit permission|No tiene permiso de edición
+1015|Documents awaiting my approval|Documentos pendientes de mi aprobación
+1016|Total basic salaries|Total de salarios básicos
+1017|Cheques not yet collected / paid|Cheques no cobrados / pagados
+1018|Customer and supplier balances|Saldos de clientes y proveedores
+1019|Delete this record (|¿Eliminar este registro (
+1020|Saved and posted — entry|Guardado y contabilizado — asiento
+1021|⚙️ Approval workflow setup|⚙️ Configurar flujo de aprobación
+1022|document awaiting approval.|documento pendiente de aprobación.
+1023|Total after net profit|Total después del beneficio neto
+1024|Enter the cheque due date|Indique el vencimiento del cheque
+1025|None (not issued from stock|Ninguno (sin salida de almacén
+1026|Warehouse (issue from stock|Almacén (salida del inventario
+1027|Convert to purchase invoice|Convertir en factura de compra
+1028|Cash in cashboxes and banks|Efectivo en cajas y bancos
+1029|Account code already used|Código de cuenta ya utilizado
+1030|Due periodic maintenance|Mantenimiento periódico pendiente
+1032|To confirm type: تفريغ|Para confirmar escriba: تفريغ
+1033|Entry is not balanced: debit|Asiento descuadrado: debe
+1034|No results in the menu|Sin resultados en el menú
+1035|Load demo data|Cargar datos de demostración
+1036|👥 Users and permissions|👥 Usuarios y permisos
+1037|End date before start date|Fecha final anterior a la inicial
+1038|Overview of company performance|Resumen del rendimiento de la empresa
+1039|Type the word "تفريغ" to confirm|Escriba la palabra "تفريغ" para confirmar
+1040|This record was deleted by another user|Otro usuario eliminó este registro
+1041|Account linked to a cashbox / bank|Cuenta vinculada a caja / banco
+1042|Saved in this browser only|Guardado solo en este navegador
+1043|each can be permissioned|cada una con permisos propios
+1044|You cannot delete your own account|No puede eliminar su propia cuenta
+1045|An account cannot be its own parent|Una cuenta no puede ser su propia madre
+1046|Receipt · Issue · Sale · Transfer|Entrada · Salida · Venta · Transferencia
+1047|Their salaries post to group "|Sus salarios se contabilizan en el grupo "
+1048|No result matching "|Sin resultados para "
+1049|Total / Closing balance|Total / Saldo final
+1050|Administrator account created|Cuenta de administrador creada
+1051|No screens in favorites.|No hay pantallas en favoritos.
+1052|Operating refrigerated truck rental|Alquiler de camiones frigoríficos operativos
+1053|Add items or enter the amount|Añada artículos o indique el importe
+1054|Add at least one item|Añada al menos un artículo
+1055|Daily employee attendance log|Registro diario de asistencia
+1056|Choose the period, then print or export|Elija el período y luego imprima o exporte
+1057|This account was deleted by another user|Otro usuario eliminó esta cuenta
+1058|Backup and restore|Copia de seguridad y restauración
+1059|Passwords do not match|Las contraseñas no coinciden
+1060|Username already used|Nombre de usuario ya utilizado
+1061|Staff, labor and machinery|Personal, mano de obra y maquinaria
+1062|Sales by customer category|Ventas por categoría de cliente
+1063|Choose at least one cashbox|Elija al menos una caja
+1065|Choose account name (supplier category|Elija la cuenta (categoría de proveedor
+1066|Cannot transfer to the same warehouse|No se puede transferir al mismo almacén
+1067|from Excel or CSV into any table|desde Excel o CSV a cualquier tabla
+1068|Items total (before tax|Total de artículos (antes de impuestos
+1069|Demo data loaded|Datos de demostración cargados
+1070|Manage users and permissions|Gestionar usuarios y permisos
+1071|Cannot delete the last administrator|No se puede eliminar el último administrador
+1072|You cannot suspend your own account|No puede suspender su propia cuenta
+1073|This table accepts additions only|Esta tabla solo admite altas
+1074|Monthly revenue and expenses|Ingresos y gastos mensuales
+1076|" is registered in another staff database|" está registrado en otra base de personal
+1077|Too many failed attempts — wait|Demasiados intentos fallidos — espere
+1078|All rows imported successfully.|Todas las filas se importaron correctamente.
+1079|Quantity in the item's base unit|Cantidad en la unidad base del artículo
+1080|No items in this warehouse|Sin artículos en este almacén
+1082|Warehouse data and stock values|Datos de almacenes y valor de existencias
+1083|This account is linked to another cashbox|Esta cuenta está vinculada a otra caja
+1084|Cannot transfer to the same cashbox|No se puede transferir a la misma caja
+1085|Approve documents before posting|Aprobar documentos antes de contabilizar
+1086|Purchases by supplier category|Compras por categoría de proveedor
+1087|Pending documents by type|Documentos pendientes por tipo
+1088|Choose at least one item|Elija al menos un elemento
+1089|Enter the debit or credit amount|Indique el importe deudor o acreedor
+1090|) is not enough. Do you want to continue?|) no alcanza. ¿Desea continuar?
+1091|and Cr. taxes — after approval|y Haber impuestos — tras la aprobación
+1092|Final approval and posting done|Aprobación final y contabilización realizadas
+1093|No data in this period|Sin datos en este período
+1094|Opening balance cannot be negative|El saldo inicial no puede ser negativo
+1095|Transfers between cashboxes and banks|Transferencias entre cajas y bancos
+1096|This file type cannot be saved here|Este tipo de archivo no se puede guardar aquí
+1097|Connected to the cloud database|Conectado a la base de datos en la nube
+1098|Current password is incorrect|La contraseña actual es incorrecta
+1100|Choose at least one document|Elija al menos un documento
+1101|Cash movement (cashboxes and banks|Movimiento de efectivo (cajas y bancos
+1102|Employees and salaries by department|Empleados y salarios por departamento
+1103|Connection to the database lost|Se perdió la conexión con la base de datos
+1104|You can edit their permissions in detail|Puede editar sus permisos en detalle
+1105|Unknown columns will be ignored|Las columnas desconocidas se ignorarán
+1106|Connecting to the database…|Conectando con la base de datos…
+1107|Add and update existing records|Añadir y actualizar registros existentes
+1108|Warehouse (return items to stock|Almacén (devolver artículos al inventario
+1109|From linked accounts in the chart|De las cuentas vinculadas del plan
+1110|and not yet collected or paid — net|y aún no cobrados ni pagados — neto
+1111|Press ☆ next to any screen to add it.|Pulse ☆ junto a cualquier pantalla para añadirla.
+1112|No reports available for your permissions|No hay informes disponibles para sus permisos
+1113|Enter the conversion factor (greater than zero|Indique el factor de conversión (mayor que cero
+1114|Name (customer / supplier / employee|Nombre (cliente / proveedor / empleado
+1115|End date before start date|Fecha final anterior a la inicial
+1116|Tables, capacity and backup|Tablas, capacidad y copia de seguridad
+1118|You do not have permission to edit settings|No tiene permiso para editar la configuración
+1119|Demo data file not available|Archivo de datos de demostración no disponible
+1120|Import data from Excel / CSV|Importar datos desde Excel / CSV
+1122|Payments by beneficiary / account|Pagos por beneficiario / cuenta
+1123|Approved — document moved to|Aprobado — el documento pasó a
+1124|Login accounts and each user's permissions|Cuentas de acceso y permisos de cada usuario
+1125|Cannot delete an account with sub-accounts|No se puede eliminar una cuenta con subcuentas
+1126|Rejection reason (shown to the document creator|Motivo del rechazo (visible para quien creó el documento
+1127|" does not convert to the stock item unit "|" no se convierte a la unidad del artículo de inventario "
+1128|already recorded for the same supplier. Continue?|ya registrado para el mismo proveedor. ¿Continuar?
+1130|Import data from Excel or CSV|Importar datos desde Excel o CSV
+1132|Based on approved documents only|Basado solo en documentos aprobados
+1133|This change is available to the administrator only|Este cambio solo está disponible para el administrador
+1134|From current balances — printable|De los saldos actuales — imprimible
+1135|Password must be at least 6 characters|La contraseña debe tener al menos 6 caracteres
+1136|Local database in this browser|Base de datos local en este navegador
+1138|Enable it from "Approval workflow setup".|Actívelo desde "Configurar flujo de aprobación".
+1140|Trial balance (totals and balances)|Balance de comprobación (sumas y saldos)
+1141|Grouped by account name (supplier category|Agrupado por cuenta (categoría de proveedor
+1142|Inventory value by warehouse and group|Valor del inventario por almacén y grupo
+1143|Cloud database with live sync|Base de datos en la nube con sincronización en vivo
+1144|New password set for the user|Nueva contraseña establecida para el usuario
+1145|Choose the item from the items database|Elija el artículo de la base de artículos
+1146|Cannot delete an account with posted movements|No se puede eliminar una cuenta con movimientos contabilizados
+1147|Dates: 2026-11-23 or 23/11/2026|Fechas: 2026-11-23 o 23/11/2026
+1148|No documents awaiting your approval 👍|No hay documentos pendientes de su aprobación 👍
+1149|Due cheques (incoming and outgoing|Cheques por vencer (entrantes y salientes
+1150|Incoming cheques not collected as of|Cheques entrantes no cobrados al
+1151|This account is suspended — contact the administrator|Esta cuenta está suspendida — contacte al administrador
+1152|One row per item — same number = one document|Una fila por artículo — mismo número = un documento
+1153|Customer and supplier balances by category|Saldos de clientes y proveedores por categoría
+1154|" is not in the items database|" no está en la base de artículos
+1155|" is a main account — choose a sub-account (line|" es una cuenta principal — elija una subcuenta (línea
+1156|An opening balance already exists for the same party (|Ya existe un saldo inicial para el mismo tercero (
+1157|Fine-grained permissions for each user on each screen|Permisos detallados por usuario y pantalla
+1158|Enter the amount in the debit or credit box|Indique el importe en la casilla del debe o del haber
+1160|An account cannot be placed under one of its sub-accounts|Una cuenta no puede depender de una de sus subcuentas
+1161|Cannot remove the last administrator's permission|No se puede quitar el permiso del último administrador
+1163|Branches and their cost centers|Sucursales y sus centros de costo
+1164|Cost = hours × machine hourly cost|Costo = horas × costo por hora del equipo
+1165|Status is calculated from the next maintenance date|El estado se calcula a partir de la próxima fecha de mantenimiento
+1166|Detailed account movement and running balance|Movimiento detallado de la cuenta y saldo acumulado
+1168|Incorrect username or password|Usuario o contraseña incorrectos
+1169|Supplier accruals by account and period|Devengos de proveedores por cuenta y período
+1170|Slow connection — data may be outdated|Conexión lenta — los datos pueden estar desactualizados
+1171|Full chart of accounts and automatic journal entries|Plan de cuentas completo y asientos automáticos
+1172|Branch › Sector › Cost center and area|Sucursal › Sector › Centro de costo y superficie
+1173|The entry needs a debit line and a credit line|El asiento necesita una línea deudora y una acreedora
+1177|The entry needs at least two lines (debit and credit|El asiento necesita al menos dos líneas (debe y haber
+1178|Quotations sent to customers (not posted|Cotizaciones enviadas a clientes (no se contabilizan
+1179|Posted: Dr. suppliers, Cr. inventory|Contabiliza: Debe proveedores, Haber inventario

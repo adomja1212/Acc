@@ -1,0 +1,439 @@
+8|m²|m²
+9|from|de
+10|for|para
+11|for|por
+12|is|es
+14|row|fila
+15|EGP|EGP
+16|Advances|Anticipos
+17|Cheque|Cheque
+18|Active|Activo
+19|Bank|Banco
+20|Month|Mes
+21|Item|Artículo
+22|Branch|Sucursal
+23|to|a
+24|Save|Guardar
+25|View|Ver
+26|Delete|Eliminar
+27|You|Usted
+28|Reject|Rechazar
+29|Receipt|Cobro
+30|Payment|Pago
+31|day|día
+32|only|solo
+33|belongs to|pertenece a
+34|record|registro
+35|line|línea
+36|Entry|Asiento
+37|Open|Abrir
+38|Difference|Diferencia
+39|after|después
+40|until|hasta
+41|Error|Error
+42|Debit|Debe
+43|Credit|Haber
+44|Assets|Activos
+45|Liabilities|Pasivos
+46|Customer|Cliente
+47|Supplier|Proveedor
+48|Bounced|Devuelto
+49|Penalty|Sanción
+50|Advance|Anticipo
+51|Present|Presente
+52|Running|En marcha
+53|Absent|Ausente
+54|Cash|Efectivo
+55|Other|Otro
+56|Without|Sin
+57|Piece|Pieza
+58|Warehouse|Almacén
+59|Unit|Unidad
+60|Feddan|Feddan
+61|Summer|Verano
+62|Winter|Invierno
+63|Nili|Nili
+64|Worker|Trabajador
+65|Custody|Custodia
+66|Sent|Enviado
+67|New|Nuevo
+68|Employee|Empleado
+69|Salary|Salario
+70|Movement|Movimiento
+71|Machine|Máquina
+72|In|Entrada
+73|Sub|Subcuenta
+74|Custom|Personalizado
+75|Account|Cuenta
+76|Out|Salida
+78|Balance|Saldo
+79|Limit|Límite
+80|Selected|Seleccionado
+81|Copy|Copia
+82|All|Todos
+83|of which|de los cuales
+84|Row|Fila
+85|Collected|Cobrado
+86|Document|Documento
+87|Paid|Pagado
+88|Due|Pendiente
+89|Completed|Completado
+90|Pending|Pendiente
+91|Due soon|Próxima
+92|Accepted|Aceptado
+93|Received|Recibido
+94|Approved|Aprobado
+95|Rejected|Rechazado
+96|Suspended|Suspendido
+97|Emergency|Emergencia
+98|Open|Abierto
+99|Code|Código
+100|Item|Artículo
+101|Type|Tipo
+102|Raw materials|Materias primas
+103|Sites|Obras
+104|Branch|Sucursal
+105|Qirat|Qirat
+106|Hectare|Hectárea
+107|Crop|Cultivo
+108|Perennial|Perenne
+109|Name|Nombre
+110|Department|Departamento
+111|Cashbox|Caja
+112|Transfer|Transferencia
+113|Reason|Motivo
+114|Month|Mes
+115|Return|Devolución
+116|VAT|IVA
+117|Leave|Permiso
+118|Overdue|Atrasado
+119|Casual|Ocasional
+120|Sick|Enfermedad
+121|Advances|Anticipos
+122|Daily wage|Jornal
+123|Week|Semana
+124|Operation|Operación
+125|Customers|Clientes
+126|Clear|Vaciar
+127|Edit|Editar
+128|Add|Añadir
+129|Issued|Salida
+130|Main|Principal
+131|Profit|Beneficio
+132|Local|Local
+133|Accountant|Contador
+134|Viewer|Lector
+135|Role|Rol
+136|Price|Precio
+137|Number|Número
+138|Party|Tercero
+139|approved|aprobó
+140|Today|Hoy
+141|Bank|Banco
+142|Shortage|Faltante
+143|Deposit|Depósito
+144|Pending|Pendiente
+145|Maintenance|Mantenimiento
+146|Line|Línea
+147|Difference|Diferencia
+148|Export|Exportar
+149|Print|Imprimir
+150|second|segunda
+151|Template|Plantilla
+152|Refresh|Actualizar
+153|Skipped|Omitido
+154|Created by|Creado por
+155|Balances|Saldos
+156|Cheque|Cheque
+157|Close|Cerrar
+158|Administrative|Administrativo
+159|Scrap|Chatarra
+160|Sales|Ventas
+161|Invoice|Factura
+162|Paid|Pagada
+163|Overdue|Vencida
+164|Regular|Regular
+165|Approved|Aprobada
+166|Bonus|Bonificación
+167|Stopped|Detenida
+168|Phone|Teléfono
+169|Status|Estado
+170|Unit|Unidad
+171|Location|Ubicación
+172|Branches|Sucursales
+173|Sector|Sector
+174|Season|Temporada
+175|Manager|Gerente
+176|Description|Descripción
+177|Amount|Importe
+178|Balance|Saldo
+179|Customer|Cliente
+180|Net|Neto
+181|Value|Valor
+182|Warehouse|Almacén
+183|Account|Cuenta
+184|Supplier|Proveedor
+185|Quantity|Cantidad
+186|Attendance|Asistencia
+187|Days|Días
+188|Workers|Trabajadores
+189|Trade|Oficio
+190|Worker|Trabajador
+191|Machine|Máquina
+192|Preventive|Preventivo
+193|Banks|Bancos
+194|Available|Disponible
+195|Paid|Pagado
+196|Dr.|Debe
+197|Source|Origen
+198|User|Usuario
+199|Data|Datos
+200|Status|Situación
+201|Employee|Empleado
+202|Wages|Salarios
+203|Received from|Cobrado de
+204|Receiving|Recepción
+205|Unit "|Unidad "
+206|Deleted|Eliminado
+207|Sale from|Venta desde
+208|Issue from|Salida desde
+209|manual and|manuales y
+210|Balanced|Cuadrado
+211|nature|naturaleza
+212|Table|Tabla
+213|Path|Ruta
+214|by|por
+215|Welcome|Bienvenido
+216|Screen|Pantalla
+217|Total|Total
+219|Inflow|Entradas
+220|Voucher from|Comprobante de
+221|will be cancelled|se anulará
+222|Approval|Aprobación
+223|Assets|Activos
+224|Sheet|Hoja
+225|Note|Nota
+226|Operating|Operativo
+227|Marketing|Comercial
+228|Seedlings|Plantones
+229|Expenses|Gastos
+230|Revenue|Ingresos
+231|Receipt voucher|Recibo de cobro
+232|Payment voucher|Comprobante de pago
+233|Cheque paid|Cheque pagado
+234|Issue note|Nota de salida
+235|Customers|Clientes
+236|Category|Categoría
+237|City|Ciudad
+238|Items|Artículos
+239|Cost|Costo
+240|Warehouses|Almacenes
+241|Transfer|Transferencia
+242|Address|Dirección
+243|Responsible|Responsable
+244|Area|Superficie
+245|Notes|Notas
+246|Crop|Cultivo
+247|Date|Fecha
+248|Remaining|Pendiente
+249|Quotation|Cotización
+250|Inventory|Inventario
+251|From warehouse|Del almacén
+252|Department|Departamento
+253|Job|Puesto
+254|Payroll|Nóminas
+255|Basic|Básico
+256|Daily wage|Jornal
+257|Due|Adeudado
+258|Periodic|Periódico
+259|Treasury|Tesorería
+260|Machinery|Maquinaria
+261|Maintenance|Mantenimiento
+262|Distribution|Distribución
+263|Cr.|Haber
+264|Nature|Naturaleza
+265|Loss|Pérdida
+266|confirm it|confírmelo
+267|Screens|Pantallas
+268|VAT %|IVA %
+269|Instructions|Instrucciones
+270|Rejected|Rechazados
+271|Approved|Aprobados
+272|from quantity|desde cantidad
+273|from amount|desde importe
+274|Prepared by|Preparado por
+275|Reviewed by|Revisado por
+276|Received by|Recibido por
+277|Receipts|Cobros
+278|Payments|Pagos
+279|Tax|Impuesto
+280|Collected|Cobrado
+281|Allowances|Asignaciones
+282|Movements|Movimientos
+283|Method|Método
+284|Opening|Inicial
+285|to stock|al inventario
+286|Accrual|Devengo
+287|Paid to|Pago a
+288|Item "|Artículo "
+289|and credit|y haber
+290|Import|Importar
+291|": deleted|": eliminado
+292|Choose from|Elija entre
+293|or type|o escriba
+294|Document|Documento
+295|Balance check|Cuadre
+296|Collapse all|Contraer todo
+297|Tables|Tablas
+298|Version|Versión
+299|Permissions|Permisos
+300|Columns|Columnas
+301|Awaiting|En espera
+302|Level|Nivel
+303|+ VAT|+ IVA
+304|Action|Acción
+305|Arabic|Árabe
+306|Manual entry|Asiento manual
+307|Not cashed|No pagado
+308|Suppliers|Proveedores
+309|Group|Grupo
+310|Reorder level|Punto de pedido
+311|Spare parts|Repuestos
+312|Staff|Personal
+313|Departments|Departamentos
+314|Valid until|Válido hasta
+315|Invoice|Factura
+316|From — To|Desde — Hasta
+317|From date|Desde fecha
+318|Purchase order|Orden de compra
+319|To warehouse|Al almacén
+320|Employees|Empleados
+321|Attendance record|Registro de asistencia
+322|Check-out|Salida
+323|Paid from|Pagado desde
+324|Leaves|Permisos
+325|Annual|Anual
+326|Unpaid|Sin sueldo
+327|Paid from|Pagado desde
+328|Account statement|Estado de cuenta
+329|Sales|Ventas
+330|Reports|Informes
+331|Accounts|Contabilidad
+332|Approval|Aprobación
+333|Deleted|Eliminado
+334|Credit (owed to)|Haber (a su favor)
+335|Local mode|Modo local
+336|User|Usuario
+337|Beneficiary|Beneficiario
+338|Rate %|Tasa %
+339|1-30 days|1-30 días
+340|Deposited in|Depositado en
+341|Total|Total
+342|Bonuses|Bonificaciones
+343|Penalties|Sanciones
+344|Transfer from|Transferencia de
+345|Salary payment|Pago de salario
+346|Account "|Cuenta "
+347|Details|Detalles
+348|records from "|registros de "
+349|Will delete|Se eliminarán
+350|permanently.|definitivamente.
+351|Saved|Guardado
+352|Last login|Último acceso
+353|Cleared|Vaciado
+354|Bounced cheque|Cheque devuelto
+355|Cheque collection|Cobro de cheque
+356|Receiving note|Nota de entrada
+357|Salary payments|Pago de nóminas
+358|Worker advance|Anticipo de trabajador
+359|Maintenance order|Orden de mantenimiento
+360|Cheque no.|N.º de cheque
+361|Item code|Código de artículo
+362|Sale price|Precio de venta
+363|Finished goods|Producto terminado
+364|Items with stock|Artículos con existencias
+365|Item name|Nombre del artículo
+366|Branch name|Nombre de la sucursal
+367|Entry no.|N.º de asiento
+368|Due date|Vencimiento
+369|Quote no.|N.º de cotización
+370|To date|Hasta fecha
+371|Order no.|N.º de orden
+372|By item|Según artículo
+373|No supplier|Sin proveedor
+374|Maintenance item|Tarea de mantenimiento
+375|Last service|Último servicio
+376|Approvals|Aprobaciones
+377|Settings|Configuración
+378|Purchases|Compras
+379|Debit (owed by)|Debe (a cargo)
+380|Opening|Inicial
+381|Storekeeper|Almacenero
+382|Voucher no.|N.º de comprobante
+383|Note no.|N.º de nota
+384|Add only|Solo añadir
+385|Revenue|Ingresos
+386|Expenses|Gastos
+387|Debit movement|Movimiento deudor
+388|Credit movement|Movimiento acreedor
+389|Not due|No vencido
+390|31-60 days|31-60 días
+391|61-90 days|61-90 días
+392|Receipts|Cobros
+393|Payments|Pagos
+394|Cheque bank|Banco del cheque
+395|Returns|Devoluciones
+396|To date|Hasta hoy
+397|As of|Hasta la fecha
+398|Payment / Withdrawal|Pago / Retiro
+399|Pay cheque|Pagar cheque
+400|Last edited|Última edición
+401|Add to|Añadir a
+402|Sub-account|Subcuenta
+403|New account|Nueva cuenta
+404|Added|Añadido
+405|not found|no encontrado
+406|Skipped|Omitidos
+407|Approved|Aprobado
+408|Due in|Vence en
+409|Error reason|Motivo del error
+410|This month|Este mes
+411|This quarter|Este trimestre
+412|This year|Este año
+413|Favorites (|Favoritos (
+414|Add record|Añadir registro
+415|Equity|Patrimonio
+416|In maintenance|En mantenimiento
+417|Bank transfer|Transferencia bancaria
+418|Cheque status|Estado del cheque
+419|Customer name|Nombre del cliente
+420|Supplier name|Nombre del proveedor
+421|Warehouse name|Nombre del almacén
+422|Sales item|Artículo de venta
+423|Account type|Tipo de cuenta
+424|Cost center|Centro de costo
+425|Movement no.|N.º de movimiento
+426|Account name|Nombre de cuenta
+427|Cancelled|Cancelado
+428|Sales invoice|Factura de venta
+429|Balance type|Tipo de saldo
+430|Period type|Tipo de período
+431|Choose the month|Elija el mes
+432|Issue notes|Notas de salida
+433|Item unit|Unidad del artículo
+434|Employee name|Nombre del empleado
+435|Pay salary|Pagar salario
+436|Worker name|Nombre del trabajador
+437|Working days|Días trabajados
+438|Advance type|Tipo de anticipo
+439|Advances only|Solo anticipos
+440|Machine name|Nombre de la máquina
+441|Work site|Lugar de trabajo
+442|Net profit|Beneficio neto
+443|Type to search|Escriba para buscar
+444|Owed to him|A su favor
+445|Line description|Descripción de línea
+446|Account code|Código de cuenta
+447|Edit account|Editar cuenta
+448|Add account|Añadir cuenta
+449|Currency symbol|Símbolo de moneda
