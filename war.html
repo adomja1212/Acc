@@ -134,10 +134,10 @@ html.roomOn #voice{top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px))}
 #touch{position:fixed;inset:0;z-index:12;display:none}
 body.touch.playing #touch{display:block}
 body.touch #help{display:none}
-#joy{position:absolute;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.3);pointer-events:none}
-#joy i{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.45);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+#joy{position:absolute;width:176px;height:176px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.3);pointer-events:none}
+#joy i{position:absolute;left:50px;top:50px;width:76px;height:76px;border-radius:50%;background:rgba(255,255,255,.45);box-shadow:0 2px 8px rgba(0,0,0,.35)}
 #joy{background:radial-gradient(circle,rgba(0,0,0,.12),rgba(0,0,0,.28))!important;border-color:rgba(255,255,255,.45)!important}
-#joy b{position:absolute;font-size:12px;line-height:1;color:rgba(255,255,255,.7);pointer-events:none}
+#joy b{position:absolute;font-size:18px;line-height:1;color:rgba(255,255,255,.7);pointer-events:none}
 #joy .ju{top:5px;left:50%;transform:translateX(-50%)}#joy .jd{bottom:5px;left:50%;transform:translateX(-50%)}#joy .jl{left:6px;top:50%;transform:translateY(-50%)}#joy .jr{right:6px;top:50%;transform:translateY(-50%)}
 .tb{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(34,9,15,.55);font-family:Lalezar,Cairo;color:#fff;touch-action:none;display:grid;place-items:center;font-size:17px;line-height:1.05;text-align:center}
 .tb.on{background:rgba(255,183,3,.8);color:#2a0f00}
@@ -154,8 +154,8 @@ body.touch #weap .slots{display:none}
 body.touch #ammo{font-size:30px}
 body.touch #hpBox{bottom:auto;top:calc(168px + env(safe-area-inset-top,0px));width:150px}
 body.touch #feed{top:calc(60px + env(safe-area-inset-top,0px))}
-html.rot body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}html.rot body.touch #tRun{bottom:calc(182px + env(safe-area-inset-bottom,0px))}html.rot body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}html.rot body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}
-@media (orientation:landscape) and (max-height:500px){body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}body.touch #tRun{bottom:calc(182px + env(safe-area-inset-bottom,0px))}body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}}
+html.rot body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}html.rot body.touch #tRun{bottom:calc(28px + env(safe-area-inset-bottom,0px));left:290px}html.rot body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}html.rot body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}
+@media (orientation:landscape) and (max-height:500px){body.touch #hpBox{top:calc(12px + env(safe-area-inset-top,0px));left:174px;width:140px}body.touch #tRun{bottom:calc(28px + env(safe-area-inset-bottom,0px));left:290px}body.touch #weap{top:calc(64px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px))}body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))!important;right:150px}}
 @media (max-width:600px){ html:not(.rot) #score{top:calc(62px + env(safe-area-inset-top,0px));padding:2px 12px} html:not(.rot) #score b{font-size:20px} html:not(.rot) #feed{top:calc(100px + env(safe-area-inset-top,0px))!important} html:not(.rot) #mini{width:110px;height:110px} html:not(.rot) body.touch #hpBox{top:calc(128px + env(safe-area-inset-top,0px));width:110px} html:not(.rot) #feed{font-size:12px} }
 </style>
 </head>
@@ -802,13 +802,13 @@ tbtn('tWeap',()=>{ if(me) selectWeapon((me.w+1)%NW); });
 tbtn('tVeh',()=>toggleVehicle());
 tbtn('tRun',()=>{ IN.runLock=!IN.runLock; IN.sprint=IN.runLock; setTimeout(()=>$('tRun').classList.toggle('on',IN.runLock),0); });
 const tz=$('touch');
-tz.addEventListener('pointerdown',e=>{ if(e.target!==tz) return; initAudio(); if(PX(e)<VW()*0.45&&!TP.joy){ TP.joy={id:e.pointerId,x:PX(e),y:PY(e)}; joy.hidden=false; joyKey=''; joy.style.left=(PX(e)-60)+'px'; joy.style.top=(PY(e)-60)+'px'; } else if(!TP.look){ TP.look={id:e.pointerId,x:PX(e),y:PY(e)}; } });
-addEventListener('pointermove',e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ let dx=PX(e)-TP.joy.x, dy=PY(e)-TP.joy.y; const L=Math.hypot(dx,dy), m=50; if(L>m){ dx*=m/L; dy*=m/L; } joy.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`; IN.mx=dx/m; IN.my=-dy/m; IN.sprint=IN.runLock||Math.hypot(dx,dy)>=m*0.95; }
+tz.addEventListener('pointerdown',e=>{ if(e.target!==tz) return; initAudio(); if(PX(e)<VW()*0.45&&!TP.joy){ TP.joy={id:e.pointerId,x:PX(e),y:PY(e)}; joy.hidden=false; joyKey=''; joy.style.left=(PX(e)-88)+'px'; joy.style.top=(PY(e)-88)+'px'; } else if(!TP.look){ TP.look={id:e.pointerId,x:PX(e),y:PY(e)}; } });
+addEventListener('pointermove',e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ let dx=PX(e)-TP.joy.x, dy=PY(e)-TP.joy.y; const L=Math.hypot(dx,dy), m=70; if(L>m){ dx*=m/L; dy*=m/L; } joy.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`; IN.mx=dx/m; IN.my=-dy/m; IN.sprint=IN.runLock||Math.hypot(dx,dy)>=m*0.95; }
  for(const k of ['look','fire']){ const p=TP[k]; if(p&&e.pointerId===p.id){ look(PX(e)-p.x,PY(e)-p.y,0.006); p.x=PX(e); p.y=PY(e); } } });
 // the movement circle always sits bottom-left while playing; touching the left side moves it under your thumb
 let joyKey='';
-function joyHome(){ const show=isTouch&&state==='play'&&!!me&&me.alive; if(TP.joy) return; const top=Math.round(VH()-150), k=show+':'+top; if(k===joyKey) return; joyKey=k;
- joy.hidden=!show; joy.style.left='30px'; joy.style.top=top+'px'; joy.firstElementChild.style.transform=''; }
+function joyHome(){ const show=isTouch&&state==='play'&&!!me&&me.alive; if(TP.joy) return; const top=Math.round(VH()-196), k=show+':'+top; if(k===joyKey) return; joyKey=k;
+ joy.hidden=!show; joy.style.left='22px'; joy.style.top=top+'px'; joy.firstElementChild.style.transform=''; }
 const tEnd=e=>{ if(TP.joy&&e.pointerId===TP.joy.id){ TP.joy=null; joyKey=''; IN.mx=IN.my=0; IN.sprint=!!IN.runLock; joy.firstElementChild.style.transform=''; } if(TP.look&&e.pointerId===TP.look.id) TP.look=null; };
 addEventListener('pointerup',tEnd); addEventListener('pointercancel',tEnd);
 function readKeys(){ if(isTouch) return; IN.mx=(K.KeyD?1:0)-(K.KeyA?1:0); IN.my=(K.KeyW?1:0)-(K.KeyS?1:0); IN.fire=mouseDown||K.KeyF; IN.jump=IN.jump||K.Space; IN.sprint=K.ShiftLeft||K.ShiftRight; }
