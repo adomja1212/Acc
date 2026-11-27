@@ -612,6 +612,12 @@ function buildMap(){
 
 // ================= photo-scanned props from Poly Haven (CC0) =================
 const PROPS={}, PNAMES=['Barrel_01','barrel_03','covered_car','concrete_road_barrier','metal_jerrycan','old_military_crate','old_tyre','propane_tank','street_lamp_01','trashbag','utility_box_01','wooden_crate_01','plastic_crate_01','quiver_tree_01','dead_tree_trunk'];
+function warmUp(){ try{ const g=new THREE.Group(); g.position.set(camera.position.x,camera.position.y,camera.position.z);
+  const fwd=new THREE.Vector3(); camera.getWorldDirection(fwd); g.position.addScaledVector(fwd,3);
+  g.add(new THREE.Mesh(flashGeo,flashMat), new THREE.Mesh(boomGeo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.01,depthWrite:false})), new THREE.Mesh(puffGeo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.01,depthWrite:false})));
+  for(const k in projGeo) g.add(new THREE.Mesh(projGeo[k],k==='b'?BLACK:OLIVE)); g.add(new THREE.Mesh(grenGeo,GREN));
+  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,1)]),tracerMat.clone()));
+  scene.add(g); renderer.compile(scene,camera); scene.remove(g); }catch(e){} }
 function loadProps(){ return Promise.all(PNAMES.map(n=>new Promise(res=>new GLTFLoader().load(`assets/ph/models/${n}.glb`,g=>{ const big=['covered_car','quiver_tree_01','dead_tree_trunk','concrete_road_barrier','street_lamp_01'].includes(n); g.scene.traverse(o=>{ if(o.isMesh){ o.castShadow=big; o.receiveShadow=true; } }); PROPS[n]=g.scene; res(); },undefined,()=>res())))).then(placeProps); }
 const PLACED=[]; let cullT=0;
 function cullProps(dt){ cullT-=dt; if(cullT>0) return; cullT=0.4; const c=camera.position, far=QUAL==='ultra'?200:QUAL==='high'?150:QUAL==='med'?100:70; for(const o of PLACED){ const dx=o.position.x-c.x, dz=o.position.z-c.z; o.visible=dx*dx+dz*dz<far*far; } }
@@ -1144,14 +1150,17 @@ const tracerMat=new THREE.LineBasicMaterial({color:0xffe9a0,transparent:true,opa
 function tracer(a,b){ const g=new THREE.BufferGeometry().setFromPoints([a,b]); const l=new THREE.Line(g,tracerMat.clone()); scene.add(l); FX.push({o:l,t:0.06,max:0.06,kind:'line'}); }
 const puffGeo=new THREE.SphereGeometry(0.12,6,5);
 function puff(p,col=0xb8a990,n=5,sz=1){ for(let i=0;i<n;i++){ const m=new THREE.Mesh(puffGeo,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.8,depthWrite:false})); m.position.copy(p); m.scale.setScalar(sz); scene.add(m); FX.push({o:m,t:0.5,max:0.5,kind:'puff',v:new THREE.Vector3(rr(-1,1),rr(0.5,2),rr(-1,1))}); } }
-function flashAt(p){ const m=new THREE.Mesh(new THREE.SphereGeometry(0.09,6,5),new THREE.MeshBasicMaterial({color:new THREE.Color(4,3,1.2)})); m.position.copy(p); scene.add(m); FX.push({o:m,t:0.05,max:0.05,kind:'flash'}); }
-function explosion(p){ const m=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),new THREE.MeshBasicMaterial({color:new THREE.Color(5,2.4,0.6),transparent:true,opacity:1,depthWrite:false})); m.position.copy(p); scene.add(m); FX.push({o:m,t:0.5,max:0.5,kind:'boom'});
- puff(p,0x555049,18,4); const l=new THREE.PointLight(0xffaa55,400,30,2); l.position.copy(p).y+=1; scene.add(l); FX.push({o:l,t:0.35,max:0.35,kind:'light'}); sfx('boom',p.x,p.y,p.z);
+// effects reuse their parts: a fixed set of blast lights (changing the number of lights would make every material rebuild and freeze the game)
+const flashGeo=new THREE.SphereGeometry(0.09,6,5), flashMat=new THREE.MeshBasicMaterial({color:new THREE.Color(4,3,1.2)}), boomGeo=new THREE.SphereGeometry(1,16,12);
+const BLAST_LIGHTS=[0,1,2].map(()=>{ const l=new THREE.PointLight(0xffaa55,0,30,2); l.position.set(0,-500,0); scene.add(l); return l; }); let blastN=0;
+function flashAt(p){ const m=new THREE.Mesh(flashGeo,flashMat); m.position.copy(p); scene.add(m); FX.push({o:m,t:0.05,max:0.05,kind:'flash',keep:1}); }
+function explosion(p){ const m=new THREE.Mesh(boomGeo,new THREE.MeshBasicMaterial({color:new THREE.Color(5,2.4,0.6),transparent:true,opacity:1,depthWrite:false})); m.position.copy(p); scene.add(m); FX.push({o:m,t:0.5,max:0.5,kind:'boom',keepGeo:1});
+ puff(p,0x555049,18,4); const l=BLAST_LIGHTS[blastN++%BLAST_LIGHTS.length]; l.position.copy(p).y+=1; l.intensity=400; FX.push({o:l,t:0.35,max:0.35,kind:'light',pooled:1}); sfx('boom',p.x,p.y,p.z);
  const d=Math.hypot(p.x-camera.position.x,p.z-camera.position.z); shake=Math.max(shake,clamp(1-d/40,0,1)); }
 function updFX(dt){ for(let i=FX.length-1;i>=0;i--){ const f=FX[i]; f.t-=dt; const k=Math.max(0,f.t/f.max);
   if(f.kind==='puff'){ f.o.position.addScaledVector(f.v,dt); f.o.scale.multiplyScalar(1+dt*2.5); f.o.material.opacity=0.8*k; }
   else if(f.kind==='line') f.o.material.opacity=k; else if(f.kind==='boom'){ f.o.scale.setScalar(1+(1-k)*6); f.o.material.opacity=k; } else if(f.kind==='light') f.o.intensity=400*k;
-  if(f.t<=0){ scene.remove(f.o); if(f.o.geometry&&f.o.geometry!==puffGeo) f.o.geometry.dispose(); if(f.o.material) f.o.material.dispose(); FX.splice(i,1); } } }
+  if(f.t<=0){ if(f.pooled){ f.o.intensity=0; f.o.position.y=-500; FX.splice(i,1); continue; } scene.remove(f.o); if(f.o.geometry&&f.o.geometry!==puffGeo&&!f.keep&&!f.keepGeo) f.o.geometry.dispose(); if(f.o.material&&!f.keep) f.o.material.dispose(); FX.splice(i,1); } } }
 
 // ================= raycasting =================
 function rayAABB(o,d,b,tmax){ let t0=0,t1=tmax; const lo=[b.x0,b.y0,b.z0], hi=[b.x1,b.y1,b.z1], oo=[o.x,o.y,o.z], dd=[d.x,d.y,d.z];
@@ -1683,7 +1692,7 @@ function loop(now){ requestAnimationFrame(loop); const dt=Math.min((now-last)/10
  const [sol,car,fem,fox]=await Promise.all([loadGLB('assets/models/Soldier.glb'),loadGLB('assets/models/ferrari.glb'),loadGLB('assets/models/Michelle.glb'),loadGLB('assets/models/Fox.glb'),loadHDR()]); FOX=fox;
  if(!sol){ $('loading').querySelector('p').textContent='مقدرناش نحمّل الشخصيات. اتأكد من النت وجرّب تاني.'; return; }
  SOLDIER=sol; if(car){ CARMODEL=car.scene.children[0]||car.scene; } setupFemale(fem);
- buildMap(); buildVehicles(); prepMini(); addAtmos(); applyQuality(QUAL); loadProps().then(loadFacade);
+ buildMap(); buildVehicles(); prepMini(); addAtmos(); applyQuality(QUAL); loadProps().then(loadFacade).then(warmUp);
  $('loading').hidden=true; showLobby(); pvMount('pvLobby'); requestAnimationFrame(t=>{ last=t; loop(t); });
  const L=await getLobby(); if(!L){ NET.off=true; renderLobby(); return; }
  NET.lobby=L; L.onPeers(()=>renderLobby(),()=>{}); lobbyAnnounce(); renderLobby();
