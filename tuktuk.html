@@ -2,6 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
+<script>
+// never show an old copy kept by the phone: if this page came from the cache, load it fresh once
+(function(){ try{ if(!/github\.io$/.test(location.hostname)) return; var n=performance.getEntriesByType('navigation')[0]; var k="fresh:"+location.pathname; if(!n) return; if(n.transferSize>0){ sessionStorage.removeItem(k); return; } if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k,'1'); var u=new URL(location.href); u.searchParams.set('v',Date.now()); location.replace(u.toString()); }catch(e){} })();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>توكتوك رالي</title>
 <meta name="claude:viewport-fit-sides" content="cover">
