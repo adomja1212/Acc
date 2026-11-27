@@ -333,6 +333,17 @@ const OUTFITS=[
  {id:'street',name:'الشارع',ico:'🧢',br:{top:0x1d1d22,top2:0xd62828,pat:3,sleeve:0,bottom:0x3b5a85,shorts:1,shoe:0xf0f0f0,glove:0xc68a62},vest:false,head:'visor',helm:0x1b1b1f,pack:0x2e2e33,gren:1,body:0xffffff,pouch:0x333333}];
 const SKINS=[0xc68a62,0x8d5a3b,0xe2b48f,0xa86f4c];
 OUTFITS.push({id:'zombie',hidden:true,name:'زومبي',ico:'🧟',br:{top:0x5b5f52,top2:0x3a2e25,pat:2,sleeve:0,bottom:0x4a3b2c,shorts:0,shoe:0x2a2420,glove:0x6f8a5e},skin:0x7f9572,vest:false,head:'none',body:0xffffff,pouch:0x333333});
+OUTFITS.push({id:'civ',hidden:true,name:'مواطن',ico:'🧍',body:0xffffff,vest:false,head:'none',pouch:0x333333});
+// real people (Microsoft Rocketbox avatars, MIT licence): faces, bodies and clothes from scanned detail
+const PPL={hood:['Military_Male_04','Military_Female_01',[0x16171a,0x2a2c31,0x464a52]],red:['Military_Male_03','Military_Female_02',[0x2e1012,0x64191d,0x9b3a30]],
+ desert:['Military_Male_01','Military_Female_01',[0x7d6646,0xb39a6e,0xdcc89e]],forest:['Military_Male_03','Military_Female_02',[0x262d1c,0x48552f,0x7c8656]],
+ urban:['Military_Male_05','Military_Female_02',null],tiger:['Military_Male_02','Military_Female_01',[0x14120e,0x8f6018,0xd9a43c]],
+ ranger:['Military_Male_06','Military_Female_02',[0x353b24,0x5c6640,0x8d9168]],street:['Sports_Male_04','Female_Adult_02',null],zombie:['Male_Adult_06','Female_Adult_02','zom']};
+const CIVM=['Male_Adult_02','Male_Adult_05','Male_Adult_06','Male_Adult_08'], CIVF=['Female_Adult_06','Female_Adult_10','Female_Adult_02'];
+const AV={}, AVP={}, AVMAT={};
+function strHash(t){ let h=7; for(const ch of String(t||'')) h=(h*31+ch.charCodeAt(0))>>>0; return h; }
+function avatarKey(outfit,gen,name){ if(outfit==='civ'){ const L=gen==='f'?CIVF:CIVM; return L[strHash(name)%L.length]; } const P=PPL[outfit]||PPL.urban; return gen==='f'?P[1]:P[0]; }
+function ensureAvatar(key){ if(AV[key]||AVP[key]) return AVP[key]||Promise.resolve(AV[key]); return AVP[key]=loadGLB('assets/people/'+key+'.glb').then(g=>{ if(g){ AV[key]=g; avatarReady(key); } return g; }); }
 const outfitOf=id=>OUTFITS.find(o=>o.id===id)||OUTFITS[0];
 // boy or girl; the girl uses her own model with the soldier's movements
 let MYGEN='m'; try{ const g=localStorage.getItem('war-gender'); if(g==='f'||g==='m') MYGEN=g; }catch(e){}
@@ -722,7 +733,7 @@ function spawnNpc(kind,R){ let x=R.x,z=R.z; for(let k=0;k<12;k++){ x=R.x+rr(-R.r
  const id='npc'+(++OW.n), gen=rnd()<0.4?'f':'m'; let f;
  if(kind==='wolf'){ f=newFighter(id,NPCN.wolf,'wild',null,false,'m',makeWolf()); f.hp=45; f.w=4; }
  else if(kind==='zom'){ f=newFighter(id,NPCN.zom,'zom','zombie',false,gen); f.hp=70; f.w=4; }
- else if(kind==='civ'){ f=newFighter(id,BOTNAMES[Math.floor(rnd()*BOTNAMES.length)],'civ',['urban','street','desert','red','tiger'][Math.floor(rnd()*5)],false,gen); f.w=0; }
+ else if(kind==='civ'){ f=newFighter(id,BOTNAMES[Math.floor(rnd()*BOTNAMES.length)]+(rnd()<0.5?'':' '),'civ','civ',false,gen); f.w=0; }
  else { f=newFighter(id,NPCN.army,'army',rnd()<0.5?'ranger':'forest',false,rnd()<0.2?'f':'m'); f.w=1; f.seed=rr(0,9); }
  f.kind=kind; f.isBot=true; f.region=R.id; f.home={x:R.x,z:R.z,r:R.r*0.8}; f.x=x; f.z=z; f.yaw=rr(-3,3); f.think=rr(0,1); f.cool=rr(0.5,2); f.stuck=0; f.shotN=0; bots.push(f); return f; }
 function regionSpawn(R){ const n=R.id==='res'?[['civ',12],['army',5]]:R.id==='zom'?[['zom',16]]:R.id==='wild'?[['wolf',9]]:[['army',9]];
@@ -936,6 +947,7 @@ function weaponMeshes(parent){ const w={}; const mk=(id,fn)=>{ const g=new THREE
  return w; }
 function nameTag(text,col){ const c=document.createElement('canvas'); c.width=256; c.height=64; const g=c.getContext('2d'); g.font='800 30px Cairo'; g.textAlign='center'; g.textBaseline='middle'; g.direction='rtl'; g.lineWidth=7; g.strokeStyle='rgba(20,5,9,.85)'; g.strokeText(text,128,34); g.fillStyle=col; g.fillText(text,128,34);
  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthWrite:false})); s.scale.set(1.6,0.4,1); s.position.y=2.25; return s; }
+const BNR={hips:'Bip01_Pelvis',lUp:'Bip01_L_Thigh',lLeg:'Bip01_L_Calf',rUp:'Bip01_R_Thigh',rLeg:'Bip01_R_Calf',spine:'Bip01_Spine1',spine2:'Bip01_Spine2',head:'Bip01_Head',lArm:'Bip01_L_UpperArm',lFore:'Bip01_L_Forearm',lHand:'Bip01_L_Hand',rArm:'Bip01_R_UpperArm',rFore:'Bip01_R_Forearm',rHand:'Bip01_R_Hand'};
 const BN={hips:'Hips',lUp:'LeftUpLeg',lLeg:'LeftLeg',rUp:'RightUpLeg',rLeg:'RightLeg',spine:'Spine1',spine2:'Spine2',head:'Head',lArm:'LeftArm',lFore:'LeftForeArm',lHand:'LeftHand',rArm:'RightArm',rFore:'RightForeArm',rHand:'RightHand'};
 function findBone(root,n){ return root.getObjectByName('mixamorig'+n)||root.getObjectByName('mixamorig:'+n)||null; }
 const BLOB=(()=>{ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const gr=g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(0,0,0,.55)'); gr.addColorStop(0.6,'rgba(0,0,0,.25)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64);
@@ -969,7 +981,43 @@ vec3 topCol(vec3 b){ vec2 p=vec2(b.x+b.y*0.8,b.z)/3.2;
  diffuseColor.rgb*=col*det;`); };
  m.customProgramCacheKey=()=>'br'; }
 function fabric(m){ m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>','#ifdef USE_MAP\n vec4 sampledDiffuseColor = texture2D( map, vMapUv ); float lum = dot( sampledDiffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) ); diffuseColor.rgb *= vec3( pow( lum, 0.9 ) * 1.65 );\n#endif'); }; m.customProgramCacheKey=()=>'fabric'; }
-function makeChar(outfit,name,isMe,gen='m',target=scene){ const OF=outfitOf(outfit); const SRC=gen==='f'&&FEMALE?FEMALE:SOLDIER, girl=SRC===FEMALE;
+// uniforms take the outfit's colours: only the grey-green camo is repainted, skin, flags and metal keep theirs
+function camoMat(m,P){ const zom=P==='zom'; const U=zom?{}:{uC0:{value:new THREE.Color(P[0])},uC1:{value:new THREE.Color(P[1])},uC2:{value:new THREE.Color(P[2])}};
+ m.onBeforeCompile=sh=>{ Object.assign(sh.uniforms,U); sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uC0,uC1,uC2;').replace('#include <map_fragment>',zom?`#ifdef USE_MAP
+ vec4 tx=texture2D(map,vMapUv); float lum=dot(tx.rgb,vec3(0.299,0.587,0.114)); vec3 rot=vec3(lum)*vec3(0.62,0.78,0.52)*1.35; rot=mix(rot,vec3(0.16,0.05,0.04),smoothstep(0.55,0.0,lum)*0.35*step(0.5,fract(sin(dot(floor(vMapUv*40.0),vec2(12.9898,78.233)))*43758.5453)));
+ diffuseColor*=vec4(rot,tx.a);
+#endif`:`#ifdef USE_MAP
+ vec4 tx=texture2D(map,vMapUv); float mx=max(tx.r,max(tx.g,tx.b)), mn=min(tx.r,min(tx.g,tx.b)); float sat=mx>0.001?(mx-mn)/mx:0.0; float lum=dot(tx.rgb,vec3(0.299,0.587,0.114));
+ vec3 cam=mix(uC0,uC1,smoothstep(0.05,0.17,lum)); cam=mix(cam,uC2,smoothstep(0.24,0.42,lum)); cam*=0.72+lum*0.9;
+ diffuseColor*=vec4(mix(tx.rgb,cam,1.0-smoothstep(0.22,0.4,sat)),tx.a);
+#endif`); }; m.customProgramCacheKey=()=>zom?'zom':'camo'; }
+function avatarMats(key,outfit){ const P=(PPL[outfit]||[])[2]; if(!P) return null; const id=key+'|'+outfit; if(AVMAT[id]) return AVMAT[id]; const M=new Map();
+ AV[key].scene.traverse(o=>{ if(o.isMesh) for(const m of [].concat(o.material)){ if(M.has(m)) continue; if(P==='zom'||/body|equipment|helmet/i.test(m.name)){ const c=m.clone(); camoMat(c,P); M.set(m,c); } } }); return AVMAT[id]=M; }
+// the stand-in is swapped for the real person as soon as their file has loaded
+function avatarReady(key){ PV.key=''; for(const f of fighters()){ const c=f.char; if(c&&c.fb&&c.want===key){ const [o,n,im,g,t]=c.args; t.remove(c.root); t.remove(c.wg); f.char=makeChar(o,n,im,g,t); } } }
+function makePerson(key,outfit,name,isMe,gen,target,want){ const G=AV[key], OF=outfitOf(outfit);
+ const root=new THREE.Group(); root.rotation.order='YXZ'; const model=SkeletonUtils.clone(G.scene); root.add(model); const MM=avatarMats(key,outfit);
+ model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; if(MM) o.material=Array.isArray(o.material)?o.material.map(m=>MM.get(m)||m):(MM.get(o.material)||o.material); } });
+ const mixer=new THREE.AnimationMixer(model), A={}; for(const c of G.animations) A[c.name]=mixer.clipAction(c);
+ for(const n of ['Idle','Walk','Run']) if(A[n]){ A[n].play(); A[n].setEffectiveWeight(n==='Idle'?1:0); }
+ const bones={}; for(const k in BNR) bones[k]=model.getObjectByName(BNR[k])||null;
+ // each bone's own "along the limb" direction, measured in the standing pose
+ model.updateMatrixWorld(true); const q=new THREE.Quaternion(), a=new THREE.Vector3(), b=new THREE.Vector3();
+ const axis=(bone,w)=>{ if(!bone) return; bone.getWorldQuaternion(q); bone.userData.ax=w.clone().normalize().applyQuaternion(q.invert()).toArray(); };
+ const toward=(k,child)=>{ const c=model.getObjectByName(child); if(!bones[k]||!c) return; bones[k].getWorldPosition(a); c.getWorldPosition(b); axis(bones[k],b.sub(a)); };
+ for(const s of ['L','R']){ const l=s.toLowerCase(); toward(l+'Up','Bip01_'+s+'_Calf'); toward(l+'Leg','Bip01_'+s+'_Foot'); toward(l+'Arm','Bip01_'+s+'_Forearm'); toward(l+'Fore','Bip01_'+s+'_Hand'); toward(l+'Hand','Bip01_'+s+'_Finger2'); }
+ axis(bones.spine2,YUP); axis(bones.head,YUP); axis(bones.spine,YUP);
+ const wg=new THREE.Group(); wg.scale.setScalar(1.2); target.add(wg); const wm=weaponMeshes(wg);
+ const tag=isMe?null:nameTag(name,'#cfe4ff'); if(tag) root.add(tag); const mk=new THREE.Sprite(MK_RED); mk.scale.set(0.32,0.32,1); mk.position.y=2.5; mk.visible=false; root.add(mk);
+ const blob=new THREE.Mesh(BLOBGEO,BLOB); blob.position.y=0.03; blob.renderOrder=-1; root.add(blob);
+ target.add(root);
+ return {real:true,girl:false,root,model,mixer,A,bones,wg,wm,tag,mk,head:model,cur:null,fallT:0,wt:{Idle:1,Walk:0,Run:0},t:0,want,fb:want!==key,args:[outfit,name,isMe,gen,target]}; }
+function makeChar(outfit,name,isMe,gen='m',target=scene){ const want=avatarKey(outfit,gen,name);
+ if(AV[want]) return makePerson(want,outfit,name,isMe,gen,target,want);
+ ensureAvatar(want); const stand=[...(gen==='f'?['Military_Female_02']:[]),'Military_Male_05',...Object.keys(AV)].find(k=>AV[k]);
+ if(stand) return makePerson(stand,outfit,name,isMe,gen,target,want);
+ const c=makeOldChar(outfit,name,isMe,gen,target); c.want=want; c.fb=true; c.args=[outfit,name,isMe,gen,target]; return c; }
+function makeOldChar(outfit,name,isMe,gen='m',target=scene){ const OF=outfitOf(outfit); const SRC=gen==='f'&&FEMALE?FEMALE:SOLDIER, girl=SRC===FEMALE;
  const root=new THREE.Group(); root.rotation.order='YXZ';
  const model=SkeletonUtils.clone(SRC.scene); model.rotation.y=Math.PI; if(girl) model.scale.multiplyScalar(FSCALE); root.add(model);
  const hooded=OF.head==='hood', tint=new THREE.Color(OF.body);
@@ -1019,7 +1067,7 @@ function makeChar(outfit,name,isMe,gen='m',target=scene){ const OF=outfitOf(outf
 function showWeapon(c,id){ if(c.cur===id) return; for(const k in c.wm) c.wm[k].visible=k===id; c.cur=id; }
 const _va=new THREE.Vector3(), _vb=new THREE.Vector3(), _qa=new THREE.Quaternion(), _qb=new THREE.Quaternion(), _qc=new THREE.Quaternion(), YUP=new THREE.Vector3(0,1,0), ZF=new THREE.Vector3(0,0,1);
 // turn a bone so it points along a world direction (mixamo bones point along their local +Y)
-function aimBone(b,dir){ if(!b) return; b.getWorldQuaternion(_qa); _va.copy(YUP).applyQuaternion(_qa); _qb.setFromUnitVectors(_va,dir); _qa.premultiply(_qb); b.parent.getWorldQuaternion(_qc); b.quaternion.copy(_qc.invert().multiply(_qa)); b.updateMatrixWorld(true); }
+function aimBone(b,dir){ if(!b) return; b.getWorldQuaternion(_qa); if(b.userData.ax) _va.fromArray(b.userData.ax); else _va.copy(YUP); _va.applyQuaternion(_qa); _qb.setFromUnitVectors(_va,dir); _qa.premultiply(_qb); b.parent.getWorldQuaternion(_qc); b.quaternion.copy(_qc.invert().multiply(_qa)); b.updateMatrixWorld(true); }
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 function dirOf(f,u,r,a){ return V(f.x*a+r.x*u.r,u.y,f.z*a+r.z*u.r); }
 // s: {spd,pitch,yaw,w,aim,atk(0..1),thr(0..1),dead,pose,drive,y,kick}
@@ -1036,9 +1084,10 @@ function stanceLegs(c,s){ const B=c.bones, y=s.yaw||0, F=V(Math.sin(y),0,Math.co
  else { for(const [up,lo,side] of [[B.lUp,B.lLeg,-1],[B.rUp,B.rLeg,1]]){ aimBone(up,V(0,0,0).addScaledVector(F,-1).addScaledVector(Rt,side*0.12).addScaledVector(D,0.05).normalize()); aimBone(lo,V(0,0,0).addScaledVector(F,-1).addScaledVector(D,0.05).normalize()); } } }
 function animChar(c,s,dt){
  c.t+=dt;
- const loco=s.dead||s.pose||s.drive?'Idle':s.spd<0.4?'Idle':s.spd<5.2?'Walk':'Run';
+ const loco=s.dead||s.pose||s.drive||s.st?'Idle':s.spd<0.4?'Idle':s.spd<(c.real?3:5.2)?'Walk':'Run';
  for(const n in c.wt){ c.wt[n]+=((n===loco?1:0)-c.wt[n])*Math.min(1,dt*8); if(c.A[n]) c.A[n].setEffectiveWeight(c.wt[n]); }
- if(c.A.Walk) c.A.Walk.timeScale=clamp(s.spd/1.7,0.6,2.2); if(c.A.Run) c.A.Run.timeScale=clamp(s.spd/6,0.8,1.4);
+ if(c.real){ if(c.A.Walk) c.A.Walk.timeScale=clamp(s.spd/1.45,0.6,2); if(c.A.Run) c.A.Run.timeScale=clamp(s.spd/6.2,0.75,1.5); }
+ else { if(c.A.Walk) c.A.Walk.timeScale=clamp(s.spd/1.7,0.6,2.2); if(c.A.Run) c.A.Run.timeScale=clamp(s.spd/6,0.8,1.4); }
  c.mixer.update(dt);
  c.root.visible=!s.drive;
  if(s.dead){ c.fallT=Math.min(1,c.fallT+dt*2.2); c.root.rotation.x=-1.5*c.fallT*c.fallT; c.root.position.y=0.12*c.fallT; showWeapon(c,null); return; }
@@ -1682,7 +1731,7 @@ function updHUD(dt){ if(!me) return; const all=fighters().filter(f=>f.alive); $(
 
 // ================= loop =================
 let last=performance.now();
-if(/[?&]debug=1/.test(location.search)) window.__war={get me(){ return me; },VEH,get IN(){ return IN; },get F(){ return fighters(); },renderer,scene,PROPS,HOUSES};
+if(/[?&]debug=1/.test(location.search)) window.__war={AV,camera:typeof camera!=="undefined"?camera:null,get me(){ return me; },VEH,get IN(){ return IN; },get F(){ return fighters(); },renderer,scene,PROPS,HOUSES};
 function update(dt){ clock+=dt; cullProps(dt); netTick(dt); readKeys(); updFX(dt); updGrenades(dt); updProj(dt); updVehicles(dt); if(!$('arsenal').hidden&&((clock*4)|0)!==((clock*4-dt*4)|0)) renderArsenal();
  if(state==='play'||state==='end'){ if(state==='play') matchT+=dt; else endT+=dt;
   if(me){ me.aim=state==='play'&&me.alive&&!me.veh&&(aimHeld||me.aimToggle)&&true; me.cool-=dt; me.kick=Math.max(0,me.kick-dt*8); me.atkT=Math.max(0,me.atkT-dt); me.thrT=Math.max(0,me.thrT-dt);
@@ -1710,9 +1759,9 @@ function loop(now){ requestAnimationFrame(loop); const dt=Math.min((now-last)/10
 (async()=>{
  try{ await Promise.race([Promise.all([document.fonts.load('800 30px Cairo'),document.fonts.load('40px Lalezar')]),new Promise(r=>setTimeout(r,2500))]); }catch(e){}
  $('loading').querySelector('p').textContent='بنجهّز الجنود والعربيات…';
- const [sol,car,fem,fox]=await Promise.all([loadGLB('assets/models/Soldier.glb'),loadGLB('assets/models/ferrari.glb'),loadGLB('assets/models/Michelle.glb'),loadGLB('assets/models/Fox.glb'),loadHDR()]); FOX=fox;
+ const [sol,car,fox]=await Promise.all([loadGLB('assets/models/Soldier.glb'),loadGLB('assets/models/ferrari.glb'),loadGLB('assets/models/Fox.glb'),loadHDR(),ensureAvatar('Military_Male_05'),ensureAvatar('Military_Female_02'),ensureAvatar(avatarKey(MYOUT,MYGEN,''))]); FOX=fox;
  if(!sol){ $('loading').querySelector('p').textContent='مقدرناش نحمّل الشخصيات. اتأكد من النت وجرّب تاني.'; return; }
- SOLDIER=sol; if(car){ CARMODEL=car.scene.children[0]||car.scene; } setupFemale(fem);
+ SOLDIER=sol; if(car){ CARMODEL=car.scene.children[0]||car.scene; }
  buildMap(); buildVehicles(); prepMini(); addAtmos(); applyQuality(QUAL); loadProps().then(loadFacade).then(warmUp);
  $('loading').hidden=true; showLobby(); pvMount('pvLobby'); requestAnimationFrame(t=>{ last=t; loop(t); });
  const L=await getLobby(); if(!L){ NET.off=true; renderLobby(); return; }
