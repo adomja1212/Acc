@@ -69,6 +69,27 @@ h1{font-size:56px}h2{font-size:38px}
 @keyframes pop{0%{transform:scale(.2);opacity:0}15%{transform:scale(1.2);opacity:1}80%{opacity:1}100%{transform:translateY(-30px);opacity:0}}
 #emoBar{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--card);border-radius:16px;padding:8px;display:flex;gap:6px;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.4)}
 #emoBar button{font-size:30px;background:none;border:0;width:48px;height:48px}
+.coins{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(#ffe27a,#f6b81c);color:#5a3400;font:800 16px Cairo;border-radius:999px;padding:4px 14px 4px 10px;box-shadow:0 3px 0 #b07a00,inset 0 1px 0 #fff6c8}
+.coins i{font-style:normal;font-size:18px}
+#lobby .coins{font-size:20px;margin:2px 0 4px}
+.mygifts{font-size:13px;opacity:.9;margin:2px 0 8px;min-height:18px}
+#bottom .coins{height:40px;align-self:center;box-shadow:0 3px 0 #b07a00}
+#giftBar{position:fixed;bottom:calc(70px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:min(94vw,440px);background:var(--card);border-radius:18px;padding:10px 10px 12px;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#giftBar .to{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+#giftBar .to button{border:2px solid transparent;border-radius:999px;padding:4px 12px;font:700 13px Cairo;color:#fff;background:var(--c)}
+#giftBar .to button[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 2px var(--c)}
+#giftBar .gl{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+#giftBar .gl button{border:0;border-radius:12px;background:rgba(255,255,255,.1);color:#fff;padding:6px 2px;font:700 12px Cairo;display:flex;flex-direction:column;align-items:center;gap:2px}
+#giftBar .gl button b{font-size:30px;line-height:1.1}
+#giftBar .gl button:disabled{opacity:.35}
+#giftBar p{margin:6px 0 0;text-align:center;font-size:12px;opacity:.8}
+.gfly{position:absolute;font-size:56px;z-index:6;pointer-events:none;transition:transform 1.1s cubic-bezier(.3,.7,.3,1),opacity .4s;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+.gburst{position:absolute;font-size:72px;z-index:6;pointer-events:none;animation:gb 1.6s forwards}
+@keyframes gb{0%{transform:translate(-50%,-50%) scale(.4);opacity:1}25%{transform:translate(-50%,-50%) scale(1.35)}70%{opacity:1}100%{transform:translate(-50%,-90%) scale(1);opacity:0}}
+.pc .gf{display:inline-block;margin-inline-start:4px;color:#ffd75a}
+.prize{font:800 26px Cairo;color:#ffd75a;margin:4px 0 10px;text-shadow:0 2px 0 rgba(0,0,0,.4)}
+.coinfx{position:fixed;left:50%;top:30%;transform:translate(-50%,0);font:800 26px Cairo;color:#ffd75a;text-shadow:0 2px 0 #7a4b00,0 0 12px rgba(0,0,0,.5);pointer-events:none;z-index:30;animation:cf 1.8s forwards}
+@keyframes cf{0%{opacity:0;transform:translate(-50%,10px)}15%{opacity:1}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-40px)}}
 #msg{position:fixed;top:40%;left:0;right:0;text-align:center;font:400 46px Lalezar,Cairo;color:var(--sf);text-shadow:3px 3px 0 #b23b2a;pointer-events:none;z-index:15}
 .win h2{font-size:64px}
 .rank{list-style:none;padding:0;margin:12px 0;display:grid;gap:6px}
@@ -80,6 +101,8 @@ h1{font-size:56px}h2{font-size:38px}
 <div class="ov" id="lobby"><div class="card"><div class="strip"></div><div class="in">
  <button class="back" id="toHub">→ رجوع لقايمة الألعاب</button>
  <h1>لودو</h1>
+ <div class="coins" title="عملات اللعبة"><i>🪙</i><b>٠</b></div>
+ <div class="mygifts" id="myGifts"></div>
  <p id="lobStat">بنوصل…</p>
  <button class="go" id="vsCpu">العب ضد الكمبيوتر</button>
  <div class="row2"><button class="go alt" id="quick">ادخل أوضة صحابك</button><button class="go alt" id="newRoom">اعمل أوضة</button></div>
@@ -99,13 +122,14 @@ h1{font-size:56px}h2{font-size:38px}
 <div id="game" hidden>
  <div id="top"><button id="bExit" aria-label="خروج">✕</button><div id="turnTxt"></div><button id="bSnd" aria-label="الصوت">🔊</button></div>
  <div id="boardWrap"><canvas id="bd"></canvas></div>
- <div id="bottom"><button id="bEmo" aria-label="إيموجي">😀</button></div>
+ <div id="bottom"><button id="bEmo" aria-label="إيموجي">😀</button><button id="bGift" aria-label="هدية">🎁</button><div class="coins"><i>🪙</i><b>٠</b></div></div>
 </div>
 <div id="emoBar" hidden></div>
+<div id="giftBar" hidden><div class="to" id="giftTo"></div><div class="gl" id="giftList"></div><p>الهدية بتتخصم من عملاتك وتروح للاعب اللي اخترته</p></div>
 <div id="msg" hidden></div>
 
 <div class="ov win" id="endOv" hidden><div class="card"><div class="strip"></div><div class="in">
- <h2 id="endT">Winner</h2><ol class="rank" id="rank"></ol>
+ <h2 id="endT">Winner</h2><div class="prize" id="prize" hidden></div><ol class="rank" id="rank"></ol>
  <div class="row2"><button class="go" id="again">جولة تانية</button><button class="go ghost" id="toLobby">القايمة</button></div>
 </div></div></div>
 
@@ -206,7 +230,7 @@ function placeCards(){ const w=$('boardWrap'); w.querySelectorAll('.pc').forEach
  for(let s=0;s<4;s++){ if(!G.seats[s]) continue; const vc=CORNER[(s-VIEW+4)%4]; const st=G.seats[s];
   const d=document.createElement('div'); d.className='pc '+vc+(G.turn===s&&!G.over?' on':''); d.style.setProperty('--c',SC[s]); d.dataset.s=s;
   const done=[0,1,2,3].filter(k=>G.pos[s*4+k]===56).length;
-  d.innerHTML=`<div class="av"><span class="tm"></span>${st.bot?'🤖':(st.peer===myId()?'😎':'🙂')}</div><div class="nm">${esc(String(st.name).slice(0,14))}<small>${SN[s]} · ${AD(done)}/٤ وصلوا</small></div>`;
+  d.innerHTML=`<div class="av"><span class="tm"></span>${st.bot?'🤖':(st.peer===myId()?'😎':'🙂')}</div><div class="nm">${esc(String(st.name).slice(0,14))}<small>${SN[s]} · ${AD(done)}/٤ وصلوا${GOT[s]?`<span class="gf">🎁${AD(GOT[s])}</span>`:''}</small></div>`;
   if(G.turn===s&&!G.over){ const dc=document.createElement('button'); dc.className='dice'+(canRoll()?' ready':''); dc.id='dice'; dc.setAttribute('aria-label','ارمي الزهر'); dc.innerHTML=pips(G.dice||(G.rolled?G.dice:0)); dc.onclick=()=>tapDice(); d.appendChild(dc); }
   w.appendChild(d); }
  const me=mySeat(); $('turnTxt').textContent=G.over?'خلصت الجولة':G.turn===me?(G.rolled?'اختار حجر تحرّكه':'دورك! ارمي الزهر 🎲'):'دور '+(G.seats[G.turn]?G.seats[G.turn].name:''); }
@@ -232,7 +256,7 @@ function mySeat(){ if(!G) return -1; const id=myId(); for(let s=0;s<4;s++) if(G.
 const iRun=()=>MODE==='cpu'||NET.host; // this phone runs the rules
 function canRoll(){ return G&&!G.over&&!busy&&G.turn===mySeat()&&!G.rolled; }
 function msg(t,d=1.2){ const m=$('msg'); m.textContent=t; m.hidden=false; clearTimeout(msg.t); msg.t=setTimeout(()=>m.hidden=true,d*1000); }
-function startLocal(seats){ G=newGame(seats); seenSeq=-1; VIEW=Math.max(0,mySeat()); show('game'); layout(); onState(true); }
+function startLocal(seats){ for(const k in GOT) delete GOT[k]; G=newGame(seats); seenSeq=-1; VIEW=Math.max(0,mySeat()); show('game'); layout(); onState(true); }
 function show(id){ for(const k of ['lobby','roomOv','game','endOv']) $(k).hidden=k!==id; OP.show(id==='lobby'||id==='roomOv'); }
 $('vsCpu').onclick=()=>{ initAudio(); MODE='cpu'; startLocal([{peer:'me',name:PROFILE.n},{bot:1,name:'كوكي'},{bot:1,name:'زيزو'},{bot:1,name:'بندق'}]); };
 function tapDice(){ initAudio(); if(!canRoll()) return; act({k:'roll'}); }
@@ -247,7 +271,7 @@ function applyAct(seat,a){ if(!G||G.over||seat!==G.turn) return;
 // react to any new state (local or from the room owner): animate and prompt
 async function onState(first){ if(!G) return; if(G.seq===seenSeq&&!first) return; const L=G.last; seenSeq=G.seq; HILITE=[];
  if(L&&L.k==='roll'){ busy=true; const dc=$('dice'); if(dc) dc.classList.add('roll'); SND.roll(); await wait(520); busy=false; if(L.d===6) SND.six(); if(L.lost) msg('٣ ستات! الدور راح',1.4); else if(L.none) msg('مفيش حركة',0.9); }
- if(L&&L.k==='move'&&L.from!==L.to){ await animMove(L); if(L.cap){ SND.cap(); msg('اتاكل! 😈',1); } if(L.to===56) { SND.home(); msg('وصل! 🏁',1); } }
+ if(L&&L.k==='move'&&L.from!==L.to){ await animMove(L); if(L.cap){ SND.cap(); msg('اتاكل! 😈',1); if(L.p===mySeat()&&!first) setTimeout(()=>addCoins(10,'أكلت حجر'),700); } if(L.to===56) { SND.home(); msg('وصل! 🏁',1); } }
  placeCards(); draw();
  if(G.over){ setTimeout(showEnd,900); return; }
  if(G.turn===mySeat()&&G.rolled&&!G.pend){ HILITE=movable(G,G.turn,G.dice); if(HILITE.length===1&&iRun()) setTimeout(()=>{ if(G&&G.rolled&&G.turn===mySeat()&&!busy) act({k:'move',t:HILITE[0]}); },650); }
@@ -265,7 +289,7 @@ function tick(){ PULSE+=0.016; if(G&&HILITE.length) draw();
  // the turn timer ring
  if(G&&!G.over){ const el=document.querySelector('.pc.on .tm'); if(el) el.style.setProperty('--t',clamp(1-(Date.now()-turnStart)/1000/TURN_LIMIT,0,1)); }
  netTick(); requestAnimationFrame(tick); }
-function showEnd(){ $('endT').textContent=G.winner===mySeat()?'Winner 🏆':'Loser'; $('rank').innerHTML=G.done.map((s,i)=>`<li style="--c:${SC[s]}"><i></i>${AD(i+1)}. ${esc(G.seats[s].name)}</li>`).join(''); $('endOv').hidden=false;
+function showEnd(){ $('endT').textContent=G.winner===mySeat()?'Winner 🏆':'Loser'; const won=payPrize(); $('prize').hidden=!won; $('prize').textContent='+'+AD(won)+' 🪙'; $('rank').innerHTML=G.done.map((s,i)=>`<li style="--c:${SC[s]}"><i></i>${AD(i+1)}. ${esc(G.seats[s].name)}</li>`).join(''); $('endOv').hidden=false;
  $('again').hidden=!iRun(); if(G.winner===mySeat()) SND.home(); }
 $('again').onclick=()=>{ $('endOv').hidden=true; startLocal(G.seats.map(x=>x)); if(MODE==='net') pushPresence(); };
 $('toLobby').onclick=()=>{ $('endOv').hidden=true; leave(); };
@@ -274,10 +298,43 @@ $('cfNo').onclick=()=>$('confirm').hidden=true;
 $('bExit').onclick=()=>askConfirm('خروج','هل تريد الخروج من الجولة؟',leave);
 function leave(){ G=null; if(NET.room){ const r=NET.room; NET.room=null; NET.host=false; try{ r.leave(); }catch(e){} } MODE='cpu'; show('lobby'); renderLobby(); }
 $('toHub').onclick=()=>{ location.href='index.html'; };
+// ================= coins and gifts (game coins, kept on this phone; not real money) =================
+const WAL={c:1000,day:'',got:{},paid:0}; try{ Object.assign(WAL,JSON.parse(localStorage.getItem('ludo-wallet')||'{}')); }catch(e){}
+function saveWal(){ try{ localStorage.setItem('ludo-wallet',JSON.stringify(WAL)); }catch(e){} renderCoins(); }
+function renderCoins(){ document.querySelectorAll('.coins b').forEach(e=>e.textContent=AD(WAL.c)); const g=Object.entries(WAL.got).filter(([,n])=>n>0);
+ $('myGifts').textContent=g.length?'هداياك: '+g.map(([i,n])=>(GIFTS[i]?GIFTS[i].e:'🎁')+'×'+AD(n)).join('  '):'اكسب عملات لما تكسب، وابعت بيها هدايا لصحابك 🎁'; renderGiftBar(); }
+function coinFx(t){ const d=document.createElement('div'); d.className='coinfx'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.remove(),1900); }
+function addCoins(n,why){ WAL.c=Math.max(0,WAL.c+n); saveWal(); if(n>0){ coinFx('+'+AD(n)+' 🪙'+(why?'  '+why:'')); tone(1319,0.1,'sine',0.12); tone(1760,0.14,'sine',0.12,0.08); } }
+// prizes: online games pay more than games against the computer
+const PRIZE={net:[200,100,50,0],cpu:[100,50,20,0]};
+function payPrize(){ const me=mySeat(); if(me<0||!G||WAL.paid===G.t0) return 0; WAL.paid=G.t0; const place=G.done.indexOf(me); const n=place<0?0:(PRIZE[MODE==='net'?'net':'cpu'][place]||0); if(n) addCoins(n,place===0?'للكسبان 🏆':''); else saveWal(); return n; }
+const GIFTS=[{e:'🌹',n:'وردة',p:10},{e:'🍫',n:'شوكولاتة',p:25},{e:'🧸',n:'دبدوب',p:50},{e:'💐',n:'بوكيه',p:80},{e:'🎂',n:'تورتة',p:120},{e:'👑',n:'تاج',p:200},{e:'🚗',n:'عربية',p:400},{e:'💎',n:'ألماظة',p:800}];
+let GIFT_TO=-1; const GOT={}; // gifts each seat got this round (coins' worth)
+function renderGiftBar(){ if($('giftBar').hidden) return; const me=mySeat(); const others=G?[0,1,2,3].filter(s=>G.seats[s]&&s!==me):[];
+ if(!others.includes(GIFT_TO)) GIFT_TO=others[0]??-1;
+ $('giftTo').innerHTML=others.map(s=>`<button data-s="${s}" style="--c:${SC[s]}" aria-pressed="${s===GIFT_TO}">${esc(String(G.seats[s].name).slice(0,12))}</button>`).join('');
+ $('giftList').innerHTML=GIFTS.map((g,i)=>`<button data-g="${i}" ${WAL.c<g.p||GIFT_TO<0?'disabled':''}><b>${g.e}</b>${g.n}<span>🪙 ${AD(g.p)}</span></button>`).join(''); }
+$('bGift').onclick=()=>{ $('emoBar').hidden=true; $('giftBar').hidden=!$('giftBar').hidden; renderGiftBar(); };
+$('giftTo').onclick=e=>{ const b=e.target.closest('button[data-s]'); if(!b) return; GIFT_TO=+b.dataset.s; renderGiftBar(); };
+$('giftList').onclick=e=>{ const b=e.target.closest('button[data-g]'); if(!b||b.disabled||!G) return; const i=+b.dataset.g, g=GIFTS[i]; if(WAL.c<g.p||GIFT_TO<0) return;
+ $('giftBar').hidden=true; WAL.c-=g.p; saveWal(); const me=mySeat(), to=GIFT_TO; showGift(me,to,i);
+ if(MODE==='net'){ NET.giftN=(NET.giftN|0)+1; NET.gift=[NET.giftN,i,to]; pushPresence(); }
+ else if(G.seats[to]&&G.seats[to].bot) setTimeout(()=>{ if(G) showEmo(to,['❤️','😍','👏','🥰'][Math.floor(Math.random()*4)]); },1500); };
+// the gift flies from one player to the other and lands with a pop
+function showGift(from,to,i){ const g=GIFTS[i]; if(!g||!G) return; const W=$('boardWrap'), w=W.getBoundingClientRect();
+ const ctr=s=>{ const c=document.querySelector(`.pc[data-s="${s}"] .av`); if(!c) return [w.width/2,w.height/2]; const r=c.getBoundingClientRect(); return [r.left-w.left+r.width/2,r.top-w.top+r.height/2]; };
+ const [x0,y0]=ctr(from), [x1,y1]=ctr(to); const d=document.createElement('div'); d.className='gfly'; d.textContent=g.e; d.style.left=(x0-28)+'px'; d.style.top=(y0-34)+'px'; W.appendChild(d);
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{ d.style.transform=`translate(${x1-x0}px,${y1-y0}px) scale(1.3) rotate(${(Math.random()-.5)*40}deg)`; }));
+ [880,1175,1568].forEach((f,k)=>tone(f,0.12,'triangle',0.1,k*0.12));
+ setTimeout(()=>{ d.remove(); const b=document.createElement('div'); b.className='gburst'; b.textContent=g.e; b.style.left=x1+'px'; b.style.top=y1+'px'; W.appendChild(b); setTimeout(()=>b.remove(),1700); tone(1568,0.25,'sine',0.14); tone(2093,0.3,'sine',0.1,0.08);
+  GOT[to]=(GOT[to]||0)+g.p; placeCards();
+  const fn=G.seats[from]?G.seats[from].name:'', tn=G.seats[to]?G.seats[to].name:''; msgSmall((from===mySeat()?'إنت':fn)+' بعت '+g.e+' '+g.n+' لـ '+(to===mySeat()?'ليك':tn));
+  if(to===mySeat()){ WAL.got[i]=(WAL.got[i]|0)+1; saveWal(); } },1150); }
+function msgSmall(t){ const d=document.createElement('div'); d.className='coinfx'; d.style.fontSize='17px'; d.style.top='auto'; d.style.bottom='calc(84px + env(safe-area-inset-bottom,0px))'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.remove(),1900); }
 // emoji reactions
 const EMOS=['😀','😂','😎','😡','😭','👏','🔥','❤️'];
 $('emoBar').innerHTML=EMOS.map(e=>`<button>${e}</button>`).join('');
-$('bEmo').onclick=()=>{ $('emoBar').hidden=!$('emoBar').hidden; };
+$('bEmo').onclick=()=>{ $('giftBar').hidden=true; $('emoBar').hidden=!$('emoBar').hidden; };
 $('emoBar').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; $('emoBar').hidden=true; showEmo(mySeat(),b.textContent); if(MODE==='net'){ NET.emoN++; NET.emo=[NET.emoN,b.textContent]; pushPresence(); } };
 function showEmo(seat,e){ const card=document.querySelector(`.pc[data-s="${seat}"]`); if(!card) return; const d=document.createElement('div'); d.className='emo'; d.textContent=e; const r=card.getBoundingClientRect(), w=$('boardWrap').getBoundingClientRect(); d.style.left=(r.left-w.left+20)+'px'; d.style.top=(r.top-w.top-30)+'px'; $('boardWrap').appendChild(d); setTimeout(()=>d.remove(),2300); }
 
@@ -286,7 +343,7 @@ const OP=onlinePanel({getLobby:()=>NET.lobby,getName:()=>PROFILE.n,setName:n=>{ 
 function roomPeers(){ return NET.room?NET.room.peers().filter(p=>p.presence&&typeof p.presence.n==='string'):[]; }
 function hostPeer(){ return roomPeers().find(p=>p.presence.hs===1)||null; }
 function announce(){ if(!NET.lobby) return; NET.lobby.presence({pl:{n:PROFILE.n,c:PROFILE.c,st:NET.room?'wait':'lobby',game:'ludo',code:NET.room?NET.code:null},lopen:NET.host&&(!G||G.over)?{code:NET.code,n:PROFILE.n,k:roomPeers().length,t:Date.now()}:null}).catch(()=>{}); }
-function pushPresence(){ const R=NET.room; if(!R) return; const p={n:PROFILE.n,c:PROFILE.c,hs:NET.host?1:0,a:NET.act,e:NET.emo}; if(NET.host) p.g=G; R.presence(p).catch(()=>{}); }
+function pushPresence(){ const R=NET.room; if(!R) return; const p={n:PROFILE.n,c:PROFILE.c,hs:NET.host?1:0,a:NET.act,e:NET.emo,gf:NET.gift||null}; if(NET.host) p.g=G; R.presence(p).catch(()=>{}); }
 function renderLobby(){ if($('lobby').hidden) return; if(!NET.lobby){ $('lobStat').textContent=NET.off?'مش متصل بالنت. تقدر تلعب ضد الكمبيوتر.':'بنوصل…'; $('rooms').innerHTML='<li class="empty">—</li>'; return; }
  $('lobStat').textContent='العب مع صحابك أونلاين (٢ لـ ٤ لاعبين) أو ضد الكمبيوتر.';
  const rooms=NET.lobby.peers().filter(p=>!p.sameTab&&p.presence&&p.presence.lopen&&/^ludo-[a-z0-9]{4,10}$/.test(p.presence.lopen.code||'')).map(p=>p.presence.lopen);
@@ -294,7 +351,7 @@ function renderLobby(){ if($('lobby').hidden) return; if(!NET.lobby){ $('lobStat
 $('rooms').onclick=e=>{ const b=e.target.closest('button[data-code]'); if(b&&!b.disabled) joinRoom(b.dataset.code,false); };
 $('quick').onclick=()=>{ const b=document.querySelector('#rooms button[data-code]:not(:disabled)'); if(b) joinRoom(b.dataset.code,false); else joinRoom('ludo-'+Math.random().toString(36).slice(2,8),true); };
 $('newRoom').onclick=()=>joinRoom('ludo-'+Math.random().toString(36).slice(2,8),true);
-async function joinRoom(code,host){ initAudio(); if(!NET.lobby||NET.room) return; try{ const r=await NET.lobby.join(code); NET.room=r; NET.code=code; NET.host=host; NET.seenAct={}; NET.seenEmo={}; MODE='net'; G=null; r.onPeers(()=>renderRoom(),()=>leave()); show('roomOv'); renderRoom(); pushPresence(); announce(); }catch(e){ $('lobStat').textContent='مقدرناش ندخل الأوضة دي.'; } }
+async function joinRoom(code,host){ initAudio(); if(!NET.lobby||NET.room) return; try{ const r=await NET.lobby.join(code); NET.room=r; NET.code=code; NET.host=host; NET.seenAct={}; NET.seenEmo={}; NET.seenGift={}; MODE='net'; G=null; r.onPeers(()=>renderRoom(),()=>leave()); show('roomOv'); renderRoom(); pushPresence(); announce(); }catch(e){ $('lobStat').textContent='مقدرناش ندخل الأوضة دي.'; } }
 function renderRoom(){ if($('roomOv').hidden) return; const ps=roomPeers().slice(0,4); const H=hostPeer();
  $('seats').innerHTML=[0,1,2,3].map(s=>{ const p=ps[s]; return `<div class="seat" style="--c:${SC[s]}"><i></i><div><b>${p?esc(String(p.presence.n).slice(0,14))+(p.sameTab?' (إنت)':''):(($('fillCpu').checked&&NET.host)?'كمبيوتر 🤖':'مستني لاعب…')}</b><small>${SN[s]}</small></div></div>`; }).join('');
  $('roomInfo').textContent=NET.host?'إنت صاحب الأوضة. ابدأ وقت ما صحابك يدخلوا.':'مستنيين صاحب الأوضة يبدأ…'+(!H?' (صاحب الأوضة خرج)':'');
@@ -308,9 +365,13 @@ function netTick(){ NET.lobT-=0.016; if(NET.lobT<=0){ NET.lobT=1.5; announce(); 
  const R=NET.room; if(!R) return; NET.sendT-=0.016; if(NET.sendT<=0){ NET.sendT=NET.host?0.12:0.4; pushPresence(); }
  for(const p of roomPeers()){ if(p.sameTab) continue; const P=p.presence;
   if(Array.isArray(P.e)&&P.e[0]!==NET.seenEmo[p.peer]){ const first=NET.seenEmo[p.peer]===undefined; NET.seenEmo[p.peer]=P.e[0]; if(!first&&G){ const s=G.seats.findIndex(x=>x&&x.peer===p.peer); if(s>=0) showEmo(s,String(P.e[1]).slice(0,4)); } }
+  if(Array.isArray(P.gf)&&P.gf[0]!==(NET.seenGift||(NET.seenGift={}))[p.peer]){ const first=NET.seenGift[p.peer]===undefined; NET.seenGift[p.peer]=P.gf[0]; if(!first&&G){ const s=G.seats.findIndex(x=>x&&x.peer===p.peer), gi=P.gf[1]|0, to=P.gf[2]|0; if(s>=0&&GIFTS[gi]&&G.seats[to]) showGift(s,to,gi); } }
   if(NET.host&&G&&P.a&&typeof P.a.i==='number'&&P.a.i!==NET.seenAct[p.peer]){ NET.seenAct[p.peer]=P.a.i; const s=G.seats.findIndex(x=>x&&x.peer===p.peer); if(s>=0&&s===G.turn&&(P.a.k==='roll'||P.a.k==='move')) applyAct(s,{k:P.a.k,t:P.a.t|0}); } }
  if(!NET.host){ const H=hostPeer(); if(H&&H.presence.g&&typeof H.presence.g==='object'){ const ng=H.presence.g; if(!G||ng.seq!==G.seq||ng.t0!==G.t0){ const fresh=!G||ng.t0!==G.t0; G=JSON.parse(JSON.stringify(ng)); if(fresh){ seenSeq=-1; VIEW=Math.max(0,mySeat()); $('endOv').hidden=true; show('game'); layout(); turnStart=Date.now(); } else turnStart=Date.now(); onState(fresh); } } } }
 // boot
+renderCoins();
+// a free gift of coins once a day
+{ const today=new Date().toDateString(); if(WAL.day!==today){ const first=!WAL.day; WAL.day=today; saveWal(); if(!first) setTimeout(()=>addCoins(100,'هدية النهارده'),800); } }
 (async()=>{ show('lobby'); requestAnimationFrame(tick); const L=await getLobby(); if(!L){ NET.off=true; renderLobby(); return; } NET.lobby=L; L.onPeers(()=>renderLobby(),()=>{}); announce(); renderLobby();
  const inv=new URLSearchParams(location.search).get('room'); if(inv&&/^ludo-[a-z0-9]{4,10}$/.test(inv)) joinRoom(inv,false); })();
 </script>
