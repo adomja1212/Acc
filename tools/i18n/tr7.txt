@@ -222,3 +222,7 @@
 الرصيد الافتتاحي أُرسل للاعتماد — يُرحّل بعد اعتماده من شاشة الموافقات|Opening balance sent for approval — it posts after approval in the Approvals screen|Saldo inicial enviado a aprobación — se contabiliza tras aprobarlo en Aprobaciones
 جارٍ إعادة الاتصال بقاعدة البيانات…|Reconnecting to the database…|Reconectando con la base de datos…
 تم ترحيل # رصيد افتتاحي من قواعد بيانات الموردين والعملاء — تظهر في الأرصدة الافتتاحية والقيود اليومية|# opening balances posted from the suppliers and customers databases — they now appear in opening balances and the journal|# saldos iniciales contabilizados desde las bases de proveedores y clientes — aparecen en saldos iniciales y en el diario
+ترحيل كل الأرصدة الافتتاحية|Post all opening balances|Contabilizar todos los saldos iniciales
+كل الأرصدة الافتتاحية مرحّلة بالفعل|All opening balances are already posted|Todos los saldos iniciales ya están contabilizados
+تم ترحيل # رصيد افتتاحي — تظهر الآن في الأرصدة الافتتاحية والقيود اليومية وكل التقارير|# opening balances posted — they now appear in opening balances, the journal and all reports|# saldos iniciales contabilizados — ya aparecen en saldos iniciales, el diario y todos los informes
+اكتب اسم المورد|Type the supplier name|Escriba el nombre del proveedor

@@ -557,6 +557,17 @@
     cache = {}; save();
     return list.length;
   }
+  // عدد الأرصدة الافتتاحية التي لم تُرحّل: قديمة في قواعد البيانات + مستندات معلّقة الاعتماد
+  const openingPostCount = () => legacyOpenings().length + db.openingBalances.filter(r => r.appr && r.appr.status === 'pending' && (obDr(r) || obCr(r))).length;
+  function postAllOpenings() {
+    let n = migrateLegacyOpenings();
+    const by = curUser()?.id || null, at = new Date().toISOString();
+    db.openingBalances.filter(r => r.appr && r.appr.status === 'pending' && (obDr(r) || obCr(r))).forEach(r => {
+      r.appr = { ...r.appr, status: 'approved', steps: [...(r.appr.steps || []), { action: 'approve', level: r.appr.level, by, at, note: 'ترحيل كل الأرصدة الافتتاحية' }] }; n++;
+    });
+    cache = {}; save();
+    return n;
+  }
   const accOpenSync = (a, dr, cr) => {
     const box = db.cashboxes.find(b => b.accountNo === a.code);
     const doc = syncOpeningDoc(`accounts/${a.id}`, box ? { otype: OPEN_TYPES[0], box: box.name, dr, cr, desc: `رصيد افتتاحي — ${box.name}` }
@@ -861,7 +872,6 @@
     if (/^\d{5}(\.\d+)?$/.test(v)) { const dt = new Date(Date.UTC(1899, 11, 30) + Math.round(+v) * 864e5); v = fmtDMY(dt.toISOString().slice(0, 10)); } // تاريخ Excel
     else if (/^\d{4}-\d{2}-\d{2}$/.test(v)) v = fmtDMY(v);
     else if (/^\d{4}-\d{2}$/.test(v)) v = periodMonth(v);
-    if (!v) return 'اكتب الفترة (نص أو تاريخ — مثال: من 1-7-2026 إلى 7-7-2026 أو أكتوبر-2026)';
     d.periodNote = v; d.month = ''; d.from = ''; d.to = ''; d.periodType = '';
     return ''; };
   // حساب المصروف المقترح حسب نوع المورد (عمالة / معدات / سيارات)
@@ -1258,7 +1268,11 @@ C('openDr', 'رصيد أول المدة — مدين (يُرحّل بعد الا
           if (h?.expAcc && f.namedItem('expAcc')) f.namedItem('expAcc').value = h.expAcc; if (h?.store && f.namedItem('store') && !f.namedItem('store').value) f.namedItem('store').value = h.store; } },
       validate: (d, rec) => {
         const code = accCode(d.account); if (!code) return 'اختر اسم الحساب';
-        fixParty(d, partyOpts(d.account)); if (!partyOpts(d.account).includes(d.party)) return `اختر المورد من موردي "${acc(code)?.name}"`;
+        d.party = String(d.party || '').trim(); if (!d.party) return 'اكتب اسم المورد';
+        fixParty(d, partyOpts(d.account));
+        // مورد غير مسجل على هذا الحساب: يُكوّد تلقائياً في قاعدة بيانات الموردين بعد نجاح باقي التحقق
+        const newSupp = !partyOpts(d.account).includes(d.party) && acc(code) && code !== SYS.suppliers ? { name: d.party, category: acc(code).name } : null;
+        if (!newSupp && !partyOpts(d.account).includes(d.party)) return `اختر المورد من موردي "${acc(code)?.name}"`;
         if (suppKind(d.account) === 'goods') {
           if (!accCode(d.store) || !isInvAcc(accCode(d.store))) return 'اختر المخزون المستلم';
           ['periodType', 'month', 'from', 'to', 'periodNote', 'expAcc'].forEach(k => { d[k] = ''; });
@@ -1266,11 +1280,14 @@ C('openDr', 'رصيد أول المدة — مدين (يُرحّل بعد الا
         } else {
           ['store', 'branch', 'docNo'].forEach(k => { d[k] = ''; });
           const pe = periodCheck(d, d.account); if (pe) return pe;
+          if (!accCode(d.expAcc)) d.expAcc = defaultExpFor(d.account);
           if (!accCode(d.expAcc)) return 'اختر الحساب المقابل';
-          const dup = db.supplierAccruals.find(r => r !== rec && r.party === d.party && !r.store && periodText(r) === periodText(d));
+          const dup = periodText(d) && db.supplierAccruals.find(r => r !== rec && r.party === d.party && !r.store && periodText(r) === periodText(d));
           if (dup && !ask(`يوجد استحقاق للمورد ${d.party} عن نفس الفترة (${dup.no}). متابعة؟`)) return 'تم الإلغاء';
         }
         if (!(+d.amount > 0)) return 'اكتب المبلغ';
+        if (newSupp) { db.suppliers.push({ id: genId(), code: autoNo('suppliers', 'code'), name: newSupp.name, category: newSupp.category, phone: '', city: '' }); cache = {};
+          if (!importing) setTimeout(() => toast(`تم تكويد المورد "${newSupp.name}" في ${newSupp.category}`, 4000), 300); }
       } },
 
     // ===== المشتريات =====
@@ -2172,6 +2189,21 @@ C('openDr', 'رصيد أول المدة — مدين (يُرحّل بعد الا
     $('#tblSearch').addEventListener('input', e => { state.q = e.target.value; renderModule(name); const el = $('#tblSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); });
     $('#tblFilter')?.addEventListener('change', e => { state.filter = e.target.value; renderModule(name); });
     $('#addBtn').onclick = () => openRecordForm(name);
+    // زر "ترحيل كل الأرصدة الافتتاحية" للمدير: يرحّل الأرصدة القديمة في قواعد البيانات ويعتمد مستندات الأرصدة الافتتاحية المعلّقة
+    if (['suppliers', 'customers', 'openingBalances'].includes(T) && isAdminUser(curUser()) && store.canWrite) {
+      const n = openingPostCount();
+      const btn = document.createElement('button'); btn.className = 'btn ' + (n ? 'primary' : 'ghost'); btn.id = 'postOpeningsBtn';
+      btn.innerHTML = `${icons.ledger || ''}ترحيل كل الأرصدة الافتتاحية${n ? ` (${n})` : ''}`;
+      btn.title = 'يرحّل الأرصدة الافتتاحية المكتوبة في قواعد بيانات الموردين والعملاء ويعتمد المعلّق منها، فتظهر في الأرصدة الافتتاحية والقيود اليومية وكل التقارير';
+      $('#addBtn').before(btn);
+      btn.onclick = () => {
+        const c = openingPostCount();
+        if (!c) { toast('كل الأرصدة الافتتاحية مرحّلة بالفعل'); return; }
+        if (!confirm(`سيتم ترحيل واعتماد ${c} رصيد افتتاحي وإنشاء قيودها اليومية. متابعة؟`)) return;
+        const done = postAllOpenings(); renderNav(); renderPage();
+        toast(`تم ترحيل ${done} رصيد افتتاحي — تظهر الآن في الأرصدة الافتتاحية والقيود اليومية وكل التقارير`, 6000);
+      };
+    }
     $('#importBtn').onclick = () => openImport(T, m.fixed?.stype && ['salesInvoices', 'salesReturns'].includes(T) ? { account: catAcc(SYS.customers, 'عملاء ' + m.fixed.stype), _title: m.title } : {});
     $('#exportBtn').onclick = () => downloadCSV(name, cols.map(c => c.label), rows.map(r => cols.map(c => val(r, c))));
     const find = id => db[T].find(r => r.id === id);
