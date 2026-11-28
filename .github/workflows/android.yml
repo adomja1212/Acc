@@ -147,7 +147,7 @@ jobs:
           ln -s ../node_modules node_modules && cp ../package.json .
           mv ../www-war www
           cat > capacitor.config.json <<'JSON'
-          {"appId":"eg.streetwar.game","appName":"حرب شوارع","webDir":"www","server":{"androidScheme":"https"},"plugins":{"CapacitorUpdater":{"autoUpdate":false,"statsUrl":"","updateUrl":"","channelUrl":"","resetWhenUpdate":true}}}
+          {"appId":"eg.streetwar.game","appName":"SWE حرب شوارع","webDir":"www","server":{"androidScheme":"https"},"plugins":{"CapacitorUpdater":{"autoUpdate":false,"statsUrl":"","updateUrl":"","channelUrl":"","resetWhenUpdate":true}}}
           JSON
           npx cap add android
           RES=android/app/src/main/res
