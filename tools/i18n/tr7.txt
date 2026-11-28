@@ -220,3 +220,4 @@
 رصيد أول المدة — مدين (يُرحّل بعد الاعتماد)|Opening balance — debit (posted after approval)|Saldo inicial — debe (se contabiliza tras la aprobación)
 رصيد أول المدة — دائن (يُرحّل بعد الاعتماد)|Opening balance — credit (posted after approval)|Saldo inicial — haber (se contabiliza tras la aprobación)
 الرصيد الافتتاحي أُرسل للاعتماد — يُرحّل بعد اعتماده من شاشة الموافقات|Opening balance sent for approval — it posts after approval in the Approvals screen|Saldo inicial enviado a aprobación — se contabiliza tras aprobarlo en Aprobaciones
+جارٍ إعادة الاتصال بقاعدة البيانات…|Reconnecting to the database…|Reconectando con la base de datos…
