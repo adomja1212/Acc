@@ -1,0 +1,222 @@
+name: Android APK
+
+on:
+  push:
+    branches: [ccr-7b1fff8c-9wqli9, main]
+    paths:
+      - '*.html'
+      - net.js
+      - bgm.js
+      - assets/**
+      - android-res/**
+      - tools/**
+      - package.json
+      - capacitor.config.json
+      - .github/workflows/android.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install packages
+        run: npm install --no-audit --no-fund
+
+      - name: Bundle the game for offline play
+        run: |
+          node tools/build-www.mjs
+          # stamp the build number so the app can tell when a newer release exists
+          sed -i "s/const APP_BUILD=0;/const APP_BUILD=${{ github.run_number }};/" www/*.html
+          grep -q "const APP_BUILD=${{ github.run_number }};" www/index.html
+
+      - name: Create the Android project
+        run: npx cap add android
+
+      - name: App icon and keep-awake screen
+        run: |
+          RES=android/app/src/main/res
+          rm -rf $RES/mipmap-anydpi-v26
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            for n in ic_launcher ic_launcher_round ic_launcher_foreground; do
+              cp android-res/icons/$d.png $RES/mipmap-$d/$n.png
+            done
+          done
+          cp android-res/MainActivity.java android/app/src/main/java/eg/tuktuk/rally/MainActivity.java
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]*\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+          # microphone for team voice chat in Street War
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#&\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />#' $M
+          grep -q RECORD_AUDIO $M && grep -q MODIFY_AUDIO_SETTINGS $M
+          # the updater's background-work library: keep the version that builds with Android 34
+          cat >> android/app/build.gradle <<'GRADLE'
+          configurations.all { resolutionStrategy { force 'androidx.work:work-runtime:2.9.1' } }
+          GRADLE
+          # the updater's Google task library needs Android 6.0 or newer
+          sed -i 's/minSdkVersion = 22/minSdkVersion = 23/' android/variables.gradle
+          grep -q "minSdkVersion = 23" android/variables.gradle
+
+      - name: Stable signing key, so updates install over the old app
+        env:
+          KS: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$HOME/tuk-signing.keystore"
+            keytool -list -keystore "$HOME/tuk-signing.keystore" -storepass android -alias androiddebugkey
+            # point the build at the saved key explicitly
+            cat >> android/app/build.gradle <<GRADLE
+          android {
+              signingConfigs {
+                  debug {
+                      storeFile file("$HOME/tuk-signing.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+          }
+          GRADLE
+            echo "Signing with the saved key"
+          else
+            echo "::warning::ANDROID_DEBUG_KEYSTORE is not set, so this APK gets a new key and will not install over older ones"
+          fi
+
+      - name: Use Google's Maven Central mirror first (Maven Central rate-limits CI)
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/mirror.gradle <<'GRADLE'
+          def mirror = { repos ->
+            repos.maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
+          }
+          settingsEvaluated { s ->
+            s.pluginManagement.repositories { mirror(delegate) }
+          }
+          allprojects {
+            buildscript { repositories { mirror(delegate) } }
+            repositories { mirror(delegate) }
+          }
+          GRADLE
+
+      - name: Build the APK
+        run: |
+          cd android
+          chmod +x gradlew
+          for i in 1 2 3; do
+            ./gradlew assembleDebug --no-daemon && break
+            if [ $i = 3 ]; then exit 1; fi
+            echo "Build failed, retrying in 60s ($i/3)"; sleep 60
+          done
+          cp app/build/outputs/apk/debug/app-debug.apk ../tuktuk-rally.apk
+
+      - name: Check the APK carries the saved key
+        env:
+          KS: ${{ secrets.ANDROID_DEBUG_KEYSTORE }}
+        run: |
+          keytool -printcert -jarfile tuktuk-rally.apk | tee cert.txt
+          if [ -n "$KS" ] && ! grep -q "TukTuk Rally" cert.txt; then
+            echo "::error::The APK is not signed with the saved key"; exit 1
+          fi
+
+      # ---- «حرب شوارع» as its own app: same game, its own icon, held sideways like PUBG ----
+      - name: Street War app project
+        run: |
+          mv www www-hub
+          node tools/build-www.mjs --with-war
+          node tools/build-war.mjs
+          rm -rf www && mv www-hub www
+          # the build number lets the app tell when a newer version is out
+          sed -i "s/const WAR_BUILD=0;/const WAR_BUILD=${{ github.run_number }};/" www-war/index.html
+          grep -q "const WAR_BUILD=${{ github.run_number }};" www-war/index.html
+          # the game files as one package: the app downloads this to update itself
+          (cd www-war && zip -qr ../street-war-web.zip .)
+          mkdir warapp && cd warapp
+          ln -s ../node_modules node_modules && cp ../package.json .
+          mv ../www-war www
+          cat > capacitor.config.json <<'JSON'
+          {"appId":"eg.streetwar.game","appName":"SWE حرب شوارع","webDir":"www","server":{"androidScheme":"https"},"plugins":{"CapacitorUpdater":{"autoUpdate":false,"statsUrl":"","updateUrl":"","channelUrl":"","resetWhenUpdate":true}}}
+          JSON
+          npx cap add android
+          RES=android/app/src/main/res
+          rm -rf $RES/mipmap-anydpi-v26
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            for n in ic_launcher ic_launcher_round ic_launcher_foreground; do cp ../android-res/war-icons/$d.png $RES/mipmap-$d/$n.png; done
+          done
+          mkdir -p android/app/src/main/java/eg/streetwar/game
+          sed 's/package eg.tuktuk.rally;/package eg.streetwar.game;/' ../android-res/MainActivity.java > android/app/src/main/java/eg/streetwar/game/MainActivity.java
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]*\"/versionName \"1.${{ github.run_number }}\"/" android/app/build.gradle
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#&\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />#' $M
+          # landscape only, turning with the phone
+          sed -i 's#<activity#<activity android:screenOrientation="sensorLandscape"#' $M
+          grep -q sensorLandscape $M && grep -q RECORD_AUDIO $M
+          # the updater's background-work library: keep the version that builds with Android 34
+          cat >> android/app/build.gradle <<'GRADLE'
+          configurations.all { resolutionStrategy { force 'androidx.work:work-runtime:2.9.1' } }
+          GRADLE
+          # the updater's Google task library needs Android 6.0 or newer
+          sed -i 's/minSdkVersion = 22/minSdkVersion = 23/' android/variables.gradle
+          grep -q "minSdkVersion = 23" android/variables.gradle
+          if [ -f "$HOME/tuk-signing.keystore" ]; then
+            cat >> android/app/build.gradle <<GRADLE
+          android {
+              signingConfigs {
+                  debug {
+                      storeFile file("$HOME/tuk-signing.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+          }
+          GRADLE
+          fi
+
+      - name: Build the Street War APK
+        run: |
+          cd warapp/android
+          chmod +x gradlew
+          for i in 1 2 3; do
+            ./gradlew assembleDebug --no-daemon && break
+            if [ $i = 3 ]; then exit 1; fi
+            echo "Build failed, retrying in 60s ($i/3)"; sleep 60
+          done
+          cp app/build/outputs/apk/debug/app-debug.apk ../../street-war.apk
+          keytool -printcert -jarfile ../../street-war.apk | head -5
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tuktuk-rally-apk
+          path: |
+            tuktuk-rally.apk
+            street-war.apk
+            street-war-web.zip
+
+      - name: Publish the download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: ألعاب جماعية للأندرويد (نسخة ${{ github.run_number }})
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: |
+            tuktuk-rally.apk
+            street-war.apk
+            street-war-web.zip
+          body: |
+            نزّل ملف tuktuk-rally.apk (ألعاب جماعية) أو street-war.apk (حرب شوارع لوحدها) على الموبايل وافتحه.
+            لو الموبايل سأل، اسمح بتثبيت التطبيقات من المصدر ده.
+            اللعب لوحدك شغال من غير نت، والسباق أونلاين محتاج نت.

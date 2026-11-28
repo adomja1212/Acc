@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<script>
+// never show an old copy kept by the phone: if this page came from the cache, load it fresh once
+(function(){ try{ if(!/github\.io$/.test(location.hostname)) return; var n=performance.getEntriesByType('navigation')[0]; var k="fresh:"+location.pathname; if(!n) return; if(n.transferSize>0){ sessionStorage.removeItem(k); return; } if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k,'1'); var u=new URL(location.href); u.searchParams.set('v',Date.now()); location.replace(u.toString()); }catch(e){} })();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ألعاب جماعية</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lalezar&family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE occasion: a loud Cairo arcade front door
+   IDEA a painted shop sign in truck-art, each game its own illustrated panel
+   PICTURE two big game posters: a tuk-tuk at sunset, a street-war skyline
+   COLOUR night maroon #22090f, saffron #ffb703, red #e63946, turquoise #22c3b5
+   TYPE Lalezar display + Cairo text
+   LAYOUT title and description on top, game icons below, exit button at the bottom */
+:root{--bg:#22090f;--ink:#fff6e6;--sf:#ffb703;--red:#e63946;--tq:#22c3b5;--card:#2e0f17}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+html,body{min-height:100%;margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Cairo,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:radial-gradient(1200px 600px at 50% -10%,#5a1622 0%,transparent 60%),var(--bg)}
+.truck{height:12px;background:repeating-linear-gradient(90deg,var(--red) 0 22px,var(--sf) 22px 44px,var(--tq) 44px 66px,#1f7a3a 66px 88px)}
+.wrap{max-width:1100px;margin:0 auto;padding:20px max(5vw,16px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(5vw,16px,env(safe-area-inset-left,0px))}
+header{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:end;margin-bottom:18px}
+h1{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:clamp(48px,9vw,84px);line-height:1;margin:6px 0 0;color:var(--sf);text-shadow:3px 3px 0 var(--red)}
+.sub{margin:6px 0 0;font-size:17px;opacity:.9}
+.sw{display:flex;gap:8px;flex-wrap:wrap}
+.sw button{width:34px;height:34px;border-radius:50%;border:3px solid transparent;outline:2px solid rgba(255,255,255,.25);cursor:pointer}
+.sw button[aria-pressed=true]{border-color:#fff;outline-color:var(--sf)}
+.apps{display:flex;flex-wrap:wrap;gap:22px 26px;padding:8px 4px}
+.app{display:grid;justify-items:center;gap:8px;width:104px;text-decoration:none;color:var(--ink)}
+.app b{font-size:15px;font-weight:800;text-align:center;line-height:1.25}
+.ico{display:block;width:96px;height:96px;border-radius:24px;overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.12);transition:transform .12s}
+.ico img{width:100%;height:100%;object-fit:cover;display:block}
+.ico.tuk{background:radial-gradient(circle at 50% 30%,#ffe4a8,#ff9e57 55%,#c8502e)}
+.ico.tuk{background:#0b0f2a}
+.ico.war{background:radial-gradient(circle at 60% 30%,#5e6f86,#2a2f3a 65%,#16181d)}
+.ico.war{background:#2b0505}
+.app:hover .ico,.app:focus-visible .ico{transform:translateY(-3px) scale(1.04)}
+.app:active .ico{transform:scale(.95)}
+.app:focus-visible{outline:none}
+footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;font-size:14px;opacity:.85;flex-wrap:wrap}
+.credit{position:fixed;left:0;right:0;bottom:0;margin:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));text-align:center;font:600 14px Cairo,sans-serif;color:rgba(255,246,230,.7);letter-spacing:.03em;background:linear-gradient(transparent,rgba(20,5,9,.9) 40%)}
+.credit b{color:var(--sf);font-weight:800}
+.wrap{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))!important}
+footer button{background:var(--red);border:0;border-radius:999px;color:var(--ink);font:800 16px Cairo,sans-serif;cursor:pointer;min-height:44px;padding:0 20px;box-shadow:0 4px 0 #8f1520}
+.ov{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;overflow-y:auto;background:rgba(20,5,9,.65);padding:16px}
+.ov .card{margin-block:auto;width:min(480px,100%);background:var(--card);border-radius:18px;overflow:hidden;border:1px solid rgba(255,183,3,.3)}
+.ov .in{padding:20px}
+.ov h2{font-family:Lalezar,Cairo,sans-serif;font-weight:400;font-size:44px;line-height:1;margin:0;color:var(--sf);text-shadow:3px 3px 0 var(--red)}
+.ov p{font-size:18px}
+.btns{display:flex;gap:10px}
+.btns button{flex:1;border:0;border-radius:14px;font-family:Lalezar,Cairo,sans-serif;font-size:26px;padding:8px 0 4px;cursor:pointer;color:var(--ink);background:var(--red);box-shadow:0 5px 0 #8f1520}
+.btns button.alt{background:var(--tq);color:#062b28;box-shadow:0 5px 0 #11756c}
+@media (max-width:720px){
+ header{grid-template-columns:minmax(0,1fr)}
+ }
+</style>
+</head>
+<body>
+<div class="truck"></div>
+<div class="wrap">
+ <header>
+  <div><h1>ألعاب جماعية</h1><p class="sub">العب لوحدك أو أونلاين مع صحابك، وكل اللي فاتحين اللعبة بيشوفوا بعض.</p></div>
+ </header>
+
+ <section class="apps" aria-label="الألعاب">
+  <a class="app" href="tuktuk.html" id="gTuk"><span class="ico tuk"><img src="assets/icons/tuktuk.png" alt=""></span><b>سباق التوكتوك</b></a>
+  <a class="app" href="ludo.html" id="gLudo"><span class="ico"><img src="assets/icons/ludo.png" alt=""></span><b>لودو</b></a>
+  <a class="app" href="color.html" id="gColor"><span class="ico"><img src="assets/icons/color.png" alt=""></span><b>تلوين</b></a>
+ </section>
+
+ <footer><span id="ver"></span><button id="exitApp" hidden>⏻ خروج من التطبيق</button></footer>
+</div>
+<p class="credit" dir="ltr">Designed by: <b>Elsawah</b></p>
+
+<div class="ov" id="confirm" hidden><div class="card"><div class="truck"></div><div class="in"><h2 id="cfT">خروج</h2><p id="cfQ">هل تريد الخروج؟</p><div class="btns"><button id="cfYes">نعم</button><button class="alt" id="cfNo">لا</button></div></div></div></div>
+
+<script type="module">
+import { AD, myProfile, saveProfile } from './net.js';
+document.documentElement.lang = 'ar'; document.documentElement.dir = 'rtl';
+const $ = (id) => document.getElementById(id);
+
+// ---- profile shared by every game (name and who's online now live inside each game) ----
+const me = myProfile();
+saveProfile(me.n, me.c);
+
+// ---- dialogs, exit, Android back button ----
+let cfYes = null;
+function askConfirm(t, q, onYes, yes = 'نعم', no = 'لا') { $('cfT').textContent = t; $('cfQ').textContent = q; $('cfYes').textContent = yes; $('cfNo').textContent = no; cfYes = onYes; $('confirm').hidden = false; }
+$('cfNo').onclick = () => { $('confirm').hidden = true; };
+$('cfYes').onclick = () => { $('confirm').hidden = true; const f = cfYes; if (f) f(); };
+const capApp = () => window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+// inside the app the newest copy is opened from the web, where the app's own exit isn't reachable:
+// hop back to the copy bundled in the app and close from there
+const IN_APP = (() => { const q = new URLSearchParams(location.search).get('app'); try { if (q) localStorage.setItem('tuk-inapp', q); return +localStorage.getItem('tuk-inapp') || 0; } catch (e) { return +q || 0; } })();
+const exitGame = () => { const A = capApp(); if (A && A.exitApp) A.exitApp(); else if (IN_APP) location.replace('https://localhost/index.html?offline=1&exit=1'); };
+const askExit = () => askConfirm('خروج من التطبيق', 'هل تريد الخروج من التطبيق؟', exitGame);
+$('exitApp').onclick = askExit;
+if (IN_APP) $('exitApp').hidden = false;
+setTimeout(() => { const A = capApp(); if (A && /[?&]exit=1/.test(location.search) && A.exitApp) { A.exitApp(); return; } if (A && A.addListener) { $('exitApp').hidden = false; try { A.addListener('backButton', () => { if (!$('confirm').hidden) $('confirm').hidden = true; else askExit(); }); } catch (e) {} } }, 0);
+
+// ---- live updates: the app opens the newest version of the games straight from the web ----
+// The copy inside the app is used when there is no internet or the site can't be reached.
+const APP_BUILD=0; // the APK build number, filled in by the GitHub build (0 on the web)
+const LIVE = 'https://adomja1212.github.io/Acc/';
+if (APP_BUILD) $('ver').textContent = 'نسخة ' + AD(APP_BUILD) + ' · من غير نت';
+// opened by the app from the web: say so, so people can see they have the newest version
+{ const q = new URLSearchParams(location.search).get('app'); if (q && !APP_BUILD) $('ver').textContent = 'نسخة ' + AD(q) + ' · محدّثة أونلاين ✓'; }
+async function goLive() {
+  if (!APP_BUILD || !navigator.onLine || /[?&]offline=1/.test(location.search)) return;
+  try {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 3500);
+    const r = await fetch(LIVE + 'net.js', { cache: 'no-store', signal: ctl.signal }); clearTimeout(t);
+    if (!r.ok) return;
+    // carry the player's name and colour over to the web copy
+    const p = myProfile(); location.replace(LIVE + 'index.html?app=' + APP_BUILD + '&v=' + Date.now() + '#n=' + encodeURIComponent(p.n) + '&c=' + p.c);
+  } catch (e) {}
+}
+goLive();
+// arriving from the app: keep the name and colour it passed along
+{ const h = new URLSearchParams(location.hash.slice(1)); if (h.get('n')) { saveProfile(h.get('n'), +h.get('c') || 0); me.n = h.get('n').slice(0, 14); me.c = +h.get('c') || 0; history.replaceState(null, '', location.pathname + location.search); } }
+</script>
+</body>
+</html>
