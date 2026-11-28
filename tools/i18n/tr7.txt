@@ -1,0 +1,228 @@
+إدارة الخزينة والبنوك|Treasury & banks|Tesorería y bancos
+الخزائن|Cashboxes|Cajas
+إدارة الحسابات|Accounts management|Gestión de cuentas
+الموردين|Suppliers|Proveedores
+العملاء|Customers|Clientes
+أوامر دفع المصروفات|Expense payment orders|Órdenes de pago de gastos
+طلبات دفع الموردين|Supplier payment requests|Solicitudes de pago a proveedores
+التقارير المحاسبية|Accounting reports|Informes contables
+إدارة التكاليف|Cost management|Gestión de costes
+التكاليف حسب مركز التكلفة|Costs by cost center|Costes por centro de coste
+إدارة شئون العاملين|Personnel management|Gestión de personal
+إدارة شئون العمالة|Labor management|Gestión de mano de obra
+إدارة المشتريات|Purchasing management|Gestión de compras
+عروض أسعار الموردين|Supplier quotations|Cotizaciones de proveedores
+إدارة المبيعات|Sales management|Gestión de ventas
+فواتير المبيعات|Sales invoices|Facturas de venta
+المردودات|Returns|Devoluciones
+تقارير المبيعات|Sales reports|Informes de ventas
+إدارة المخازن|Warehouse management|Gestión de almacenes
+طلبات الصرف|Issue requests|Solicitudes de salida
+إدارة الميكنة|Machinery management|Gestión de maquinaria
+إدارة الصيانة|Maintenance management|Gestión de mantenimiento
+إدارة الأصول الثابتة|Fixed assets management|Gestión de activos fijos
+سجل الأصول الثابتة والإهلاك|Fixed assets & depreciation register|Registro de activos fijos y depreciación
+قواعد البيانات|Databases|Bases de datos
+قاعدة بيانات الموردين|Suppliers database|Base de datos de proveedores
+قاعدة بيانات العملاء|Customers database|Base de datos de clientes
+قاعدة بيانات الموظفين|Employees database|Base de datos de empleados
+قاعدة بيانات الأصول الثابتة|Fixed assets database|Base de datos de activos fijos
+الأصناف والمخازن|Items & warehouses|Artículos y almacenes
+الفروع ومراكز التكلفة|Branches & cost centers|Sucursales y centros de coste
+الإدارة والإعدادات|Administration & settings|Administración y ajustes
+حساب في الشجرة|accounts in the chart|cuentas en el plan
+قيد (# يدوي)|entries (# manual)|asientos (# manuales)
+صنف تحت حد الطلب|items below reorder level|artículos bajo el punto de pedido
+رواتب مرحّلة|Posted payroll|Nóminas contabilizadas
+عامل نشط|active workers|trabajadores activos
+أجور|Wages|Salarios
+ساعة تشغيل|operating hours|horas de operación
+المتبقي|remaining|pendiente
+لتر|liter|litro
+قطعة|piece|pieza
+إغلاق التبويب|Close tab|Cerrar pestaña
+إغلاق كل التبويبات عدا الحالي|Close all tabs except current|Cerrar todas las pestañas excepto la actual
+حذف كل سجلات هذه الشاشة|Delete all records of this screen|Eliminar todos los registros de esta pantalla
+ترقيم تلقائي|Auto-numbered|Numeración automática
+اختر من # — أو اكتب للبحث|Choose from # — or type to search|Elija entre # — o escriba para buscar
+أو اكتب للبحث|or type to search|o escriba para buscar
+للبحث|to search|para buscar
+حذف كل القيود اليدوية|Delete all manual entries|Eliminar todos los asientos manuales
+فتح المستند الأصلي|Open original document|Abrir documento original
+الأصلي|original|original
+حذف السطر|Delete line|Eliminar línea
+حذف الصف|Delete row|Eliminar fila
+طبيعته مدين|debit nature|naturaleza deudora
+طبيعته دائن|credit nature|naturaleza acreedora
+في #|on #|el #
+كشف الحساب|Account statement|Extracto de cuenta
+عرض # حركة|Showing # movements|Mostrando # movimientos
+الصادر|Outgoing|Salidas
+الوارد|Incoming|Entradas
+طباعة المستند|Print document|Imprimir documento
+اختر اسم الحساب أولاً|Choose the account name first|Elija primero la cuenta
+أولاً|first|primero
+إضافة تحويل|Add transfer|Añadir transferencia
+حساب بنكي — الحركات والرصيد|Bank account — movements and balance|Cuenta bancaria — movimientos y saldo
+حساب بنكي|Bank account|Cuenta bancaria
+الحركات والرصيد|movements and balance|movimientos y saldo
+حساب # — الحركات والرصيد|Account # — movements and balance|Cuenta # — movimientos y saldo
+نطاق التعامل|Dealing scope|Ámbito de operación
+عام|General|General
+إيرادات — العملاء|Revenue — customers|Ingresos — clientes
+مصروفات — الموردين والمصروفات|Expenses — suppliers & expenses|Gastos — proveedores y gastos
+— تلقائي حسب الاسم —|— automatic by name —|— automático por nombre —
+طلب صرف مصروف على حساب ومركز تكلفة — بعد الاعتماد يتحول إلى سند صرف|Expense payment request on an account and cost center — becomes a payment voucher after approval|Solicitud de pago de gasto a una cuenta y centro de coste — se convierte en comprobante de pago tras la aprobación
+طلب سداد لمورد (كامل الرصيد أو فاتورة محددة) — بعد الاعتماد يتحول إلى سند صرف|Supplier payment request (full balance or a specific invoice) — becomes a payment voucher after approval|Solicitud de pago a proveedor (saldo total o factura) — se convierte en comprobante de pago tras la aprobación
+إضافة أمر دفع مصروف|Add expense payment order|Añadir orden de pago de gasto
+أمر دفع مصروف|Expense payment order|Orden de pago de gasto
+إضافة طلب دفع مورد|Add supplier payment request|Añadir solicitud de pago a proveedor
+طلب دفع مورد|Supplier payment request|Solicitud de pago a proveedor
+يُصرف من (الخزينة الرئيسية / البنوك)|Paid from (main cashbox / banks)|Pagado desde (caja principal / bancos)
+الخزينة الرئيسية / البنوك|main cashbox / banks|caja principal / bancos
+رقم الطلب|Request no.|N.º de solicitud
+رقم الأمر|Order no.|N.º de orden
+رقم العرض|Quotation no.|N.º de cotización
+المبلغ المطلوب|Requested amount|Importe solicitado
+تاريخ السداد المطلوب|Requested payment date|Fecha de pago solicitada
+المستحق للمورد|Due to supplier|Adeudado al proveedor
+حساب المصروف|Expense account|Cuenta de gasto
+سداد فاتورة|Pay invoice|Pagar factura
+— بدون —|— none —|— ninguno —
+— كل حسابات الموردين —|— all supplier accounts —|— todas las cuentas de proveedores —
+الحساب الرئيسي|Main account|Cuenta principal
+الحساب الرئيسي (فئة المرتبات)|Main account (payroll group)|Cuenta principal (grupo de nómina)
+الحساب الرئيسي (المرتبات المستحقة)|Main account (accrued salaries)|Cuenta principal (salarios devengados)
+— حسب قاعدة البيانات —|— per database —|— según base de datos —
+— مرتبات العاملين —|— employees' salaries —|— salarios de empleados —
+صرف — إنشاء سند صرف|Pay — create payment voucher|Pagar — crear comprobante de pago
+صرف مخزني|Stock issues|Salidas de almacén
+مصروفات (أوامر دفع)|Expenses (payment orders)|Gastos (órdenes de pago)
+إجمالي التكلفة|Total cost|Coste total
+التكلفة لكل وحدة مساحة|Cost per area unit|Coste por unidad de superficie
+الفرع › القطاع › مركز التكلفة والمساحة|Branch › sector › cost center and area|Sucursal › sector › centro de coste y superficie
+مركز التكلفة والمساحة|Cost center and area|Centro de coste y superficie
+إضافة محصول|Add crop|Añadir cultivo
+إضافة سجل حضور|Add attendance record|Añadir registro de asistencia
+سجل حضور|attendance record|registro de asistencia
+إضافة راتب|Add salary|Añadir salario
+إضافة إجازة|Add leave|Añadir permiso
+إضافة يومية|Add daily wage|Añadir jornal
+إضافة حركة|Add movement|Añadir movimiento
+إضافة تشغيل|Add operation|Añadir operación
+إضافة معدة|Add machine|Añadir máquina
+رقم الحركة|Movement no.|N.º de movimiento
+عروض الأسعار الواردة من الموردين — العرض المقبول يتحول إلى أمر توريد|Quotations received from suppliers — an accepted quotation becomes a supply order|Cotizaciones recibidas de proveedores — la aceptada se convierte en orden de suministro
+عرض سعر|Quotation|Cotización
+تحويل إلى أمر توريد|Convert to supply order|Convertir en orden de suministro
+القيمة (تُحسب من الأصناف)|Value (calculated from items)|Valor (calculado de los artículos)
+صالح حتى|Valid until|Válido hasta
+أضف الأصناف من المخزن|Add items from the warehouse|Añada artículos del almacén
+إضافة مرتجع|Add return|Añadir devolución
+إجمالي حسب المورد|Total by supplier|Total por proveedor
+إجمالي حسب الفرع|Total by branch|Total por sucursal
+إجمالي حسب العميل|Total by customer|Total por cliente
+إجمالي حسب الصنف|Total by item|Total por artículo
+# سطر|# lines|# líneas
+الشتلات|Seedlings|Plantones
+الخردة|Scrap|Chatarra
+خامات|Raw materials|Materias primas
+مواقع|Sites|Obras
+# صنف في المخزن|# items in warehouse|# artículos en el almacén
+طلب صرف أصناف من مخزن لمركز تكلفة — بعد الاعتماد يتحول إلى إذن صرف|Request to issue items from a warehouse to a cost center — becomes an issue note after approval|Solicitud de salida de artículos de un almacén a un centro de coste — se convierte en nota de salida tras la aprobación
+إضافة طلب صرف|Add issue request|Añadir solicitud de salida
+طلب صرف|Issue request|Solicitud de salida
+الأصناف المطلوبة|Requested items|Artículos solicitados
+جهة الصرف (مركز التكلفة)|Issued to (cost center)|Destino (centro de coste)
+تنفيذ — إنشاء إذن صرف|Execute — create issue note|Ejecutar — crear nota de salida
+أضف الأصناف المطلوبة|Add the requested items|Añada los artículos solicitados
+منفذ|Executed|Ejecutado
+مرفوض|Rejected|Rechazado
+مقبول|Accepted|Aceptado
+مدفوع|Paid|Pagado
+سجل الأصول — الإهلاك بالقسط الثابت: (التكلفة − الخردة) ÷ العمر الإنتاجي، محسوب حتى اليوم|Assets register — straight-line depreciation: (cost − salvage) ÷ useful life, calculated to date|Registro de activos — depreciación lineal: (coste − valor residual) ÷ vida útil, calculada hasta hoy
+سجل الأصول — الإهلاك بالقسط الثابت|Assets register — straight-line depreciation|Registro de activos — depreciación lineal
+(التكلفة − الخردة) ÷ العمر الإنتاجي، محسوب حتى اليوم|(cost − salvage) ÷ useful life, calculated to date|(coste − valor residual) ÷ vida útil, calculada hasta hoy
+إضافة أصل ثابت|Add fixed asset|Añadir activo fijo
+أصل ثابت|Fixed asset|Activo fijo
+اسم الأصل|Asset name|Nombre del activo
+الفرع / الموقع|Branch / location|Sucursal / ubicación
+تاريخ الشراء|Purchase date|Fecha de compra
+العمر الإنتاجي (سنة)|Useful life (years)|Vida útil (años)
+مجمع الإهلاك|Accumulated depreciation|Depreciación acumulada
+القيمة الدفترية|Book value|Valor contable
+حساب الأصل|Asset account|Cuenta del activo
+قيمة الخردة|Salvage value|Valor residual
+الأصل|Asset|Activo
+إهلاك الفترة|Period depreciation|Depreciación del periodo
+مجمع الإهلاك في نهاية الفترة|Accumulated depreciation at period end|Depreciación acumulada al cierre
+قيد الاستخدام|In use|En uso
+مستبعد|Disposed|Dado de baja
+— اختر من الدليل —|— choose from the chart —|— elija del plan —
+إضافة مورد|Add supplier|Añadir proveedor
+موردو تصنيف|Suppliers in category|Proveedores de la categoría
+عملاء تصنيف|Customers in category|Clientes de la categoría
+إضافة عميل|Add customer|Añadir cliente
+إضافة موظف|Add employee|Añadir empleado
+إضافة عامل|Add worker|Añadir trabajador
+إضافة إدارة|Add department|Añadir departamento
+إضافة صنف|Add item|Añadir artículo
+إضافة وحدة|Add unit|Añadir unidad
+إضافة مخزن|Add warehouse|Añadir almacén
+إضافة فرع|Add branch|Añadir sucursal
+الوحدة — تظهر في فاتورة نوعها فقط|unit — appears only in invoices of its type|unidad — aparece solo en facturas de su tipo
+الوحدة — الرصيد = أول المدة + الإضافة − الصرف|unit — balance = opening + receipts − issues|unidad — saldo = inicial + entradas − salidas
+حساب الشجرة|chart account|cuenta del plan
+لم يتم تفعيل دورة موافقات لأي مستند بعد — كل الحركات تُرحّل فور حفظها.|No approval workflow is enabled yet — all transactions post as soon as they are saved.|Aún no hay flujo de aprobación — todos los movimientos se contabilizan al guardarse.
+الصلاحيات|Permissions|Permisos
+في # جدول|in # tables|en # tablas
+# يدوي|# manual|# manuales
+من # سجل|of # records|de # registros
+آخر مزامنة|Last sync|Última sincronización
+النسخ الاحتياطي والاستعادة|Backup & restore|Copia de seguridad y restauración
+ملف JSON يحتوي على كل الجداول والإعدادات|JSON file with all tables and settings|Archivo JSON con todas las tablas y ajustes
+تنزيل نسخة احتياطية|Download backup|Descargar copia de seguridad
+استعادة نسخة احتياطية|Restore backup|Restaurar copia de seguridad
+نظام محاسبة متكامل|Integrated accounting system|Sistema contable integrado
+تسجيل الدخول|Log in|Iniciar sesión
+أدخل اسم المستخدم وكلمة المرور|Enter your username and password|Introduzca su usuario y contraseña
+حفظ كلمة المرور|Save password|Guardar contraseña
+ادخل|Enter|Entrar
+كلمة المرور|Password|Contraseña
+اسم المستخدم|Username|Usuario
+لا يوجد موردون على هذا الحساب — أضفهم من قاعدة بيانات الموردين|No suppliers on this account — add them from the suppliers database|No hay proveedores en esta cuenta — añádalos desde la base de proveedores
+لا يوجد عملاء على هذا الحساب — أضفهم من قاعدة بيانات العملاء|No customers on this account — add them from the customers database|No hay clientes en esta cuenta — añádalos desde la base de clientes
+اكتب اسم المستفيد|Type the beneficiary name|Escriba el beneficiario
+أوامر التوريد|Supply orders|Órdenes de suministro
+أمر توريد|Supply order|Orden de suministro
+عروض أسعار المشتريات|Purchase quotations|Cotizaciones de compra
+أمر الدفع|Payment order|Orden de pago
+طلبات الشراء|Purchase requests|Solicitudes de compra
+إضافة عاملة ثابتة|Add permanent female worker|Añadir trabajadora fija
+إضافة عاملة مؤقتة|Add temporary female worker|Añadir trabajadora temporal
+عاملة ثابتة|Permanent female worker|Trabajadora fija
+عاملة مؤقتة|Temporary female worker|Trabajadora temporal
+الشيكات التي يحل استحقاقها حتى|Cheques due up to|Cheques que vencen hasta
+مبيعات الشتلات|Seedlings sales|Ventas de plantones
+مبيعات الخردة|Scrap sales|Ventas de chatarra
+عملاء الشتلات|Seedling customers|Clientes de plantones
+عملاء الخردة|Scrap customers|Clientes de chatarra
+الرصيد|Balance|Saldo
+الشهر (سيارات / برادات)|Month (cars / refrigerated trucks)|Mes (coches / camiones frigoríficos)
+الفترة (عمالة / معدات)|Period (labor / equipment)|Periodo (mano de obra / equipos)
+مثال: من 1-7-2026 إلى 7-7-2026|e.g. from 1-7-2026 to 7-7-2026|p. ej. del 1-7-2026 al 7-7-2026
+اختر الشهر (مثال: أكتوبر-2026)|Choose the month (e.g. October-2026)|Elija el mes (p. ej. octubre-2026)
+اكتب الفترة (مثال: من 1-7-2026 إلى 7-7-2026)|Type the period (e.g. from 1-7-2026 to 7-7-2026)|Escriba el periodo (p. ej. del 1-7-2026 al 7-7-2026)
+الفترة / المستند|Period / document|Periodo / documento
+الفترة|Period|Periodo
+نص أو تاريخ — مثال: من 1-7-2026 إلى 7-7-2026 أو أكتوبر-2026|Text or date — e.g. from 1-7-2026 to 7-7-2026 or October-2026|Texto o fecha — p. ej. del 1-7-2026 al 7-7-2026 u octubre-2026
+اكتب الفترة (نص أو تاريخ — مثال: من 1-7-2026 إلى 7-7-2026 أو أكتوبر-2026)|Type the period (text or date — e.g. from 1-7-2026 to 7-7-2026 or October-2026)|Escriba el periodo (texto o fecha — p. ej. del 1-7-2026 al 7-7-2026 u octubre-2026)
+رصيد أول المدة — مدين (يُرحّل بعد الاعتماد)|Opening balance — debit (posted after approval)|Saldo inicial — debe (se contabiliza tras la aprobación)
+رصيد أول المدة — دائن (يُرحّل بعد الاعتماد)|Opening balance — credit (posted after approval)|Saldo inicial — haber (se contabiliza tras la aprobación)
+الرصيد الافتتاحي أُرسل للاعتماد — يُرحّل بعد اعتماده من شاشة الموافقات|Opening balance sent for approval — it posts after approval in the Approvals screen|Saldo inicial enviado a aprobación — se contabiliza tras aprobarlo en Aprobaciones
+جارٍ إعادة الاتصال بقاعدة البيانات…|Reconnecting to the database…|Reconectando con la base de datos…
+تم ترحيل # رصيد افتتاحي من قواعد بيانات الموردين والعملاء — تظهر في الأرصدة الافتتاحية والقيود اليومية|# opening balances posted from the suppliers and customers databases — they now appear in opening balances and the journal|# saldos iniciales contabilizados desde las bases de proveedores y clientes — aparecen en saldos iniciales y en el diario
+ترحيل كل الأرصدة الافتتاحية|Post all opening balances|Contabilizar todos los saldos iniciales
+كل الأرصدة الافتتاحية مرحّلة بالفعل|All opening balances are already posted|Todos los saldos iniciales ya están contabilizados
+تم ترحيل # رصيد افتتاحي — تظهر الآن في الأرصدة الافتتاحية والقيود اليومية وكل التقارير|# opening balances posted — they now appear in opening balances, the journal and all reports|# saldos iniciales contabilizados — ya aparecen en saldos iniciales, el diario y todos los informes
+اكتب اسم المورد|Type the supplier name|Escriba el nombre del proveedor

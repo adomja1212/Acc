@@ -1,0 +1,85 @@
+الإشعارات|Notifications|Notificaciones
+تعليم الكل كمقروء|Mark all as read|Marcar todo como leído
+لا توجد إشعارات 👍|No notifications 👍|Sin notificaciones 👍
+بانتظار اعتمادك|awaiting your approval|pendiente de su aprobación
+فواتير مبيعات متأخرة السداد|Overdue sales invoices|Facturas de venta vencidas
+تجاوزت تاريخ الاستحقاق|Past the due date|Pasaron la fecha de vencimiento
+فواتير مشتريات متأخرة السداد|Overdue purchase invoices|Facturas de compra vencidas
+مستحقة للموردين|Owed to suppliers|Adeudadas a proveedores
+شيكات مستحقة اليوم أو متأخرة|Cheques due today or overdue|Cheques que vencen hoy o vencidos
+لم تُحصّل أو تُصرف بعد|Not yet collected or paid|Aún no cobrados ni pagados
+المعدات تحتاج صيانة|Equipment needs maintenance|Los equipos necesitan mantenimiento
+أوامر صيانة مفتوحة|Open maintenance orders|Órdenes de mantenimiento abiertas
+لم تكتمل بعد|Not completed yet|Aún no completadas
+تم رفض|Rejected|Rechazado
+تم الترحيل|posted|contabilizado
+اللغة|Language|Idioma
+English|English|English
+Español|Español|Español
+العربية|العربية|العربية
+الإدارات|Departments|Departamentos
+فواتير مبيعات السوق المحلي|Local market sales invoices|Facturas de venta mercado local
+فواتير مبيعات الشتلات|Seedling sales invoices|Facturas de venta de plantones
+فواتير مبيعات الخردة|Scrap sales invoices|Facturas de venta de chatarra
+فواتير مبيعات الثروة الحيوانية|Livestock sales invoices|Facturas de venta de ganado
+مردودات مبيعات السوق المحلي|Local market sales returns|Devoluciones ventas mercado local
+مردودات مبيعات الشتلات|Seedling sales returns|Devoluciones de ventas de plantones
+مردودات مبيعات الخردة|Scrap sales returns|Devoluciones de ventas de chatarra
+مردودات مبيعات الثروة الحيوانية|Livestock sales returns|Devoluciones de ventas de ganado
+فاتورة مبيعات السوق المحلي|Local market sales invoice|Factura de venta mercado local
+فاتورة مبيعات الشتلات|Seedling sales invoice|Factura de venta de plantones
+فاتورة مبيعات الخردة|Scrap sales invoice|Factura de venta de chatarra
+فاتورة مبيعات الثروة الحيوانية|Livestock sales invoice|Factura de venta de ganado
+فاتورة مردودات السوق المحلي|Local market return invoice|Factura de devolución mercado local
+فاتورة مردودات الشتلات|Seedling return invoice|Factura de devolución de plantones
+فاتورة مردودات الخردة|Scrap return invoice|Factura de devolución de chatarra
+فاتورة مردودات الثروة الحيوانية|Livestock return invoice|Factura de devolución de ganado
+قائمة المركز المالي|Balance sheet|Balance general
+الحسابات|Accounts|Contabilidad
+المفضلة|Favorites|Favoritos
+كل القوائم|All menus|Todos los menús
+ابحث في كل القائمة: حساب، تقرير، مخزن…|Search the menu: account, report, warehouse…|Buscar en el menú: cuenta, informe, almacén…
+بحث في كل السجلات...|Search all records...|Buscar en todos los registros...
+بحث...|Search...|Buscar...
+تحديث|Refresh|Actualizar
+الإصدار|Version|Versión
+تثبيت القائمة|Pin menu|Fijar menú
+مستخدم|User|Usuario
+حسابي|My account|Mi cuenta
+لغة الواجهة|Interface language|Idioma de la interfaz
+إضافة|Add|Añadir
+إغلاق|Close|Cerrar
+حفظ|Save|Guardar
+البحث في القائمة|Search menu|Buscar en el menú
+القائمة|Menu|Menú
+الصفحات المفتوحة|Open pages|Páginas abiertas
+الإشعارات|Notifications|Notificaciones
+تعليم الكل كمقروء|Mark all as read|Marcar todo como leído
+لا توجد إشعارات 👍|No notifications 👍|Sin notificaciones 👍
+فواتير مبيعات متأخرة السداد|Overdue sales invoices|Facturas de venta vencidas
+تجاوزت تاريخ الاستحقاق|Past due date|Fecha de vencimiento superada
+فواتير مشتريات متأخرة السداد|Overdue purchase invoices|Facturas de compra vencidas
+مستحقة للموردين|Due to suppliers|Pendientes a proveedores
+أصناف تحت حد الطلب|Items below reorder level|Artículos bajo el punto de pedido
+تحتاج إعادة طلب|Need reordering|Requieren reposición
+شيكات مستحقة اليوم أو متأخرة|Cheques due today or overdue|Cheques que vencen hoy o vencidos
+لم تُحصّل أو تُصرف بعد|Not yet collected or paid|Aún no cobrados ni pagados
+صيانة دورية متأخرة|Overdue periodic maintenance|Mantenimiento periódico atrasado
+المعدات تحتاج صيانة|Equipment needs maintenance|El equipo necesita mantenimiento
+أوامر صيانة مفتوحة|Open maintenance orders|Órdenes de mantenimiento abiertas
+لم تكتمل بعد|Not completed yet|Aún sin completar
+بانتظار اعتمادك|awaiting your approval|pendiente de tu aprobación
+تم رفض|Rejected:|Rechazado:
+تم اعتماد|Approved:|Aprobado:
+تم الترحيل|posted|contabilizado
+جديد|new|nuevo
+مقفل على هذه الشاشة|Locked on this screen|Bloqueado en esta pantalla
+عرض # من #|Showing # of #|Mostrando # de #
+يستحق بعد # يوم|Due in # days|Vence en # días
+متأخر # يوم|# days overdue|# días de atraso
+هامش ربح #%|Profit margin #%|Margen de beneficio #%
+منذ # دقيقة|# min ago|hace # min
+منذ # ساعة|# h ago|hace # h
+منذ # يوم|# d ago|hace # d
+# جديد|# new|# nuevos
+# سجل|# records|# registros

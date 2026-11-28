@@ -1,0 +1,420 @@
+الأصول الثابتة|Fixed assets|Activos fijos
+الأراضي|Land|Terrenos
+المباني والإنشاءات|Buildings and structures|Edificios y construcciones
+الآلات والمعدات|Machinery and equipment|Maquinaria y equipo
+وسائل النقل|Vehicles|Vehículos
+الأثاث والتجهيزات|Furniture and fixtures|Mobiliario y enseres
+أجهزة الحاسب الآلي|Computer equipment|Equipos informáticos
+الأصول المتداولة|Current assets|Activos corrientes
+النقدية بالخزائن|Cash on hand|Efectivo en caja
+خزينة السادات الرئيسية|Sadat main cashbox|Caja principal Sadat
+خزينة الإيرادات|Revenue cashbox|Caja de ingresos
+خزينة النوبارية|Nubaria cashbox|Caja Nubaria
+خزينة المكتب العام|Head office cashbox|Caja oficina central
+خزينة تحويلات مؤقتة|Temporary transfers cashbox|Caja de transferencias temporales
+عهدة الموظفين|Employee custody|Custodia de empleados
+البنك الزراعي|Agricultural Bank|Banco Agrícola
+مصرف أبوظبي الإسلامي|Abu Dhabi Islamic Bank|Banco Islámico de Abu Dabi
+بنك تنمية الصادرات|Export Development Bank|Banco de Desarrollo de Exportaciones
+بنك مصر|Banque Misr|Banque Misr
+بنك الإسكندرية|Bank of Alexandria|Banco de Alejandría
+بنك المؤسسة المصرفية العربية|Arab Banking Corporation|Arab Banking Corporation
+عملاء السوق المحلي|Local market customers|Clientes mercado local
+عملاء الشتلات|Seedling customers|Clientes de plántulas
+عملاء الخردة|Scrap customers|Clientes de chatarra
+عملاء الثروة الحيوانية|Livestock customers|Clientes de ganado
+عملاء آخرون|Other customers|Otros clientes
+مخزون المواد الخام|Raw materials inventory|Inventario de materias primas
+مخزون الأسمدة|Fertilizer inventory|Inventario de fertilizantes
+مخزون العهدة|Custody inventory|Inventario en custodia
+مخزون المبيدات|Pesticide inventory|Inventario de pesticidas
+مخزون البذور والشتلات|Seeds and seedlings inventory|Inventario de semillas y plántulas
+مخزون التعبئة والتغليف|Packaging inventory|Inventario de embalaje
+مخزون قطع الغيار|Spare parts inventory|Inventario de repuestos
+مخزون الإنشاءات|Construction inventory|Inventario de construcción
+مخزون القوى المحركة|Power equipment inventory|Inventario de fuerza motriz
+مخزون النثريات|Sundries inventory|Inventario de artículos varios
+مخزون الأطعمة|Food inventory|Inventario de alimentos
+أوراق القبض|Notes receivable|Documentos por cobrar
+مخزون الإنتاج التام|Finished goods inventory|Inventario de productos terminados
+مصروفات مدفوعة مقدماً|Prepaid expenses|Gastos pagados por anticipado
+أرصدة مدينة أخرى|Other receivables|Otras cuentas por cobrar
+سلف العاملين الشهرية|Monthly employee advances|Anticipos mensuales a empleados
+سلف البنات الثابتة الشهرية|Monthly advances – permanent female workers|Anticipos mensuales – trabajadoras fijas
+سلف البنات المؤقتة الشهرية|Monthly advances – temporary female workers|Anticipos mensuales – trabajadoras temporales
+سلف بنجلاديش الشهرية|Monthly advances – Bangladesh workers|Anticipos mensuales – trabajadores de Bangladés
+سلف السيارات المؤجرة الشهرية|Monthly advances – rented vehicles|Anticipos mensuales – vehículos alquilados
+قروض العاملين قصيرة الأجل|Short-term employee loans|Préstamos a corto plazo a empleados
+تأمينات شقق مستردة|Refundable apartment deposits|Depósitos reembolsables de apartamentos
+تأمينات أخرى مستردة|Other refundable deposits|Otros depósitos reembolsables
+شيكات تحت التحصيل (أوراق قبض)|Cheques under collection (notes receivable)|Cheques en cobro (documentos por cobrar)
+حقوق الملكية|Equity|Patrimonio
+رأس المال|Capital|Capital
+الاحتياطيات|Reserves|Reservas
+الأرباح المرحلة|Retained earnings|Utilidades retenidas
+مسحوبات الملاك|Owners' drawings|Retiros de los propietarios
+محسن السيد توفيق البلتاجي|Mohsen El-Sayed Tawfik El-Beltagy|Mohsen El-Sayed Tawfik El-Beltagy
+شريف السيد توفيق البلتاجي|Sherif El-Sayed Tawfik El-Beltagy|Sherif El-Sayed Tawfik El-Beltagy
+أحمد شريف السيد البلتاجي|Ahmed Sherif El-Sayed El-Beltagy|Ahmed Sherif El-Sayed El-Beltagy
+محمد شريف السيد البلتاجي|Mohamed Sherif El-Sayed El-Beltagy|Mohamed Sherif El-Sayed El-Beltagy
+طارق محسن السيد البلتاجي|Tarek Mohsen El-Sayed El-Beltagy|Tarek Mohsen El-Sayed El-Beltagy
+أرصدة افتتاحية (حساب وسيط)|Opening balances (suspense account)|Saldos iniciales (cuenta transitoria)
+الخصوم طويلة الأجل|Long-term liabilities|Pasivos a largo plazo
+قروض طويلة الأجل|Long-term loans|Préstamos a largo plazo
+الخصوم المتداولة|Current liabilities|Pasivos corrientes
+موردين المحاصيل|Crop suppliers|Proveedores de cultivos
+مورد برادات|Refrigerated truck supplier|Proveedor de camiones frigoríficos
+مورد بضاعة|Goods supplier|Proveedor de mercancías
+مورد عمالة مزارع|Farm labor supplier|Proveedor de mano de obra – granjas
+مورد عمالة محطة|Station labor supplier|Proveedor de mano de obra – estación
+مورد معدات مزارع|Farm equipment supplier|Proveedor de equipos – granjas
+مورد معدات محطة|Station equipment supplier|Proveedor de equipos – estación
+مورد سيارات مزارع|Farm vehicles supplier|Proveedor de vehículos – granjas
+مورد سيارات محطة|Station vehicles supplier|Proveedor de vehículos – estación
+مورد نقدي|Cash supplier|Proveedor de contado
+أوراق الدفع|Notes payable|Documentos por pagar
+مصروفات مستحقة|Accrued expenses|Gastos acumulados
+مصلحة الضرائب|Tax Authority|Autoridad Tributaria
+هيئة التأمينات الاجتماعية|Social Insurance Authority|Autoridad del Seguro Social
+أرصدة دائنة أخرى|Other payables|Otras cuentas por pagar
+مرتبات العاملين المستحقة|Accrued employee salaries|Sueldos acumulados de empleados
+مرتبات البنات الثابتة المستحقة|Accrued salaries – permanent female workers|Sueldos acumulados – trabajadoras fijas
+مرتبات البنات المؤقتة المستحقة|Accrued salaries – temporary female workers|Sueldos acumulados – trabajadoras temporales
+مرتبات بنجلاديش المستحقة|Accrued salaries – Bangladesh workers|Sueldos acumulados – trabajadores de Bangladés
+حراسة مستحقة|Accrued security services|Vigilancia acumulada
+عقود واستشارات مستحقة|Accrued contracts and consulting|Contratos y consultoría acumulados
+دائنون|Creditors|Acreedores
+إيجار شقق مستحق|Accrued apartment rent|Alquiler de apartamentos acumulado
+إيجار محل مستحق|Accrued shop rent|Alquiler de local acumulado
+شيكات صادرة لم تُصرف (أوراق دفع)|Issued cheques not yet cashed (notes payable)|Cheques emitidos no cobrados (documentos por pagar)
+ضرائب الخصم والإضافة|Withholding and added tax|Impuestos retenidos y añadidos
+تكلفة البضاعة المباعة|Cost of goods sold|Costo de ventas
+مصروفات التشغيل|Operating expenses|Gastos operativos
+مرتبات وأجور تشغيلية|Operating salaries and wages|Sueldos y salarios operativos
+مرتبات عاملين تشغيلية|Operating employee salaries|Sueldos operativos de empleados
+مرتبات بنات ثابتة تشغيلية|Operating salaries – permanent female workers|Sueldos operativos – trabajadoras fijas
+مرتبات بنات مؤقتة تشغيلية|Operating salaries – temporary female workers|Sueldos operativos – trabajadoras temporales
+مرتبات بنجلاديش تشغيلية|Operating salaries – Bangladesh workers|Sueldos operativos – trabajadores de Bangladés
+أجور عمالة تشغيلية|Operating labor wages|Jornales operativos
+إيجارات تشغيلية|Operating rents|Alquileres operativos
+مصروفات القيمة الإيجارية تشغيلية|Operating rental value expenses|Gastos de valor de alquiler operativos
+مصروفات إيجار محل|Shop rent expenses|Gastos de alquiler de local
+إيجارات أخرى تشغيلية|Other operating rents|Otros alquileres operativos
+مصروفات المخازن التشغيلية|Operating warehouse expenses|Gastos operativos de almacenes
+مصروف مخزن الأسمدة|Fertilizer store expense|Gasto almacén de fertilizantes
+مصروف مخزن المبيدات|Pesticide store expense|Gasto almacén de pesticidas
+مصروف مخزن قطع الغيار تشغيلية|Spare parts store expense – operating|Gasto almacén de repuestos – operativo
+مصروف مخزن التعبئة والتغليف تشغيلية|Packaging store expense – operating|Gasto almacén de embalaje – operativo
+مصروف مخزن البذور والشتلات تشغيلية|Seeds and seedlings store expense – operating|Gasto almacén de semillas y plántulas – operativo
+مصروف مخزن الإنشاءات تشغيلية|Construction store expense – operating|Gasto almacén de construcción – operativo
+مصروفات تشغيل أخرى|Other operating expenses|Otros gastos operativos
+وقود وزيوت المعدات|Equipment fuel and oil|Combustible y aceite de equipos
+صيانة وقطع غيار المعدات|Equipment maintenance and spare parts|Mantenimiento y repuestos de equipos
+كهرباء ومياه|Electricity and water|Electricidad y agua
+المصروفات التسويقية|Marketing expenses|Gastos de comercialización
+مرتبات وأجور تسويقية|Marketing salaries and wages|Sueldos y salarios de comercialización
+مرتبات عاملين تسويقية|Marketing employee salaries|Sueldos de empleados de comercialización
+مرتبات بنات ثابتة تسويقية|Marketing salaries – permanent female workers|Sueldos de comercialización – trabajadoras fijas
+مرتبات بنات مؤقتة تسويقية|Marketing salaries – temporary female workers|Sueldos de comercialización – trabajadoras temporales
+مرتبات بنجلاديش تسويقية|Marketing salaries – Bangladesh workers|Sueldos de comercialización – trabajadores de Bangladés
+أجور عمالة تسويقية|Marketing labor wages|Jornales de comercialización
+إيجارات تسويقية|Marketing rents|Alquileres de comercialización
+إيجار سيارات تسويقية|Vehicle rent – marketing|Alquiler de vehículos – comercialización
+إيجار معدات تسويقية|Equipment rent – marketing|Alquiler de equipos – comercialización
+إيجار شاحنات مبردة تسويقية|Refrigerated truck rent – marketing|Alquiler de camiones frigoríficos – comercialización
+المصروفات الإدارية والعمومية|General and administrative expenses|Gastos generales y administrativos
+مرتبات وأجور إدارية|Administrative salaries and wages|Sueldos y salarios administrativos
+مرتبات عاملين إدارية|Administrative employee salaries|Sueldos administrativos de empleados
+مرتبات بنات ثابتة إدارية|Administrative salaries – permanent female workers|Sueldos administrativos – trabajadoras fijas
+مرتبات بنات مؤقتة إدارية|Administrative salaries – temporary female workers|Sueldos administrativos – trabajadoras temporales
+مرتبات بنجلاديش إدارية|Administrative salaries – Bangladesh workers|Sueldos administrativos – trabajadores de Bangladés
+أجور عمالة إدارية|Administrative labor wages|Jornales administrativos
+مرتبات لم تدرج|Unlisted salaries|Sueldos no incluidos
+حصة الشركة في التأمينات|Company share of social insurance|Aporte patronal al seguro social
+بدل سكن|Housing allowance|Subsidio de vivienda
+بدل غلاء معيشة|Cost-of-living allowance|Subsidio por costo de vida
+بدل انتقال|Transportation allowance|Subsidio de transporte
+بدل أكل|Meal allowance|Subsidio de comida
+بدل مزارع خارجية|Remote farms allowance|Subsidio de granjas externas
+بدل طبيعة عمل|Job nature allowance|Subsidio por naturaleza del trabajo
+بدل إشراف|Supervision allowance|Subsidio de supervisión
+بدل مكافحة|Pest control allowance|Subsidio de control de plagas
+بدل اتصال|Communication allowance|Subsidio de comunicación
+بدل لجنة شقق|Apartments committee allowance|Subsidio del comité de apartamentos
+إيجارات إدارية|Administrative rents|Alquileres administrativos
+إيجار سيارات إدارية|Vehicle rent – administrative|Alquiler de vehículos – administrativo
+إيجار معدات إدارية|Equipment rent – administrative|Alquiler de equipos – administrativo
+إيجار شاحنات مبردة إدارية|Refrigerated truck rent – administrative|Alquiler de camiones frigoríficos – administrativo
+مصروفات القيمة الإيجارية إدارية|Administrative rental value expenses|Gastos de valor de alquiler administrativos
+مصروفات إيجار شقق|Apartment rent expenses|Gastos de alquiler de apartamentos
+مصروفات المخازن الإدارية|Administrative warehouse expenses|Gastos administrativos de almacenes
+مصروف مخزن قطع الغيار إدارية|Spare parts store expense – administrative|Gasto almacén de repuestos – administrativo
+مصروف مخزن التعبئة والتغليف إدارية|Packaging store expense – administrative|Gasto almacén de embalaje – administrativo
+مصروف مخزن البذور والشتلات إدارية|Seeds and seedlings store expense – administrative|Gasto almacén de semillas y plántulas – administrativo
+مصروف مخزن الإنشاءات إدارية|Construction store expense – administrative|Gasto almacén de construcción – administrativo
+الوقود والصيانة|Fuel and maintenance|Combustible y mantenimiento
+وقود وزيوت|Fuel and oil|Combustible y aceite
+صيانة سيارة|Car maintenance|Mantenimiento de automóvil
+صيانة معدات|Equipment maintenance|Mantenimiento de equipos
+صيانة موتوسيكل|Motorcycle maintenance|Mantenimiento de motocicleta
+صيانة تروسيكل|Tricycle maintenance|Mantenimiento de triciclo
+مصروفات عمومية متنوعة|Miscellaneous general expenses|Gastos generales diversos
+مصروفات الحراسة|Security expenses|Gastos de vigilancia
+مصروفات العقود والاستشارات|Contracts and consulting expenses|Gastos de contratos y consultoría
+مصروفات دائنين متنوعة|Miscellaneous creditors expenses|Gastos de acreedores diversos
+مصروفات نثرية|Petty expenses|Gastos menores
+أدوات مكتبية ومطبوعات|Stationery and printing|Papelería e impresos
+أدوات نظافة|Cleaning supplies|Artículos de limpieza
+مصروفات ضيافة|Hospitality expenses|Gastos de hospitalidad
+مصروفات نقل|Transport expenses|Gastos de transporte
+مصروفات تحاليل عينات|Sample analysis expenses|Gastos de análisis de muestras
+مصروفات تدريب|Training expenses|Gastos de capacitación
+مصروفات عيادة|Clinic expenses|Gastos de clínica
+كشف وعلاج|Medical examination and treatment|Consulta y tratamiento médico
+رفع خصم|Discount adjustment|Ajuste de descuento
+اتصالات وإنترنت|Telecom and internet|Telecomunicaciones e internet
+مصروفات بنكية|Bank charges|Gastos bancarios
+إهلاك الأصول الثابتة|Depreciation of fixed assets|Depreciación de activos fijos
+إيرادات النشاط|Operating revenue|Ingresos de la actividad
+مبيعات السوق المحلي|Local market sales|Ventas mercado local
+مبيعات الشتلات|Seedling sales|Ventas de plántulas
+مبيعات الخردة|Scrap sales|Ventas de chatarra
+مبيعات الثروة الحيوانية|Livestock sales|Ventas de ganado
+إيرادات أخرى|Other revenue|Otros ingresos
+إيرادات تأجير المعدات|Equipment rental revenue|Ingresos por alquiler de equipos
+إيرادات متنوعة|Miscellaneous revenue|Ingresos diversos
+إيرادات أخرى (عملاء آخرون)|Other revenue (other customers)|Otros ingresos (otros clientes)
+المخزن الرئيسي|Main warehouse|Almacén principal
+مخزن الإنتاج|Production warehouse|Almacén de producción
+مخزن الصيانة|Maintenance warehouse|Almacén de mantenimiento
+مخزن الموقع|Site warehouse|Almacén de obra
+مدين|Debit|Debe
+دائن|Credit|Haber
+# مجموعات|# groups|# grupos
+يشمل # قيد مرحّل|Includes # posted entries|Incluye # asientos contabilizados
+عن الفترة حتى #|For the period up to #|Del período hasta #
+الكل|All|Todos
+6 أحرف على الأقل|At least 6 characters|Al menos 6 caracteres
+اسم المستوى، مثل: مراجعة المحاسب|Level name, e.g. Accountant review|Nombre del nivel, p. ej. Revisión del contador
+اكتب اسم أو كود الحساب|Type account name or code|Escriba el nombre o código de la cuenta
+اكتب اسم أو كود الصنف|Type item name or code|Escriba el nombre o código del artículo
+بحث بالكود أو الاسم...|Search by code or name...|Buscar por código o nombre...
+بحث برقم القيد أو الحساب...|Search by entry no. or account...|Buscar por n.º de asiento o cuenta...
+بحث عن صنف...|Search item...|Buscar artículo...
+بحث: رقم، صنف، مورد، جهة…|Search: no., item, supplier, party…|Buscar: n.º, artículo, proveedor, entidad…
+بحث: رقم، مستفيد، رقم حساب، شيك…|Search: no., beneficiary, account no., cheque…|Buscar: n.º, beneficiario, n.º de cuenta, cheque…
+بيان السطر (اختياري)|Line description (optional)|Descripción de la línea (opcional)
+مثال: admin|e.g. admin|p. ej. admin
+مثال: أحمد الصاوي|e.g. John Smith|p. ej. Juan Pérez
+# من # — اكتب للبحث|# of # — type to search|# de # — escriba para buscar
+# من #|# of #|# de #
+هذا الشهر|This month|Este mes
+آخر 3 شهور|Last 3 months|Últimos 3 meses
+آخر 6 شهور|Last 6 months|Últimos 6 meses
+آخر 12 شهر|Last 12 months|Últimos 12 meses
+هذه السنة|This year|Este año
+الفترة|Period|Período
+الإيرادات|Revenue|Ingresos
+المصروفات|Expenses|Gastos
+صافي الربح|Net profit|Beneficio neto
+النقدية بالخزائن والبنوك|Cash in cashboxes and banks|Efectivo en cajas y bancos
+الإيرادات والمصروفات شهرياً|Monthly revenue and expenses|Ingresos y gastos mensuales
+من القيود المرحّلة في الفترة|From posted entries in the period|De los asientos contabilizados en el período
+رصيد النقدية|Cash balance|Saldo de efectivo
+الخزائن والبنوك في نهاية كل شهر|Cashboxes and banks at each month end|Cajas y bancos al cierre de cada mes
+المبيعات حسب النوع|Sales by type|Ventas por tipo
+صافي بعد المردودات — قبل الضريبة|Net of returns — before tax|Neto de devoluciones — antes de impuestos
+هيكل المصروفات|Expense structure|Estructura de gastos
+إجمالي #|Total #|Total #
+أعمار ديون العملاء|Receivables aging|Antigüedad de cuentas por cobrar
+المتبقي على الفواتير حتى اليوم — بالأيام بعد الاستحقاق|Outstanding on invoices to date — days past due|Pendiente en facturas a la fecha — días de vencimiento
+لم تستحق|Not due|No vencido
+لم تستحق بعد|Not yet due|Aún no vencido
+متأخرة #–# يوم|#–# days overdue|#–# días de atraso
+متأخرة أكثر من # يوم|Over # days overdue|Más de # días de atraso
+أكبر العملاء رصيداً|Top customers by balance|Principales clientes por saldo
+مستحق من العملاء|Due from customers|Por cobrar a clientes
+أكبر الموردين رصيداً|Top suppliers by balance|Principales proveedores por saldo
+مستحق للموردين|Due to suppliers|Por pagar a proveedores
+قيمة المخزون|Inventory value|Valor del inventario
+حسب حساب المخزون في الشجرة|By inventory account in the chart|Por cuenta de inventario del plan
+أرصدة الخزائن والبنوك|Cashbox and bank balances|Saldos de cajas y bancos
+الرصيد الحالي لكل خزينة وبنك|Current balance of each cashbox and bank|Saldo actual de cada caja y banco
+عرض كجدول|Show as table|Ver como tabla
+عرض كرسم|Show as chart|Ver como gráfico
+لا توجد بيانات في هذه الفترة|No data in this period|Sin datos en este período
+المتبقي|Outstanding|Pendiente
+الشهر|Month|Mes
+الرصيد|Balance|Saldo
+النوع|Type|Tipo
+صافي المبيعات|Net sales|Ventas netas
+المجموعة|Group|Grupo
+الفئة|Bucket|Tramo
+المبلغ|Amount|Importe
+العميل|Customer|Cliente
+المورد|Supplier|Proveedor
+الحساب|Account|Cuenta
+القيمة|Value|Valor
+الخزينة / البنك|Cashbox / bank|Caja / banco
+هامش ربح #%|Profit margin #%|Margen de beneficio #%
+عن الفترة السابقة|vs previous period|vs período anterior
+هامش ربح -#%|Profit margin -#%|Margen de beneficio -#%
+للعملاء # ج.م|Receivables # ج.م|Por cobrar # ج.م
+للموردين # ج.م|Payables # ج.م|Por pagar # ج.م
+كل الفروع|All branches|Todas las sucursales
+غير محدد الفرع|No branch set|Sin sucursal
+— تلقائي —|— Automatic —|— Automático —
+خزائن وبنوك الفرع المختار|Cashboxes and banks of the selected branch|Cajas y bancos de la sucursal seleccionada
+الكمية × التكلفة — حسب حساب المخزون|Quantity × cost — by inventory account|Cantidad × costo — por cuenta de inventario
+فرع السادات|Sadat branch|Sucursal Sadat
+فرع النوبارية|Nubaria branch|Sucursal Nubaria
+المكتب العام|Head office|Oficina central
+مخصص|Custom|Personalizado
+نوع المبيعات|Sales type|Tipo de venta
+كل الأنواع|All types|Todos los tipos
+الفلاتر المطبّقة|Applied filters|Filtros aplicados
+مسح كل الفلاتر|Clear all filters|Borrar todos los filtros
+إزالة الفلتر|Remove filter|Quitar filtro
+💡 اضغط على أي عمود أو شريط لفلترة اللوحة كلها، وعلى مجموعة مصروفات للتعمق في حساباتها.|💡 Click any column or bar to filter the whole dashboard, or an expense group to drill into its accounts.|💡 Haga clic en cualquier columna o barra para filtrar todo el panel, o en un grupo de gastos para profundizar en sus cuentas.
+اضغط على شهر لفلترة اللوحة|Click a month to filter the dashboard|Haga clic en un mes para filtrar el panel
+اضغط للفلترة|Click to filter|Clic para filtrar
+اضغط لإلغاء الفلتر|Click to remove filter|Clic para quitar el filtro
+اضغط لعرض حسابات المجموعة|Click to see the group's accounts|Clic para ver las cuentas del grupo
+اضغط للتعمق في الحساب|Click to drill into the account|Clic para profundizar en la cuenta
+صافي بعد المردودات — اضغط للفلترة|Net of returns — click to filter|Neto de devoluciones — clic para filtrar
+إجمالي # — اضغط للتعمق|Total # — click to drill down|Total # — clic para profundizar
+إجمالي # — حسب الحساب|Total # — by account|Total # — por cuenta
+إجمالي # ج.م — اضغط للتعمق|Total # ج.م — click to drill down|Total # ج.م — clic para profundizar
+إجمالي # ج.م — حسب الحساب|Total # ج.م — by account|Total # ج.م — por cuenta
+أكثر الأصناف مبيعاً|Top-selling items|Artículos más vendidos
+قيمة البنود في فواتير الفترة|Line value in the period's invoices|Valor de líneas en las facturas del período
+المتبقي على فواتير الفلاتر — اضغط للفلترة|Outstanding on filtered invoices — click to filter|Pendiente en facturas filtradas — clic para filtrar
+مستحق من العملاء — اضغط للفلترة|Due from customers — click to filter|Por cobrar a clientes — clic para filtrar
+بالأيام بعد الاستحقاق|Days past due|Días después del vencimiento
+خزائن وبنوك الفرع في نهاية كل شهر|Branch cashboxes and banks at each month end|Cajas y bancos de la sucursal al cierre de cada mes
+صافي المبيعات|Net sales|Ventas netas
+الحركات|Transactions|Movimientos
+الحركات التفصيلية|Detailed transactions|Movimientos detallados
+جدول|Table|Tabla
+تكبير|Expand|Ampliar
+تصغير|Collapse|Reducir
+تصدير Excel|Export to Excel|Exportar a Excel
+القيود: الإيرادات والمصروفات|Entries: revenue and expenses|Asientos: ingresos y gastos
+فواتير المبيعات|Sales invoices|Facturas de venta
+الفواتير المفتوحة|Open invoices|Facturas abiertas
+الفواتير المفتوحة حسب العمر|Open invoices by age|Facturas abiertas por antigüedad
+لا توجد بيانات بهذه الفلاتر|No data for these filters|Sin datos con estos filtros
+لا توجد حركات بهذه الفلاتر|No transactions for these filters|Sin movimientos con estos filtros
+فتح المستند|Open document|Abrir documento
+رقم القيد|Entry no.|N.º de asiento
+المصدر|Source|Origen
+إيراد|Revenue|Ingreso
+مصروف|Expense|Gasto
+الإجمالي|Total|Total
+الصنف|Item|Artículo
+كل المصروفات|All expenses|Todos los gastos
+→ كل المصروفات|→ All expenses|→ Todos los gastos
+مصروفات:|Expenses:|Gastos:
+هيكل المصروفات ›|Expense structure ›|Estructura de gastos ›
+الشهر|Month|Mes
+النقدية # ج.م|Cash # ج.م|Efectivo # ج.م
+للعملاء # ج.م|Receivables # ج.م|Por cobrar # ج.م
+الرئيسية|Home|Inicio
+اختصارات|Shortcuts|Accesos directos
+ليست لديك صلاحية لهذه الشاشة|You don't have permission for this screen|No tiene permiso para esta pantalla
+📌 تم تثبيت القائمة|📌 Menu pinned|📌 Menú fijado
+القائمة غير مثبتة — مرّر الماوس على حافة الشاشة أو اضغط ☰ لفتحها|Menu unpinned — hover the screen edge or press ☰ to open it|Menú sin fijar — pase el ratón por el borde de la pantalla o pulse ☰ para abrirlo
+إلغاء تثبيت القائمة|Unpin menu|Desfijar menú
+تثبيت القائمة|Pin menu|Fijar menú
+بحث…|Search…|Buscar…
+ابحث في كل القائمة: حساب، تقرير، مخزن…|Search the whole menu: account, report, warehouse…|Buscar en todo el menú: cuenta, informe, almacén…
+حفظ اسم المستخدم وكلمة المرور على هذا الجهاز|Save username and password on this device|Guardar usuario y contraseña en este dispositivo
+🔐 كلمة المرور محفوظة على هذا الجهاز — اضغط "تسجيل الدخول"|🔐 Password saved on this device — press "Sign in"|🔐 Contraseña guardada en este dispositivo — pulse "Iniciar sesión"
+كلمة المرور المحفوظة لم تعد صالحة (ربما تم تغييرها) — اكتبها من جديد|The saved password is no longer valid (it may have changed) — type it again|La contraseña guardada ya no es válida (quizá cambió) — escríbala de nuevo
+اسم الحساب|Account name|Nombre de la cuenta
+اسم العميل|Customer name|Nombre del cliente
+رقم المستند|Document no.|N.º de documento
+كود الصنف|Item code|Código del artículo
+اسم الصنف|Item name|Nombre del artículo
+نوع الصنف|Item variety|Variedad del artículo
+أنواع الصنف|Item varieties|Variedades del artículo
+مثال: ايرلي سويت، فليم، كريمسون|e.g. Early Sweet, Flame, Crimson|p. ej. Early Sweet, Flame, Crimson
+اختر النوع|Choose variety|Elegir variedad
+العدد|Count|Cantidad (unidades)
+وزن الوحدة|Unit weight|Peso unitario
+إجمالي الوزن|Total weight|Peso total
+الخصم|Discount|Descuento
+قيمة مواد التعبئة|Packaging value|Valor del embalaje
+مواد التعبئة|Packaging|Embalaje
+إجمالي القيمة (مدين)|Total value (debit)|Valor total (debe)
+إيرادات مواد التعبئة|Packaging revenue|Ingresos por embalaje
+− الخصم|− Discount|− Descuento
++ مواد التعبئة|+ Packaging|+ Embalaje
+الكود|Code|Código
+اكتب اسم الصنف|Type item name|Escriba el nombre del artículo
+اختر اسم العميل|Choose the customer name|Elija el nombre del cliente
+# عميل جديد|# new customers|# clientes nuevos
+# صنف جديد|# new items|# artículos nuevos
+# نوع صنف جديد|# new item varieties|# variedades nuevas
+فاتورة البيع الأصلية|Original sales invoice|Factura de venta original
+إجمالي القيمة (دائن)|Total value (credit)|Valor total (haber)
+سعر الوحدة|Unit price|Precio unitario
+سعة الوحدة|Unit capacity|Capacidad de la unidad
+إجمالي القيمة|Total value|Valor total
+إجمالي مدين|Total debit|Total debe
+كل الصفوف|All rows|Todas las filas
+الأخطاء فقط|Errors only|Solo errores
+→ السابق|→ Previous|→ Anterior
+التالي ←|Next ←|Siguiente ←
+تنزيل الصفوف الخاطئة (Excel)|Download error rows (Excel)|Descargar filas con error (Excel)
+أو صحّح الملف واختره من جديد.|Or fix the file and choose it again.|O corrija el archivo y vuelva a elegirlo.
+سيتم تكويد تلقائياً:|Will be coded automatically:|Se codificará automáticamente:
+لا توجد صفوف|No rows|Sin filas
+ريجوا|Regwa|Regwa
+النموذجيه|Al-Namozagiya|Al-Namozagiya
+الفيوم|Fayoum|Fayún
+اعتماد المحدد|Approve selected|Aprobar seleccionados
+تحديد الكل|Select all|Seleccionar todo
+كل المستندات|All documents|Todos los documentos
+لم يكتمل حفظ البيانات بعد|Data is not fully saved yet|Los datos aún no se han guardado por completo
+الحفظ متوقف لحظياً (حد سرعة قاعدة البيانات) ويُستأنف تلقائياً — متبقي # سجل، لا تغلق الصفحة|Saving briefly paused (database rate limit) and will resume automatically — # records left, keep the page open|Guardado en pausa (límite de la base de datos), se reanudará solo — quedan # registros, no cierre la página
+جارٍ الحفظ… متبقي # سجل — لا تغلق الصفحة|Saving… # records left — keep the page open|Guardando… quedan # registros — no cierre la página
+تقارير المبيعات التفصيلية|Detailed sales reports|Informes de ventas detallados
+المبيعات حسب الفرع|Sales by branch|Ventas por sucursal
+المبيعات حسب الصنف ونوعه|Sales by item and variety|Ventas por artículo y variedad
+المبيعات حسب الصنف (إجمالي)|Sales by item (total)|Ventas por artículo (total)
+المبيعات حسب العميل والصنف|Sales by customer and item|Ventas por cliente y artículo
+المبيعات حسب الفرع والصنف|Sales by branch and item|Ventas por sucursal y artículo
+كشف المبيعات التفصيلي|Detailed sales statement|Extracto detallado de ventas
+عدد الفواتير|Invoices|Facturas
+متوسط السعر|Average price|Precio medio
+رصيد العميل الحالي|Current customer balance|Saldo actual del cliente
+كل العملاء|All customers|Todos los clientes
+كل الأصناف|All items|Todos los artículos
+كل أنواع المبيعات|All sales types|Todos los tipos de venta
+بدون فرع|No branch|Sin sucursal
+مسح الفلاتر|Clear filters|Borrar filtros
+(مردود)|(return)|(devolución)
+تقرير المبيعات|Sales report|Informe de ventas
+نوع التقرير:|Report type:|Tipo de informe:
+إجمالي|Summary|Resumen
+تفصيلي (سطر لكل صنف)|Detailed (one line per item)|Detallado (una línea por artículo)
+تجميع #|Group by #|Agrupar #
+— بدون تجميع —|— No grouping —|— Sin agrupar —
+— لا شيء —|— None —|— Ninguno —
+الأعمدة:|Columns:|Columnas:
+الصنف ونوعه|Item and variety|Artículo y variedad
+اليوم|Day|Día
+كل المبيعات|All sales|Todas las ventas
+تقرير المشتريات|Purchases report|Informe de compras
+عدد المستندات|Documents|Documentos
+حساب المورد (نوعه)|Supplier account (type)|Cuenta del proveedor (tipo)
+الصنف / الحساب|Item / account|Artículo / cuenta
+الصافي (دائن للمورد)|Net (credit to supplier)|Neto (haber del proveedor)
+نوع المستند|Document type|Tipo de documento
+كل المستندات|All documents|Todos los documentos
+كل الموردين|All suppliers|Todos los proveedores
+استحقاق مورد|Supplier accrual|Devengo de proveedor
+كل المشتريات|All purchases|Todas las compras
+تفصيلي (سطر لكل مستند / صنف)|Detailed (one line per document / item)|Detallado (una línea por documento / artículo)
+متوسط السعر (مدين ÷ الوزن)|Average price (debit ÷ weight)|Precio medio (debe ÷ peso)
