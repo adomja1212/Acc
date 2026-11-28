@@ -214,3 +214,6 @@
 اختر الشهر (مثال: أكتوبر-2026)|Choose the month (e.g. October-2026)|Elija el mes (p. ej. octubre-2026)
 اكتب الفترة (مثال: من 1-7-2026 إلى 7-7-2026)|Type the period (e.g. from 1-7-2026 to 7-7-2026)|Escriba el periodo (p. ej. del 1-7-2026 al 7-7-2026)
 الفترة / المستند|Period / document|Periodo / documento
+الفترة|Period|Periodo
+نص أو تاريخ — مثال: من 1-7-2026 إلى 7-7-2026 أو أكتوبر-2026|Text or date — e.g. from 1-7-2026 to 7-7-2026 or October-2026|Texto o fecha — p. ej. del 1-7-2026 al 7-7-2026 u octubre-2026
+اكتب الفترة (نص أو تاريخ — مثال: من 1-7-2026 إلى 7-7-2026 أو أكتوبر-2026)|Type the period (text or date — e.g. from 1-7-2026 to 7-7-2026 or October-2026)|Escriba el periodo (texto o fecha — p. ej. del 1-7-2026 al 7-7-2026 u octubre-2026)
