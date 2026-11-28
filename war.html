@@ -1773,8 +1773,10 @@ async function selfUpdate(){ const U=window.Capacitor&&window.Capacitor.Plugins&
  if(!WAR_BUILD||!navigator.onLine) return;
  try{ const r=await fetch('https://api.github.com/repos/adomja1212/Acc/releases/latest',{cache:'no-store'}); if(!r.ok) return; const d=await r.json();
   const n=+((String(d.tag_name||'').match(/\d+/)||[0])[0]); const a=(d.assets||[]).find(x=>x.name==='street-war-web.zip'); if(!(n>WAR_BUILD)||!a) return;
+         // the updater only accepts a download whose SHA-256 matches: GitHub publishes it with each release file
+         const sum=String(a.digest||'').replace(/^sha256:/,'').toLowerCase(); if(!/^[0-9a-f]{64}$/.test(sum)) return;
   const mb=Math.round((a.size||0)/1e6), go=async()=>{ updBar('⬇️ بننزّل التحديث الجديد ('+AD(mb)+' ميجا)…');
-   try{ const b=await U.download({url:a.browser_download_url,version:String(n)}); if(state==='lobby'||state==='room'){ updBar('✅ اتحدثت! بنفتح النسخة الجديدة'); setTimeout(()=>U.set({id:b.id}),1500); } else { await U.next({id:b.id}); updBar('✅ التحديث جاهز، هيشتغل أول ما تقفل اللعبة وتفتحها'); } }
+   try{ const b=await U.download({url:a.browser_download_url,version:String(n),checksum:sum}); if(state==='lobby'||state==='room'){ updBar('✅ اتحدثت! بنفتح النسخة الجديدة'); setTimeout(()=>U.set({id:b.id}),1500); } else { await U.next({id:b.id}); updBar('✅ التحديث جاهز، هيشتغل أول ما تقفل اللعبة وتفتحها'); } }
    catch(e){ updBar('مقدرناش ننزّل التحديث دلوقتي، هنحاول تاني بعدين'); } };
   const c=navigator.connection; if(c&&c.type==='cellular') updBar('في تحديث جديد ('+AD(mb)+' ميجا)',{t:'نزّله',f:go}); else go(); }catch(e){} }
 setTimeout(selfUpdate,4000);
